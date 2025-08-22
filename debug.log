@@ -1,0 +1,55 @@
+debug 2025/10/11 17:31:02 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:31:02 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:31:02 closing streaming command
+debug 2025/10/11 17:31:02 killing process due to context cancellation
+debug 2025/10/11 17:31:02 waiting for command to finish
+debug 2025/10/11 17:33:49 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:33:49 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:33:49 closing streaming command
+debug 2025/10/11 17:33:49 killing process due to context cancellation
+debug 2025/10/11 17:33:49 waiting for command to finish
+debug 2025/10/11 17:33:57 Starting streaming revisions with tag: 2
+debug 2025/10/11 17:33:57 Starting streaming revisions message received with tag: 2 revision to select: 
+debug 2025/10/11 17:33:57 closing streaming command
+debug 2025/10/11 17:33:57 killing process due to context cancellation
+debug 2025/10/11 17:33:57 waiting for command to finish
+debug 2025/10/11 17:34:59 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:34:59 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:34:59 closing streaming command
+debug 2025/10/11 17:34:59 killing process due to context cancellation
+debug 2025/10/11 17:34:59 waiting for command to finish
+debug 2025/10/11 17:36:56 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:36:56 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:36:56 closing streaming command
+debug 2025/10/11 17:36:56 killing process due to context cancellation
+debug 2025/10/11 17:36:56 waiting for command to finish
+debug 2025/10/11 17:37:25 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:37:25 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:37:25 closing streaming command
+debug 2025/10/11 17:37:25 killing process due to context cancellation
+debug 2025/10/11 17:37:25 waiting for command to finish
+debug 2025/10/11 17:43:39 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:43:39 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:43:39 closing streaming command
+debug 2025/10/11 17:43:39 killing process due to context cancellation
+debug 2025/10/11 17:43:39 waiting for command to finish
+debug 2025/10/11 17:44:35 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:44:35 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:44:35 closing streaming command
+debug 2025/10/11 17:44:35 killing process due to context cancellation
+debug 2025/10/11 17:44:35 waiting for command to finish
+debug 2025/10/11 17:46:04 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:46:04 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:46:04 closing streaming command
+debug 2025/10/11 17:46:04 killing process due to context cancellation
+debug 2025/10/11 17:46:04 waiting for command to finish
+debug 2025/10/11 17:50:29 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:50:29 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:50:29 closing streaming command
+debug 2025/10/11 17:50:29 killing process due to context cancellation
+debug 2025/10/11 17:50:29 waiting for command to finish
+debug 2025/10/11 17:50:48 Starting streaming revisions with tag: 1
+debug 2025/10/11 17:50:48 Starting streaming revisions message received with tag: 1 revision to select: @
+debug 2025/10/11 17:50:48 closing streaming command
+debug 2025/10/11 17:50:48 killing process due to context cancellation
+debug 2025/10/11 17:50:48 waiting for command to finish

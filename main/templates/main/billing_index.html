@@ -58,8 +58,12 @@
         Currently on <strong>Premium Plan</strong>.
     </p>
     <ul>
+        {% if current_period_start %}
         <li>Last payment of $9 was charged {{ current_period_start|date:"F j, Y" }}.</li>
+        {% endif %}
+        {% if current_period_end %}
         <li>Next payment will be at {{ current_period_end|date:"F j, Y" }}.</li>
+        {% endif %}
         <li>$0.45 – 5% of your previous payment was used to <a href="https://climate.stripe.com/QPSBFx">fund CO₂ removal</a>.</li>
     </ul>
     {% endif %}
