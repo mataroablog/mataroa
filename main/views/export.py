@@ -79,9 +79,7 @@ def export_zola(request):
             zola_config_file.read()
             .replace("example.com", f"{request.user.username}.mataroa.blog")
             .replace("Example blog title", f"{request.user.username} blog")
-            .replace(
-                "Example blog description", f"{request.user.blog_byline or ''}"
-            )
+            .replace("Example blog description", f"{request.user.blog_byline or ''}")
         )
     with open("./export_base_zola/style.css") as zola_styles_file:
         zola_styles = zola_styles_file.read()
@@ -100,9 +98,7 @@ def export_zola(request):
     for p in posts:
         pub_date = p.published_at or p.created_at.date()
         title = p.slug + ".md"
-        body = prepend_zola_frontmatter(
-            p.body, util.escape_quotes(p.title), pub_date
-        )
+        body = prepend_zola_frontmatter(p.body, util.escape_quotes(p.title), pub_date)
         export_posts.append((title, io.BytesIO(body.encode())))
 
     # create zip archive in memory
@@ -116,9 +112,7 @@ def export_zola(request):
         export_archive.writestr(export_name + "/templates/index.html", zola_index)
         export_archive.writestr(export_name + "/templates/post.html", zola_post)
         export_archive.writestr(export_name + "/templates/404.html", zola_404)
-        export_archive.writestr(
-            export_name + "/content/_index.md", zola_content_index
-        )
+        export_archive.writestr(export_name + "/content/_index.md", zola_content_index)
         for file_name, data in export_posts:
             export_archive.writestr(
                 export_name + "/content/" + file_name, data.getvalue()
@@ -175,9 +169,7 @@ def export_hugo(request):
         zip_buffer, "a", zipfile.ZIP_DEFLATED, False
     ) as export_archive:
         export_archive.writestr(export_name + "/config.toml", hugo_config)
-        export_archive.writestr(
-            export_name + "/themes/mataroa/theme.toml", hugo_theme
-        )
+        export_archive.writestr(export_name + "/themes/mataroa/theme.toml", hugo_theme)
         export_archive.writestr(
             export_name + "/themes/mataroa/static/style.css", hugo_styles
         )
@@ -375,8 +367,7 @@ def export_epub(request):
     toc_xhtml_body = ""
     for chapter in content_chapters:
         toc_xhtml_body += (
-            f'      <li><a href="{chapter["link"]}">{chapter["title"]}</a></li>'
-            + "\n"
+            f'      <li><a href="{chapter["link"]}">{chapter["title"]}</a></li>' + "\n"
         )
     with open("./export_base_epub/toc.xhtml") as toc_xhtml_file:
         toc_xhtml_content = toc_xhtml_file.read()
@@ -418,9 +409,7 @@ def export_epub(request):
             '<meta name="dtb:uid" content=""/>',
             f'<meta name="dtb:uid" content="{epub_uuid}"/>',
         )
-        toc_ncx_content = toc_ncx_content.replace(
-            "<!-- nav points -->", toc_ncx_body
-        )
+        toc_ncx_content = toc_ncx_content.replace("<!-- nav points -->", toc_ncx_body)
 
     # create zip archive in memory
     export_name = "export-book-" + epub_uuid[:8]
@@ -447,9 +436,7 @@ def export_epub(request):
         export_archive.writestr(
             "OEBPS/titlepage.xhtml", _get_epub_titlepage(request.user)
         )
-        export_archive.writestr(
-            "OEBPS/author.xhtml", _get_epub_author(request.user)
-        )
+        export_archive.writestr("OEBPS/author.xhtml", _get_epub_author(request.user))
 
     response = HttpResponse(zip_buffer.getvalue(), content_type="application/epub")
     response["Content-Disposition"] = f"attachment; filename={export_name}.epub"

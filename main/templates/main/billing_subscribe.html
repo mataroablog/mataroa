@@ -15,7 +15,7 @@
 <main>
     <h1>Subscribe to Premium</h1>
 
-    <form id="payment-form" data-secret="{{ client_secret }}">
+    <form id="payment-form" data-secret="{{ stripe_client_secret }}">
 
         <div id="payment-element">
             {# stripe.js will create stripe elements forms here #}
@@ -87,7 +87,7 @@
 
         // add loading message
         const loadingContainer = document.querySelector('#loading-message');
-        loadingContainer.textContent = 'Submitting...';
+        loadingContainer.textContent = 'Charging card using Stripe, this should take less than 10 seconds...';
 
         // clear error if exists
         const messageContainer = document.querySelector('#error-message');

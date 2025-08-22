@@ -333,21 +333,21 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bleach", extras = ["css"], specifier = ">=6.2.0" },
-    { name = "django", specifier = ">=5.2.5" },
-    { name = "gunicorn", specifier = ">=23.0.0" },
-    { name = "markdown", specifier = ">=3.8.2" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.2.9" },
-    { name = "pygments", specifier = ">=2.19.2" },
-    { name = "stripe", specifier = ">=12.4.0" },
+    { name = "bleach", extras = ["css"], specifier = "==6.2.0" },
+    { name = "django", specifier = "==5.2.5" },
+    { name = "gunicorn", specifier = "==23.0.0" },
+    { name = "markdown", specifier = "==3.8.2" },
+    { name = "psycopg", extras = ["binary"], specifier = "==3.2.9" },
+    { name = "pygments", specifier = "==2.19.2" },
+    { name = "stripe", specifier = "==13.0.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "ansible", specifier = ">=11.8.0" },
-    { name = "coverage", specifier = ">=7.10.2" },
-    { name = "djade", specifier = ">=1.4.0" },
-    { name = "ruff", specifier = ">=0.12.8" },
+    { name = "ansible", specifier = "==11.8.0" },
+    { name = "coverage", specifier = "==7.10.2" },
+    { name = "djade", specifier = "==1.4.0" },
+    { name = "ruff", specifier = "==0.12.8" },
 ]
 
 [[package]]
@@ -489,15 +489,15 @@ wheels = [
 
 [[package]]
 name = "stripe"
-version = "12.4.0"
+version = "13.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/48/98caed87572968a6f4077507080b64d21763e2b6109c26e7e994a65dbcb2/stripe-12.4.0.tar.gz", hash = "sha256:1cd1f5b0579867923081bacf594959d1f403f218223a06dc38273beb07d01567", size = 1414724, upload-time = "2025-07-30T17:25:53.206Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/36/edac714e44a1a0048e74cc659b6070b42dd7027473e8f9f06a727b3860b6/stripe-13.0.1.tar.gz", hash = "sha256:5869739430ff73bd9cd81275abfb79fd4089e97e9fd98d306a015f5defd39a0d", size = 1263853, upload-time = "2025-10-03T19:37:17.335Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/23/75/a513c6e3262e31d55b93d073629aaf6667c39ca3c00ff3d2e3cfc2d5cff1/stripe-12.4.0-py2.py3-none-any.whl", hash = "sha256:10720fcbf075a0b4e3eefb209a005c94564ac0f6166d284ff3164439f39af86c", size = 1654255, upload-time = "2025-07-30T17:25:50.864Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/ac/a911f3c850420ab42447f5c049f570e55f34e0aa0b2e6a1d1a059a5656c4/stripe-13.0.1-py3-none-any.whl", hash = "sha256:7804cee14580ab37bbc1e5f6562e49dea0686ab3cb34384eb9386387ed8ebd0c", size = 1849008, upload-time = "2025-10-03T19:37:14.953Z" },
 ]
 
 [[package]]

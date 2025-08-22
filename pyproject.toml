@@ -5,21 +5,21 @@ description = "Mataroa is a simple blogging platform."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "bleach[css]>=6.2.0",
-    "django>=5.2.5",
-    "gunicorn>=23.0.0",
-    "markdown>=3.8.2",
-    "psycopg[binary]>=3.2.9",
-    "pygments>=2.19.2",
-    "stripe>=12.4.0",
+    "bleach[css]==6.2.0",
+    "django==5.2.5",
+    "gunicorn==23.0.0",
+    "markdown==3.8.2",
+    "psycopg[binary]==3.2.9",
+    "pygments==2.19.2",
+    "stripe==13.0.1",
 ]
 
 [dependency-groups]
 dev = [
-    "ansible>=11.8.0",
-    "coverage>=7.10.2",
-    "djade>=1.4.0",
-    "ruff>=0.12.8",
+    "ansible==11.8.0",
+    "coverage==7.10.2",
+    "djade==1.4.0",
+    "ruff==0.12.8",
 ]
 
 [tool.ruff.lint]

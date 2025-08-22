@@ -1,0 +1,14 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Resume subscription — {{ request.user.username }}{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Resume Premium subscription?</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Yes, resume subscription">
+    </form>
+</main>
+{% endblock content %}

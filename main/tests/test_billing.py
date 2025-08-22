@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import stripe
@@ -35,7 +36,7 @@ class BillingIndexGrandfatherTestCase(TestCase):
         self.client.force_login(self.user)
 
     def test_index(self):
-        response = self.client.get(reverse("billing_index"))
+        response = self.client.get(reverse("billing_overview"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, b"Grandfather Plan")
 
@@ -70,7 +71,7 @@ class BillingIndexFreeTestCase(TestCase):
             ),
             patch.object(billing, "_get_invoices"),
         ):
-            response = self.client.get(reverse("billing_index"))
+            response = self.client.get(reverse("billing_overview"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, b"Free Plan")
 
@@ -102,7 +103,7 @@ class BillingIndexPremiumTestCase(TestCase):
             patch.object(billing, "_get_payment_methods"),
             patch.object(billing, "_get_invoices"),
         ):
-            response = self.client.get(reverse("billing_index"))
+            response = self.client.get(reverse("billing_overview"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, b"Premium Plan")
@@ -181,7 +182,7 @@ class BillingCancelSubscriptionTestCase(TestCase):
 
     def test_cancel_subscription_post(self):
         with (
-            patch.object(stripe.Subscription, "delete"),
+            patch.object(stripe.Subscription, "modify"),
             patch.object(
                 billing,
                 "_get_stripe_subscription",
@@ -191,7 +192,8 @@ class BillingCancelSubscriptionTestCase(TestCase):
             response = self.client.post(reverse("billing_subscription_cancel"))
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(models.User.objects.get(id=self.user.id).is_premium)
+        # user keeps premium until end of period
+        self.assertTrue(models.User.objects.get(id=self.user.id).is_premium)
 
 
 class BillingCancelSubscriptionTwiceTestCase(TestCase):
@@ -217,13 +219,13 @@ class BillingCancelSubscriptionTwiceTestCase(TestCase):
         ):
             response = self.client.get(reverse("billing_subscription_cancel"))
 
-            # need to check inside with context because billing_index needs
+            # need to check inside with context because billing_overview needs
             # __get_stripe_subscription patch
-            self.assertRedirects(response, reverse("billing_index"))
+            self.assertRedirects(response, reverse("billing_overview"))
 
     def test_cancel_subscription_post(self):
         with (
-            patch.object(stripe.Subscription, "delete"),
+            patch.object(stripe.Subscription, "modify"),
             patch.object(
                 billing,
                 "_get_stripe_subscription",
@@ -240,7 +242,7 @@ class BillingCancelSubscriptionTwiceTestCase(TestCase):
         ):
             response = self.client.post(reverse("billing_subscription_cancel"))
 
-            self.assertRedirects(response, reverse("billing_index"))
+            self.assertRedirects(response, reverse("billing_overview"))
             self.assertFalse(models.User.objects.get(id=self.user.id).is_premium)
 
 
@@ -290,5 +292,86 @@ class BillingReenableSubscriptionTestCase(TestCase):
         ):
             response = self.client.post(reverse("billing_subscription"))
 
-            self.assertRedirects(response, reverse("billing_index"))
-            self.assertTrue(models.User.objects.get(id=self.user.id).is_premium)
+            self.assertRedirects(response, reverse("billing_overview"))
+            # premium should not be enabled immediately; webhook will enable after successful charge
+            self.assertFalse(models.User.objects.get(id=self.user.id).is_premium)
+
+
+class BillingWebhookTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice",
+            stripe_customer_id="cus_abc123",
+        )
+        self.client.force_login(self.user)
+
+    def test_invoice_payment_succeeded_enables_premium_and_approved(self):
+        invoice_obj = SimpleNamespace(customer="cus_abc123")
+        event = SimpleNamespace(
+            type="invoice.payment_succeeded",
+            data=SimpleNamespace(object=invoice_obj),
+        )
+        with (
+            patch.object(stripe.Webhook, "construct_event", return_value=event),
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=1,v1=dummy",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        user = models.User.objects.get(id=self.user.id)
+        self.assertTrue(user.is_premium)
+        self.assertTrue(user.is_approved)
+
+    def test_customer_subscription_deleted_downgrades_and_clears_subscription(self):
+        self.user.is_premium = True
+        self.user.stripe_subscription_id = "sub_123"
+        self.user.save()
+
+        sub_obj = SimpleNamespace(customer="cus_abc123")
+        event = SimpleNamespace(
+            type="customer.subscription.deleted",
+            data=SimpleNamespace(object=sub_obj),
+        )
+        with (
+            patch.object(stripe.Webhook, "construct_event", return_value=event),
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=1,v1=dummy",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        user = models.User.objects.get(id=self.user.id)
+        self.assertFalse(user.is_premium)
+        self.assertIsNone(user.stripe_subscription_id)
+
+    def test_signature_verification_failure_returns_400(self):
+        def _raise_sig_error(*args, **kwargs):
+            raise stripe.error.SignatureVerificationError(
+                message="bad signature",
+                sig_header="t=1,v1=bad",
+                http_body=b"{}",
+            )
+
+        with (
+            patch.object(
+                stripe.Webhook, "construct_event", side_effect=_raise_sig_error
+            ),
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=1,v1=bad",
+            )
+
+        self.assertEqual(response.status_code, 400)
