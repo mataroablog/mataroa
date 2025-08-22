@@ -13,20 +13,19 @@ services:
     ports:
       - "5432:5432"
   web:
-    command: >
-      bash -c "uv run --active python manage.py migrate && \
-               uv run --active python manage.py collectstatic --noinput && \
-               uv run --active python manage.py runserver 0.0.0.0:8000"
     build: .
-    image: mataroa
+    command: >
+      sh -c "uv run --active python manage.py migrate &&
+             uv run --active python manage.py collectstatic --noinput &&
+             uv run --active python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DEBUG: 1
+      LOCALDEV: 1
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
     volumes:
-      - .:/code
+      - .:/app
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      DEBUG: 1
-      LOCALDEV: 1
-      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres

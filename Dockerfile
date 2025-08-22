@@ -1,28 +1,15 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.13
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONFAULTHANDLER=1 \
-    VIRTUAL_ENV=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONFAULTHANDLER=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
-RUN pip install uv
+WORKDIR /app
+ADD https://astral.sh/uv/0.8.13/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh
+ENV PATH="/root/.local/bin/:$PATH"
 
-# Create the virtual environment directory
-RUN python -m venv $VIRTUAL_ENV
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --frozen --no-cache
 
-WORKDIR /code
-
-COPY pyproject.toml uv.lock /code/
-
-RUN uv sync --all-groups --project .
-
-RUN rm -rf /code/pyproject.toml /code/uv.lock
-
-# mount local code over /code, but /opt/venv remains untouched
-COPY . /code/
-
-# Expose port 8000 for the Django development server
-EXPOSE 8000
-
-# Command to run the Django development server (can be overridden by docker-compose.yml)
-CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+COPY . .
