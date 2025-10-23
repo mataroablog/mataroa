@@ -15,7 +15,7 @@ Archives at
 ### Tools
 
 * [mataroa-cli](https://github.com/mataroablog/mataroa-cli)
-* [Mataroa Telegram Bot](https://github.com/Unknowing9428/Mataroa-Telegram-Bot)
+* [Mataroa Telegram Bot](https://github.com/jorphex/Mataroa-Telegram-Bot)
 
 ## Contributing
 
