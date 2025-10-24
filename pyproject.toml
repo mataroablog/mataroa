@@ -8,6 +8,7 @@ dependencies = [
     "bleach[css]>=6.2.0",
     "django>=5.2.5",
     "gunicorn>=23.0.0",
+    "l2m4m>=1.0.4",
     "markdown>=3.8.2",
     "psycopg[binary]>=3.2.9",
     "pygments>=2.19.2",
