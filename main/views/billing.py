@@ -25,6 +25,18 @@ from main import forms, models, util
 logger = logging.getLogger(__name__)
 
 
+def _safe_get(obj, key, default=None):
+    """Safely get attribute or dict key from Stripe objects or dicts."""
+    if obj is None:
+        return default
+    try:
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+    except Exception:
+        return default
+
+
 def _create_setup_intent(customer_id):
     stripe.api_key = settings.STRIPE_API_KEY
 
@@ -59,15 +71,94 @@ def _create_stripe_subscription(customer_id):
             payment_settings={"save_default_payment_method": "on_subscription"},
             expand=["latest_invoice.payment_intent"],
         )
+        logger.info(f"Created subscription: {stripe_subscription.get('id')}")
     except stripe.error.StripeError as ex:
         logger.error(str(ex))
         raise Exception("Failed to create subscription on Stripe.") from ex
 
+    client_secret = None
+    latest_invoice = _safe_get(stripe_subscription, "latest_invoice")
+    logger.info(f"Latest invoice: {latest_invoice}")
+
+    try:
+        if latest_invoice:
+            # If latest_invoice is expanded, try to read client_secret directly
+            payment_intent = _safe_get(latest_invoice, "payment_intent")
+            logger.info(f"Payment intent from invoice: {payment_intent}")
+            if payment_intent:
+                # Payment intent may be an object or an ID
+                client_secret = _safe_get(payment_intent, "client_secret")
+                logger.info(f"Client secret from payment intent: {client_secret}")
+                if not client_secret:
+                    pi_id = _safe_get(payment_intent, "id") or (
+                        payment_intent if isinstance(payment_intent, str) else None
+                    )
+                    logger.info(f"Payment intent ID: {pi_id}")
+                    if pi_id:
+                        pi = stripe.PaymentIntent.retrieve(pi_id)
+                        client_secret = _safe_get(pi, "client_secret")
+                        logger.info(f"Client secret after retrieval: {client_secret}")
+            else:
+                # latest_invoice may be an ID; retrieve with expand
+                inv_id = _safe_get(latest_invoice, "id") or (
+                    latest_invoice if isinstance(latest_invoice, str) else None
+                )
+                if inv_id:
+                    inv = stripe.Invoice.retrieve(inv_id, expand=["payment_intent"])
+                    pi = _safe_get(inv, "payment_intent")
+                    if pi:
+                        client_secret = _safe_get(pi, "client_secret")
+                        if not client_secret:
+                            pi_id = _safe_get(pi, "id") or (
+                                pi if isinstance(pi, str) else None
+                            )
+                            if pi_id:
+                                pi_obj = stripe.PaymentIntent.retrieve(pi_id)
+                                client_secret = _safe_get(pi_obj, "client_secret")
+        # As a final fallback, refetch the subscription expanded
+        if not client_secret:
+            sub = stripe.Subscription.retrieve(
+                _safe_get(stripe_subscription, "id"),
+                expand=["latest_invoice.payment_intent"],
+            )
+            li = _safe_get(sub, "latest_invoice")
+            pi = _safe_get(li, "payment_intent") if li else None
+            if pi:
+                client_secret = _safe_get(pi, "client_secret")
+                if not client_secret:
+                    pi_id = _safe_get(pi, "id") or (pi if isinstance(pi, str) else None)
+                    if pi_id:
+                        pi_obj = stripe.PaymentIntent.retrieve(pi_id)
+                        client_secret = _safe_get(pi_obj, "client_secret")
+            else:
+                # No payment intent exists, create one for the invoice
+                logger.info("No payment intent found, creating one for the invoice")
+                if li:
+                    invoice_id = _safe_get(li, "id")
+                    if invoice_id:
+                        try:
+                            pi_obj = stripe.PaymentIntent.create(
+                                amount=_safe_get(li, "amount_due"),
+                                currency=_safe_get(li, "currency", "usd"),
+                                customer=_safe_get(stripe_subscription, "customer"),
+                                automatic_payment_methods={"enabled": True},
+                                metadata={"invoice_id": invoice_id},
+                            )
+                            client_secret = _safe_get(pi_obj, "client_secret")
+                            logger.info(f"Created payment intent: {_safe_get(pi_obj, 'id')}, client_secret: {'present' if client_secret else 'missing'}")
+                        except stripe.error.StripeError as pi_ex:
+                            logger.error(f"Failed to create payment intent for invoice {invoice_id}: {str(pi_ex)}")
+    except stripe.error.StripeError as ex:
+        logger.error(
+            "Failed to retrieve payment_intent for subscription %s: %s",
+            _safe_get(stripe_subscription, "id"),
+            str(ex),
+        )
+
+    logger.info(f"Returning subscription data - ID: {_safe_get(stripe_subscription, 'id')}, client_secret: {'present' if client_secret else 'missing'}")
     return {
-        "stripe_subscription_id": stripe_subscription["id"],
-        "stripe_client_secret": stripe_subscription["latest_invoice"]["payment_intent"][
-            "client_secret"
-        ],
+        "stripe_subscription_id": _safe_get(stripe_subscription, "id"),
+        "stripe_client_secret": client_secret,
     }
 
 
@@ -76,8 +167,12 @@ def _get_stripe_subscription(stripe_subscription_id):
 
     try:
         stripe_subscription = stripe.Subscription.retrieve(stripe_subscription_id)
+    except stripe.error.InvalidRequestError as ex:
+        # Subscription doesn't exist
+        logger.warning("Subscription %s not found: %s", stripe_subscription_id, str(ex))
+        return None
     except stripe.error.StripeError as ex:
-        logger.error(str(ex))
+        logger.error("Failed to get subscription %s from Stripe: %s", stripe_subscription_id, str(ex))
         raise Exception("Failed to get subscription from Stripe.") from ex
 
     return stripe_subscription
@@ -188,12 +283,16 @@ def billing_index(request):
     current_period_end = None
     if request.user.stripe_subscription_id:
         subscription = _get_stripe_subscription(request.user.stripe_subscription_id)
-        current_period_start = datetime.utcfromtimestamp(
-            subscription["current_period_start"]
-        )
-        current_period_end = datetime.utcfromtimestamp(
-            subscription["current_period_end"]
-        )
+        # Only access period fields if subscription is active and has these fields
+        if subscription and subscription.get("status") == "active":
+            if subscription.get("current_period_start"):
+                current_period_start = datetime.utcfromtimestamp(
+                    subscription["current_period_start"]
+                )
+            if subscription.get("current_period_end"):
+                current_period_end = datetime.utcfromtimestamp(
+                    subscription["current_period_end"]
+                )
 
     # transform into list of values
     payment_methods = _get_payment_methods(request.user.stripe_customer_id).values()
@@ -217,7 +316,7 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
     form_class = forms.StripeForm
     template_name = "main/billing_subscribe.html"
     success_url = reverse_lazy("billing_index")
-    success_message = "premium subscription enabled"
+    success_message = "payment is processing; premium will be enabled once the charge succeeds"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -227,6 +326,17 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
     def get(self, request, *args, **kwargs):
         stripe.api_key = settings.STRIPE_API_KEY
 
+        # Ensure customer exists
+        if not request.user.stripe_customer_id:
+            try:
+                created = stripe.Customer.create()
+                request.user.stripe_customer_id = _safe_get(created, "id")
+                request.user.save()
+            except stripe.error.StripeError as ex:
+                logger.error("Failed creating customer before subscribe: %s", str(ex))
+                messages.error(request, "payment processor unavailable; please try again later")
+                return redirect("billing_index")
+
         data = _create_stripe_subscription(request.user.stripe_customer_id)
         request.user.stripe_subscription_id = data["stripe_subscription_id"]
         request.user.save()
@@ -235,7 +345,30 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
         url += reverse_lazy("billing_welcome")
 
         context = self.get_context_data()
-        context["stripe_client_secret"] = data["stripe_client_secret"]
+        if not data.get("stripe_client_secret"):
+            # Retry fetching client secret once by refetching invoice->payment_intent
+            try:
+                sub = stripe.Subscription.retrieve(
+                    request.user.stripe_subscription_id,
+                    expand=["latest_invoice.payment_intent"],
+                )
+                latest_invoice = _safe_get(sub, "latest_invoice")
+                pi = _safe_get(latest_invoice, "payment_intent") if latest_invoice else None
+                client_secret_retry = _safe_get(pi, "client_secret") if pi else None
+            except stripe.error.StripeError as ex:
+                logger.error("Retry to fetch payment_intent failed: %s", str(ex))
+                client_secret_retry = None
+
+            if client_secret_retry:
+                data["stripe_client_secret"] = client_secret_retry
+
+        if not data.get("stripe_client_secret"):
+            messages.error(
+                request,
+                "payment could not be initialized; please try again or use a different card",
+            )
+            return redirect("billing_index")
+        context["stripe_client_secret"] = data.get("stripe_client_secret")
         context["stripe_return_url"] = url
 
         return self.render_to_response(context)
@@ -441,15 +574,13 @@ def billing_subscription(request):
 
     data = _create_stripe_subscription(request.user.stripe_customer_id)
     request.user.stripe_subscription_id = data["stripe_subscription_id"]
-    request.user.is_premium = True
-    request.user.is_approved = True
     request.user.save()
-    mail_admins(
-        f"New premium subscriber: {request.user.username}",
-        f"{request.user.blog_absolute_url}\n\n{request.user.blog_url}",
-    )
 
-    messages.success(request, "premium subscription enabled")
+    # Do NOT enable premium here. Wait for payment confirmation via webhook.
+    messages.info(
+        request,
+        "payment is currently processing; premium will be enabled once the charge succeeds",
+    )
     return redirect("billing_index")
 
 
@@ -465,13 +596,15 @@ def billing_welcome(request):
     stripe_intent = stripe.PaymentIntent.retrieve(payment_intent)
 
     if stripe_intent["status"] == "succeeded":
-        request.user.is_premium = True
-        request.user.is_approved = True
-        request.user.save()
-        mail_admins(
-            f"New premium subscriber: {request.user.username}",
-            f"{request.user.blog_absolute_url}\n\n{request.user.blog_url}",
-        )
+        # Charge succeeded during client-side confirmation flow. Enable premium if not already enabled via webhook.
+        if not request.user.is_premium:
+            request.user.is_premium = True
+            request.user.is_approved = True
+            request.user.save()
+            mail_admins(
+                f"New premium subscriber: {request.user.username}",
+                f"{request.user.blog_absolute_url}\n\n{request.user.blog_url}",
+            )
         messages.success(request, "premium subscription enabled")
     elif stripe_intent["status"] == "processing":
         messages.info(request, "payment is currently processing")
@@ -512,23 +645,81 @@ def billing_stripe_webhook(request):
     Handle Stripe webhooks.
     See: https://stripe.com/docs/webhooks
     """
-
+    
+    # Ensure only POST requests are allowed
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    
+    # Get Stripe settings
     stripe.api_key = settings.STRIPE_API_KEY
-    data = json.loads(request.body)
-
+    webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
+    
     try:
-        event = stripe.Event.construct_from(data, stripe.api_key)
-    except ValueError as ex:
-        logger.error(str(ex))
+        # Try to parse the event from Stripe
+        if webhook_secret:
+            # Verify webhook signature
+            sig_header = request.headers.get("Stripe-Signature", "")
+            event = stripe.Webhook.construct_event(
+                payload=request.body,
+                sig_header=sig_header,
+                secret=webhook_secret,
+            )
+        else:
+            # Development mode - skip signature verification
+            data = json.loads(request.body.decode("utf-8"))
+            event = stripe.Event.construct_from(data, stripe.api_key)
+            
+    except (ValueError, stripe.error.SignatureVerificationError) as ex:
+        # Invalid payload or signature
+        logger.error(f"Webhook validation failed: {str(ex)}")
         return HttpResponse(status=400)
+    except Exception as ex:
+        # Unexpected error
+        logger.error(f"Webhook processing error: {str(ex)}")
+        return HttpResponse(status=500)
 
-    if event.type == "payment_intent.created":
-        payment_intent = event.data.object
-        if payment_intent.customer is None:
-            return HttpResponse(status=400)
-        user = models.User.objects.filter(
-            stripe_customer_id=payment_intent.customer.id
-        ).is_premium = True
-        user.save()
+    # Process different webhook event types
+    try:
+        if event.type == "invoice.payment_succeeded":
+            # Handle successful invoice payment (initial or renewals)
+            invoice = event.data.object
+            customer_id = getattr(invoice, "customer", None)
+            if customer_id:
+                # Extract customer ID string
+                customer_id_str = customer_id.id if hasattr(customer_id, "id") else str(customer_id)
+                
+                try:
+                    user = models.User.objects.get(stripe_customer_id=customer_id_str)
+                    # Mark user as premium and approved
+                    if not user.is_premium:
+                        user.is_premium = True
+                        user.is_approved = True
+                        user.save()
+                        mail_admins(
+                            f"New premium subscriber (webhook): {user.username}",
+                            f"{user.blog_absolute_url}\n\n{user.blog_url}",
+                        )
+                except models.User.DoesNotExist:
+                    logger.warning(f"Webhook: user not found for customer_id={customer_id_str}")
 
-    return HttpResponse()
+        elif event.type == "customer.subscription.deleted":
+            # Handle subscription cancellations initiated from Stripe
+            subscription = event.data.object
+            customer_id = getattr(subscription, "customer", None)
+            if customer_id:
+                customer_id_str = customer_id.id if hasattr(customer_id, "id") else str(customer_id)
+                
+                try:
+                    user = models.User.objects.get(stripe_customer_id=customer_id_str)
+                    if user.is_premium:
+                        user.is_premium = False
+                        user.stripe_subscription_id = None
+                        user.save()
+                except models.User.DoesNotExist:
+                    logger.warning(f"Webhook: user not found for customer_id={customer_id_str}")
+
+    except Exception as ex:
+        # Log processing errors but still return 200 to avoid webhook retries
+        logger.error(f"Webhook event processing error: {str(ex)}")
+
+    return HttpResponse(status=200)

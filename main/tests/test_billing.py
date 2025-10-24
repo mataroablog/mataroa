@@ -291,4 +291,5 @@ class BillingReenableSubscriptionTestCase(TestCase):
             response = self.client.post(reverse("billing_subscription"))
 
             self.assertRedirects(response, reverse("billing_index"))
-            self.assertTrue(models.User.objects.get(id=self.user.id).is_premium)
+            # premium should not be enabled immediately; webhook will enable after successful charge
+            self.assertFalse(models.User.objects.get(id=self.user.id).is_premium)

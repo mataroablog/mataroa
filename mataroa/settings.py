@@ -216,6 +216,7 @@ if not DEBUG and not LOCALDEV:
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", "")
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY", "")
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 
 # Translate
@@ -276,6 +277,11 @@ LOGGING = {
         },
         "django.security.DisallowedHost": {
             "handlers": ["console"],
+            "propagate": False,
+        },
+        "main": {
+            "handlers": ["console"],
+            "level": "INFO",
             "propagate": False,
         },
     },
