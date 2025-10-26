@@ -956,3 +956,456 @@ class APICommentDetailMutationsTestCase(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
         )
         self.assertEqual(response.status_code, 404)
+
+
+class APIPagesAnonTestCase(TestCase):
+    """Test cases for anonymous POST / GET on /api/pages/."""
+
+    def test_pages_get(self):
+        response = self.client.get(reverse("api_pages"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_pages_post(self):
+        response = self.client.post(reverse("api_pages"))
+        self.assertEqual(response.status_code, 403)
+
+
+class APIPageAnonTestCase(TestCase):
+    """Test cases for anonymous GET / PATCH / DELETE on /api/pages/<page-slug>/."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        data = {
+            "owner": self.user,
+            "title": "About",
+            "slug": "about",
+            "body": "## About\n\nThis is my about page.",
+        }
+        self.page = models.Page.objects.create(**data)
+
+    def test_page_get(self):
+        response = self.client.get(
+            reverse("api_page", args=(self.page.slug,)),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_page_patch(self):
+        response = self.client.patch(
+            reverse("api_page", args=(self.page.slug,)),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_page_delete(self):
+        response = self.client.delete(
+            reverse("api_page", args=(self.page.slug,)),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+
+class APIPagesListPostTestCase(TestCase):
+    """Test cases for POST /api/pages/ aka page creation."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+
+    def test_pages_post_no_title(self):
+        data = {
+            "slug": "about",
+            "body": "This is my page with no title key",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(models.Page.objects.all().count(), 0)
+
+    def test_pages_post_no_slug(self):
+        data = {
+            "title": "About",
+            "body": "This is my page with no slug key",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(models.Page.objects.all().count(), 0)
+
+    def test_pages_post_no_body(self):
+        data = {
+            "title": "About",
+            "slug": "about",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().first().title, data["title"])
+        self.assertEqual(models.Page.objects.all().first().slug, data["slug"])
+        self.assertEqual(models.Page.objects.all().first().body, "")
+        self.assertEqual(models.Page.objects.all().count(), 1)
+
+    def test_pages_post_duplicate_slug(self):
+        models.Page.objects.create(
+            owner=self.user, title="About", slug="about", body="First about"
+        )
+        data = {
+            "title": "Another About",
+            "slug": "about",
+            "body": "Second about",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+
+    def test_pages_post(self):
+        data = {
+            "title": "About",
+            "slug": "about",
+            "body": "## About\n\nThis is my about page.",
+            "is_hidden": False,
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertEqual(models.Page.objects.all().first().title, data["title"])
+        self.assertEqual(models.Page.objects.all().first().slug, data["slug"])
+        self.assertEqual(models.Page.objects.all().first().body, data["body"])
+        self.assertEqual(models.Page.objects.all().first().is_hidden, data["is_hidden"])
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(
+            response.json()["slug"], models.Page.objects.all().first().slug
+        )
+        self.assertEqual(
+            response.json()["url"],
+            scheme.get_protocol()
+            + models.Page.objects.all().first().get_absolute_url(),
+        )
+
+    def test_pages_post_hidden(self):
+        data = {
+            "title": "Secret",
+            "slug": "secret",
+            "body": "Hidden page",
+            "is_hidden": True,
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertTrue(models.Page.objects.all().first().is_hidden)
+
+
+class APIPagePatchTestCase(TestCase):
+    """Test cases for PATCH /api/pages/<page-slug>/ aka page update."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+
+    def test_page_patch(self):
+        data = {
+            "owner": self.user,
+            "title": "About",
+            "slug": "about",
+            "body": "## About\n\nThis is about me.",
+            "is_hidden": False,
+        }
+        page = models.Page.objects.create(**data)
+        response = self.client.patch(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "About Me",
+                "slug": "about-me",
+                "body": "New about content",
+                "is_hidden": True,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertEqual(models.Page.objects.all().first().title, "About Me")
+        self.assertEqual(models.Page.objects.all().first().slug, "about-me")
+        self.assertEqual(models.Page.objects.all().first().body, "New about content")
+        self.assertTrue(models.Page.objects.all().first().is_hidden)
+        self.assertTrue(response.json()["ok"])
+
+    def test_page_patch_nonexistent_page(self):
+        response = self.client.get(
+            reverse("api_page", args=("nonexistent-page",)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "New Title",
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"ok": False, "error": "Not found."})
+
+    def test_page_patch_no_body(self):
+        data = {
+            "owner": self.user,
+            "title": "About",
+            "slug": "about",
+            "body": "Original content",
+        }
+        page = models.Page.objects.create(**data)
+        response = self.client.patch(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "About Me",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertEqual(models.Page.objects.all().first().title, "About Me")
+        self.assertEqual(models.Page.objects.all().first().body, data["body"])
+
+    def test_page_patch_duplicate_slug(self):
+        models.Page.objects.create(
+            owner=self.user, title="Contact", slug="contact", body="Contact me"
+        )
+        page = models.Page.objects.create(
+            owner=self.user, title="About", slug="about", body="About me"
+        )
+        response = self.client.patch(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "slug": "contact",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(models.Page.objects.all().count(), 2)
+
+    def test_page_patch_other_user_page(self):
+        """Test changing another user's page is not allowed."""
+        user_b = models.User.objects.create(username="bob")
+        data = {
+            "owner": user_b,
+            "title": "Bob's About",
+            "slug": "about",
+            "body": "About Bob",
+        }
+        page = models.Page.objects.create(**data)
+        response = self.client.patch(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "Hi Bob, it's Alice",
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertEqual(models.Page.objects.all().first().title, data["title"])
+
+
+class APIPageGetTestCase(TestCase):
+    """Test cases for GET /api/pages/<page-slug>/ aka page retrieve."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+
+    def test_page_get(self):
+        data = {
+            "owner": self.user,
+            "title": "About",
+            "slug": "about",
+            "body": "## About\n\nAbout me.",
+            "is_hidden": False,
+        }
+        page = models.Page.objects.create(**data)
+        response = self.client.get(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertEqual(models.Page.objects.all().first().title, data["title"])
+        self.assertEqual(models.Page.objects.all().first().body, data["body"])
+        self.assertEqual(models.Page.objects.all().first().slug, data["slug"])
+        self.assertEqual(models.Page.objects.all().first().owner, self.user)
+        self.assertFalse(models.Page.objects.all().first().is_hidden)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(
+            response.json()["url"],
+            scheme.get_protocol()
+            + models.Page.objects.all().first().get_absolute_url(),
+        )
+
+    def test_page_get_nonexistent(self):
+        response = self.client.get(
+            reverse("api_page", args=("nonexistent-page",)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(models.Page.objects.all().count(), 0)
+        self.assertFalse(response.json()["ok"])
+
+
+class APIPageDeleteTestCase(TestCase):
+    """Test cases for DELETE /api/pages/<page-slug>/ aka page deletion."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+
+    def test_page_delete(self):
+        data = {
+            "owner": self.user,
+            "title": "About",
+            "slug": "about",
+            "body": "About me",
+        }
+        page = models.Page.objects.create(**data)
+        response = self.client.delete(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 0)
+        self.assertTrue(response.json()["ok"])
+
+    def test_page_delete_nonexistent(self):
+        response = self.client.delete(
+            reverse("api_page", args=("nonexistent-page",)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(models.Page.objects.all().count(), 0)
+        self.assertFalse(response.json()["ok"])
+
+    def test_page_delete_other_user(self):
+        user_b = models.User.objects.create(username="bob")
+        page = models.Page.objects.create(
+            owner=user_b, title="Bob's About", slug="about", body="About Bob"
+        )
+        response = self.client.delete(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+
+
+class APIPagesListGetTestCase(TestCase):
+    """Test cases for GET /api/pages/ aka page list."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.page_a = models.Page.objects.create(
+            title="About",
+            slug="about",
+            body="## About\n\nAbout me.",
+            owner=self.user,
+        )
+        self.page_b = models.Page.objects.create(
+            title="Contact",
+            slug="contact",
+            body="## Contact\n\nEmail me.",
+            is_hidden=True,
+            owner=self.user,
+        )
+
+    def test_pages_get(self):
+        response = self.client.get(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Page.objects.all().count(), 2)
+        self.assertTrue(response.json()["ok"])
+        page_list = response.json()["page_list"]
+        self.assertEqual(len(page_list), 2)
+        # check both pages are in the list
+        slugs = {p["slug"] for p in page_list}
+        self.assertEqual(slugs, {"about", "contact"})
+
+
+class APISinglePageGetTestCase(TestCase):
+    """Test pages with the same slug return across different users."""
+
+    def setUp(self):
+        # user 1
+        self.user1 = models.User.objects.create(username="alice")
+        self.data = {
+            "title": "About",
+            "slug": "about",
+            "body": "Alice's about",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user1.api_key}",
+            content_type="application/json",
+            data=self.data,
+        )
+        self.assertEqual(response.status_code, 200)
+        # user 2, same page slug
+        self.user2 = models.User.objects.create(username="bob")
+        self.data = {
+            "title": "About",
+            "slug": "about",
+            "body": "Bob's about",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user2.api_key}",
+            content_type="application/json",
+            data=self.data,
+        )
+        self.assertEqual(response.status_code, 200)
+        # verify objects
+        self.assertEqual(models.Page.objects.all().count(), 2)
+        self.assertEqual(models.Page.objects.all()[0].slug, "about")
+        self.assertEqual(models.Page.objects.all()[1].slug, "about")
+
+    def test_get(self):
+        # user 1
+        response = self.client.get(
+            reverse("api_page", args=("about",)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user1.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["body"], "Alice's about")
+        # user 2
+        response = self.client.get(
+            reverse("api_page", args=("about",)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user2.api_key}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["body"], "Bob's about")

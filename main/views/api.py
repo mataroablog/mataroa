@@ -285,3 +285,155 @@ def api_post(request, slug):
                 "url": scheme.get_protocol() + post.get_absolute_url(),
             }
         )
+
+
+@require_http_methods(["POST", "GET"])
+@csrf_exempt
+def api_pages(request):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    # handle GET case
+    if request.method == "GET":
+        page_list = models.Page.objects.filter(owner=user)
+        page_list = [
+            {
+                "title": p.title,
+                "slug": p.slug,
+                "body": p.body,
+                "is_hidden": p.is_hidden,
+                "url": scheme.get_protocol() + p.get_absolute_url(),
+            }
+            for p in page_list
+        ]
+        return JsonResponse(
+            {
+                "ok": True,
+                "page_list": page_list,
+            }
+        )
+
+    # POST case - validate input data
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "message": "Input data invalid."}, status=400)
+    form = forms.APIPage(data)
+    if not form.is_valid():
+        return JsonResponse({"ok": False, "message": "Input data invalid."}, status=400)
+    if "title" not in data:
+        return JsonResponse(
+            {"ok": False, "message": "Title field is required."}, status=400
+        )
+    if "slug" not in data:
+        return JsonResponse(
+            {"ok": False, "message": "Slug field is required."}, status=400
+        )
+
+    # POST case - check if slug already exists for this user
+    if models.Page.objects.filter(slug=form.cleaned_data["slug"], owner=user).exists():
+        return JsonResponse(
+            {"ok": False, "message": "Page with this slug already exists."}, status=400
+        )
+
+    # POST case - create page
+    slug = form.cleaned_data["slug"]
+    body = ""
+    if "body" in data:
+        body = text_processing.remove_control_chars(form.cleaned_data["body"])
+    is_hidden = False
+    if "is_hidden" in data:
+        is_hidden = form.cleaned_data["is_hidden"]
+    page = models.Page.objects.create(
+        owner=user, title=data["title"], slug=slug, body=body, is_hidden=is_hidden
+    )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "slug": slug,
+            "url": scheme.get_protocol() + page.get_absolute_url(),
+        }
+    )
+
+
+@require_http_methods(["PATCH", "GET", "DELETE"])
+@csrf_exempt
+def api_page(request, slug):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    # validate input data
+    if request.method == "PATCH":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+        except json.JSONDecodeError:
+            return JsonResponse(
+                {"ok": False, "message": "Input data invalid."}, status=400
+            )
+        form = forms.APIPage(data)
+        if not form.is_valid():
+            return JsonResponse(
+                {"ok": False, "message": "Input data invalid."}, status=400
+            )
+
+    # get page
+    page_list = models.Page.objects.filter(slug=slug, owner=user)
+    if not page_list:
+        return JsonResponse({"ok": False, "error": "Not found."}, status=404)
+    page = page_list.first()
+    if page.owner != user:
+        return JsonResponse({"ok": False, "error": "Not allowed."}, status=403)
+
+    # delete case
+    if request.method == "DELETE":
+        page.delete()
+        return JsonResponse(
+            {
+                "ok": True,
+            }
+        )
+
+    # retrieve case
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "ok": True,
+                "url": scheme.get_protocol() + page.get_absolute_url(),
+                "slug": page.slug,
+                "title": page.title,
+                "body": page.body,
+                "is_hidden": page.is_hidden,
+            }
+        )
+
+    # update page
+    if request.method == "PATCH":
+        if "title" in data:
+            page.title = form.cleaned_data["title"]
+        if "slug" in data:
+            # Check if new slug already exists for this user (excluding current page)
+            new_slug = form.cleaned_data["slug"]
+            if (
+                new_slug != page.slug
+                and models.Page.objects.filter(slug=new_slug, owner=user).exists()
+            ):
+                return JsonResponse(
+                    {"ok": False, "message": "Page with this slug already exists."},
+                    status=400,
+                )
+            page.slug = new_slug
+        if "body" in data:
+            page.body = text_processing.remove_control_chars(form.cleaned_data["body"])
+        if "is_hidden" in data:
+            page.is_hidden = form.cleaned_data["is_hidden"]
+        page.save()
+        return JsonResponse(
+            {
+                "ok": True,
+                "slug": page.slug,
+                "url": scheme.get_protocol() + page.get_absolute_url(),
+            }
+        )

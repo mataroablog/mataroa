@@ -280,6 +280,8 @@ urlpatterns += [
     ),
     path("api/posts/", api.api_posts, name="api_posts"),
     path("api/posts/<slug:slug>/", api.api_post, name="api_post"),
+    path("api/pages/", api.api_pages, name="api_pages"),
+    path("api/pages/<slug:slug>/", api.api_page, name="api_page"),
 ]
 
 # pages - needs to be last due to <slug>

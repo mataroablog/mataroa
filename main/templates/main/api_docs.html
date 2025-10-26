@@ -1,17 +1,22 @@
 {% extends 'main/layout.html' %}
 
-{% block title %}API{% endblock %}
+{% block title %}Mataroa API{% endblock %}
 
 {% block content %}
 <main>
-    <h1>API</h1>
+    <h1>Mataroa API</h1>
     <p>
         We provide an API to allow programmatic updating of one’s blog.
     </p>
 
     <dl>
+        <dt>API Base Endpoint</dt>
+        <dd><code>{{ protocol }}//{{ host }}/api/</code></dd>
+    </dl>
+
+    <dl>
         <dt>API Key</dt>
-        <dd>{{ request.user.api_key|default:"your-api-key" }}</dd>
+        <dd><code>{{ request.user.api_key|default:"your-api-key" }}</code></dd>
     </dl>
     {% if request.user.is_authenticated %}
     <p>
@@ -21,11 +26,6 @@
 
     <h2>Notes</h2>
     <ul>
-        <li>
-            One can <a href="{% url 'api_reset' %}">reset their API key</a>.
-            This will invalidate their key and issue a new one.
-        </li>
-        <li>The API is at <code>https://mataroa.blog/api/</code></li>
         <li>All API endpoints end with a trailing slash.</li>
         <li>
             <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type">Content type</a>
@@ -34,9 +34,7 @@
         <li>There is no rate limiting.</li>
     </ul>
 
-    <hr>
-
-    <h2>Authentication</h2>
+    <h2 id="authentication">Authentication</h2>
     <p>
         We authenticate requests using the
         <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization">Authorization</a>
@@ -44,7 +42,42 @@
     </p>
     <pre><code>Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}</code></pre>
 
-    <h2>POST /api/posts/</h2>
+    <h2>API Endpoints</h2>
+
+    <ul>
+        <li><a href="#posts">Posts</a>
+            <ul>
+                <li><a href="#post-create">Create post</a></li>
+                <li><a href="#post-get">Get single post</a></li>
+                <li><a href="#post-update">Update post</a></li>
+                <li><a href="#post-delete">Delete post</a></li>
+                <li><a href="#post-list">List all posts</a></li>
+            </ul>
+        </li>
+        <li><a href="#comments">Comments</a>
+            <ul>
+                <li><a href="#comment-list">List all comments</a></li>
+                <li><a href="#comment-pending">List pending comments</a></li>
+                <li><a href="#comment-post">List comments for post</a></li>
+                <li><a href="#comment-get">Get single comment</a></li>
+                <li><a href="#comment-approve">Approve comment</a></li>
+                <li><a href="#comment-delete">Delete comment</a></li>
+            </ul>
+        </li>
+        <li><a href="#pages">Pages</a>
+            <ul>
+                <li><a href="#page-create">Create page</a></li>
+                <li><a href="#page-get">Get single page</a></li>
+                <li><a href="#page-update">Update page</a></li>
+                <li><a href="#page-delete">Delete page</a></li>
+                <li><a href="#page-list">List all pages</a></li>
+            </ul>
+        </li>
+    </ul>
+
+    <h2 id="posts">Posts</h2>
+
+    <h3 id="post-create">POST /api/posts/</h3>
     <p>
         Create new post.
     </p>
@@ -77,7 +110,7 @@
     {{ protocol }}//{{ host }}/api/posts/
 </code></pre>
 
-    <h2>GET /api/posts/&lt;post-slug&gt;/</h2>
+    <h3 id="post-get">GET /api/posts/&lt;post-slug&gt;/</h3>
     <p>
         Get single post.
     </p>
@@ -103,7 +136,7 @@
     {{ protocol }}//{{ host }}/api/posts/new-blog/
 </code></pre>
 
-    <h2>PATCH /api/posts/&lt;post-slug&gt;/</h2>
+    <h3 id="post-update">PATCH /api/posts/&lt;post-slug&gt;/</h3>
     <p>
         Update existing post.
     </p>
@@ -138,8 +171,7 @@
     {{ protocol }}//{{ host }}/api/posts/introducing-my-new-blog/
 </code></pre>
 
-
-    <h2>DELETE /api/posts/&lt;post-slug&gt;/</h2>
+    <h3 id="post-delete">DELETE /api/posts/&lt;post-slug&gt;/</h3>
     <p>
         Delete post.
     </p>
@@ -160,8 +192,7 @@
     {{ protocol }}//{{ host }}/api/posts/introducing-my-new-blog/
 </code></pre>
 
-
-    <h2>GET /api/posts/</h2>
+    <h3 id="post-list">GET /api/posts/</h3>
     <p>
         List all posts.
     </p>
@@ -198,7 +229,11 @@
     {{ protocol }}//{{ host }}/api/posts/
 </code></pre>
 
-    <h2>GET /api/comments/</h2>
+    <hr>
+
+    <h2 id="comments">Comments</h2>
+
+    <h3 id="comment-list">GET /api/comments/</h3>
     <p>
         List all comments on your posts.
     </p>
@@ -234,7 +269,7 @@
     {{ protocol }}//{{ host }}/api/comments/
 </code></pre>
 
-    <h2>GET /api/comments/pending/</h2>
+    <h3 id="comment-pending">GET /api/comments/pending/</h3>
     <p>
         List comments awaiting approval.
     </p>
@@ -270,7 +305,7 @@
     {{ protocol }}//{{ host }}/api/comments/pending/
 </code></pre>
 
-    <h2>GET /api/posts/&lt;post-slug&gt;/comments/</h2>
+    <h3 id="comment-post">GET /api/posts/&lt;post-slug&gt;/comments/</h3>
     <p>
         List comments for a specific post.
     </p>
@@ -306,7 +341,7 @@
     {{ protocol }}//{{ host }}/api/posts/on-life/comments/
 </code></pre>
 
-    <h2>GET /api/comments/&lt;comment-id&gt;/</h2>
+    <h3 id="comment-get">GET /api/comments/&lt;comment-id&gt;/</h3>
     <p>
         Get details for a single comment.
     </p>
@@ -340,7 +375,7 @@
     {{ protocol }}//{{ host }}/api/comments/13/
 </code></pre>
 
-    <h2>POST /api/comments/&lt;comment-id&gt;/approve/</h2>
+    <h3 id="comment-approve">POST /api/comments/&lt;comment-id&gt;/approve/</h3>
     <p>
         Approve a pending comment.
     </p>
@@ -374,7 +409,7 @@
     {{ protocol }}//{{ host }}/api/comments/13/approve/
 </code></pre>
 
-    <h2>DELETE /api/comments/&lt;comment-id&gt;/</h2>
+    <h3 id="comment-delete">DELETE /api/comments/&lt;comment-id&gt;/</h3>
     <p>
         Delete a comment.
     </p>
@@ -393,6 +428,164 @@
     <pre><code>$ curl -X DELETE \
     -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
     {{ protocol }}//{{ host }}/api/comments/13/
+</code></pre>
+
+    <hr>
+
+    <h2 id="pages">Pages</h2>
+
+    <h3 id="page-create">POST /api/pages/</h3>
+    <p>
+        Create new page.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><code>title</code>: string [required]</li>
+        <li><code>slug</code>: string (slug; no spaces) [required]</li>
+        <li><code>body</code>: string [optional]</li>
+        <li><code>is_hidden</code>: boolean (if true, page link will not appear on blog header) [optional]</li>
+    </ul>
+
+    <strong>Request</strong>
+    <pre><code>{
+    "title": "About",
+    "slug": "about",
+    "body": "## About\n\nThis is my about page.",
+    "is_hidden": false
+}</code></pre>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "slug": "about",
+    "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/about/"
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X POST \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    -d '{"title": "About", "slug": "about", "body": "## About\n\nThis is my about page."}' \
+    {{ protocol }}//{{ host }}/api/pages/
+</code></pre>
+
+    <h3 id="page-get">GET /api/pages/&lt;page-slug&gt;/</h3>
+    <p>
+        Get single page.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "slug": "about",
+    "title": "About",
+    "body": "## About\n\nThis is my about page.",
+    "is_hidden": false,
+    "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/about/"
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X GET \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/pages/about/
+</code></pre>
+
+    <h3 id="page-update">PATCH /api/pages/&lt;page-slug&gt;/</h3>
+    <p>
+        Update existing page.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><code>title</code>: string [optional]</li>
+        <li><code>slug</code>: string (slug; no spaces) [optional]</li>
+        <li><code>body</code>: string [optional]</li>
+        <li><code>is_hidden</code>: boolean [optional]</li>
+    </ul>
+
+    <strong>Request</strong>
+    <pre><code>{
+    "title": "About Me",
+    "slug": "about-me",
+    "body": "## About Me\n\nUpdated about content.",
+    "is_hidden": true
+}</code></pre>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "slug": "about-me",
+    "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/about-me/"
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X PATCH \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    -d '{"title": "About Me", "body": "Updated content."}' \
+    {{ protocol }}//{{ host }}/api/pages/about/
+</code></pre>
+
+    <h3 id="page-delete">DELETE /api/pages/&lt;page-slug&gt;/</h3>
+    <p>
+        Delete page.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X DELETE \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/pages/about/
+</code></pre>
+
+    <h3 id="page-list">GET /api/pages/</h3>
+    <p>
+        List all pages.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "page_list": [
+        {
+            "title": "About",
+            "slug": "about",
+            "body": "## About\n\nThis is my about page.",
+            "is_hidden": false,
+            "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/about/"
+        },
+        {
+            "title": "Contact",
+            "slug": "contact",
+            "body": "Contact me at email@example.com",
+            "is_hidden": true,
+            "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/contact/"
+        }
+    ]
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X GET \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/pages/
 </code></pre>
 
     <div style="margin-top: 64px;"></div>

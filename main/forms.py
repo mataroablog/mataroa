@@ -73,3 +73,12 @@ class APIPost(forms.Form):
     slug = forms.SlugField(max_length=300, required=False)
     body = forms.CharField(widget=forms.Textarea, required=False)
     published_at = forms.DateField(required=False)
+
+
+class APIPage(forms.Form):
+    """Form for Page resource when accessed from the API."""
+
+    title = forms.CharField(max_length=300, required=False)
+    slug = forms.SlugField(max_length=300, required=False)
+    body = forms.CharField(widget=forms.Textarea, required=False)
+    is_hidden = forms.BooleanField(required=False)
