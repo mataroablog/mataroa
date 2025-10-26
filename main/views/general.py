@@ -143,7 +143,7 @@ class UserCreateStepTwo(CreateView):
     success_message = "welcome to mataroa :)"
 
     def form_valid(self, form):
-        if util.is_disallowed(form.cleaned_data.get("username")):
+        if denylist.is_disallowed(form.cleaned_data.get("username")):
             form.add_error("username", "This username is not available.")
             return self.render_to_response(self.get_context_data(form=form))
         self.object = form.save(commit=False)
@@ -194,7 +194,7 @@ class UserUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         return self.request.user
 
     def form_valid(self, form):
-        if util.is_disallowed(form.cleaned_data.get("username")):
+        if denylist.is_disallowed(form.cleaned_data.get("username")):
             form.add_error("username", "This username is not available.")
             return self.render_to_response(self.get_context_data(form=form))
 

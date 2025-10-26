@@ -16,14 +16,6 @@ from main import denylist, models
 from main.markdown_extensions import LaTeX2MathMLExtension
 
 
-def is_disallowed(username):
-    """Return true if username is not allowed to be registered."""
-    if username[0] == "_":
-        # do not allow leading underscores
-        return True
-    return username in denylist.DISALLOWED_USERNAMES
-
-
 def get_approx_number(number):
     """Get approximate number, eg. 1823 -> 2k"""
     if number > 999:

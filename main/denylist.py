@@ -1,3 +1,11 @@
+def is_disallowed(username):
+    """Return true if username is not allowed to be registered."""
+    if username[0] == "_":
+        # do not allow leading underscores
+        return True
+    return username in DISALLOWED_USERNAMES
+
+
 # not allowed to create account with these as username
 DISALLOWED_USERNAMES = [
     "about",
@@ -155,14 +163,11 @@ ALLOWED_HTML_ELEMENTS = [
 ]
 
 # see https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Element
-mathml_elements = [
+MATHML_ELEMENTS = [
     "math",
-    # "maction", # depracated
     "annotation",
     "annotation-xml",
-    # "memclose", # non-standard
     "merror",
-    # "mfenced", # depracated
     "mfrac",
     "mi",
     "mmultiscripts",
@@ -189,7 +194,7 @@ mathml_elements = [
     "munder",
     "munderover",
 ]
-ALLOWED_HTML_ELEMENTS += mathml_elements
+ALLOWED_HTML_ELEMENTS += MATHML_ELEMENTS
 
 # attributes allowed to exist inside the elements of the HTML of a markdown text
 ALLOWED_HTML_ATTRS = [
@@ -215,37 +220,25 @@ ALLOWED_HTML_ATTRS = [
     "width",
 ]
 
-# https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Attribute
-# unsure if these are required for mathml to work? we could ask the `latex2mathml` project what attributes they use.
-mathml_attrs = [
-    # ### global attributes -> there are more see https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Global_attributes
+# see https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Attribute
+MATHML_ATTRS = [
     "displaystyle",
     "mathbackground",
     "mathcolor",
     "mathsize",
     "scriptlevel",
-    # ### non-global
     "accent",
     "accentunder",
-    # "actiontype", # depracated
     "align",
-    # "background", # depracated
-    # "close", # depracated
-    # "color", # depracated
     "columnalign",
     "columnlines",
     "columnspacing",
     "columnspan",
-    # "denomalign", # depracated
     "depth",
     "dir",
     "display",
     "displaystyle",
     "fence",
-    # "fontfamily", # depracated
-    # "fontsize", # depracated
-    # "fontstyle", # depracated
-    # "fontweight", # depracated
     "frame",
     "framespacing",
     "height",
@@ -254,7 +247,6 @@ mathml_attrs = [
     "linethickness",
     "lspace",
     "lspace",
-    # "lquote", # depracated
     "mathbackground",
     "mathcolor",
     "mathsize",
@@ -263,29 +255,20 @@ mathml_attrs = [
     "minsize",
     "movablelimits",
     "notation",
-    # "numalign", # depracated
-    # "open", # depracated
     "rowalign",
     "rowlines",
     "rowspacing",
     "rowspan",
     "rspace",
-    # "rspace", # depracated
     "scriptlevel",
-    # "scriptminsize", # depracated
-    # "scriptsizemultiplier", # depracated
-    # "selection", # depracated
     "separator",
-    # "separators", # depracated
     "stretchy",
-    # "subscriptshift", # depracated
-    # "superscriptshift", # depracated
     "symmetric",
     "voffset",
     "width",
     "xmlns",
 ]
-ALLOWED_HTML_ATTRS += mathml_attrs
+ALLOWED_HTML_ATTRS += MATHML_ATTRS
 
 # css rules allowed to exist as inline styles on HTML elements of a markdown text
 ALLOWED_CSS_STYLES = [
