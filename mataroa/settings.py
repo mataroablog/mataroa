@@ -37,7 +37,7 @@ ALLOWED_HOSTS = [
     "*",
 ]
 
-ADMINS = [("Theodore Keloglou", "zf@sirodoht.com")]
+ADMINS = [os.getenv("ADMIN_EMAIL")] if os.getenv("ADMIN_EMAIL") else []
 
 CANONICAL_HOST = os.getenv("DOMAIN", "mataroa.blog")
 if LOCALDEV:

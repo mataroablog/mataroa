@@ -6,8 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### Important changes
 
+* Add submit post by email functionality
 * Add support for LaTeX-style mathematical markup
 * Merge subscribe note with footer note
+* Make admin email configurable from the environment
+
+### Bugfixes
 
 ## [1.3.0](https://github.com/mataroablog/mataroa/compare/v1.2...v1.3) - 2025-10-26
 
@@ -34,7 +38,7 @@ All notable changes to this project will be documented in this file.
 * Add docker image auto-push to ghcr.io
 * Add AGENTS.md to help onboarding of AI-enhanced contributors
 
-### Bug fixes
+### Bugfixes
 
 * Improve dark mode colours for better readability
 * Fix ansible not auto-enabling systemd timers
