@@ -7,6 +7,7 @@
 - [File Structure Walkthrough](./file-structure-walkthrough.md)
 - [Dependencies](./dependencies.md)
 - [Deployment](./deployment.md)
+- [Feature Release Playbook](./feature-release.md)
 - [Cronjobs](./cronjobs.md)
 - [Database Backup](./database-backup.md)
 - [Server Migration](./server-migration.md)
