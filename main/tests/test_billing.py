@@ -41,9 +41,9 @@ class BillingIndexGrandfatherTestCase(TestCase):
         self.assertContains(response, b"Grandfather Plan")
 
     def test_cannot_subscribe(self):
-        response = self.client.post(reverse("billing_subscription"))
+        response = self.client.post(reverse("billing_resubscribe"))
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse("dashboard"))
+        self.assertRedirects(response, reverse("billing_overview"))
 
     def test_cannot_cancel_get(self):
         response = self.client.get(reverse("billing_subscription_cancel"))
@@ -290,7 +290,7 @@ class BillingReenableSubscriptionTestCase(TestCase):
             ),
             patch.object(billing, "_get_invoices"),
         ):
-            response = self.client.post(reverse("billing_subscription"))
+            response = self.client.post(reverse("billing_resubscribe"))
 
             self.assertRedirects(response, reverse("billing_overview"))
             # premium should not be enabled immediately; webhook will enable after successful charge
@@ -355,7 +355,7 @@ class BillingWebhookTestCase(TestCase):
 
     def test_signature_verification_failure_returns_400(self):
         def _raise_sig_error(*args, **kwargs):
-            raise stripe.error.SignatureVerificationError(
+            raise stripe.SignatureVerificationError(
                 message="bad signature",
                 sig_header="t=1,v1=bad",
                 http_body=b"{}",

@@ -51,7 +51,7 @@ def billing_overview(request):
     if not request.user.stripe_customer_id:
         try:
             stripe_response = stripe.Customer.create()
-        except stripe.error.StripeError as ex:
+        except stripe.StripeError as ex:
             logger.error(str(ex))
             raise Exception("Failed to create customer on Stripe.") from ex
         request.user.stripe_customer_id = stripe_response["id"]
@@ -69,20 +69,16 @@ def billing_overview(request):
                 subscription_status = "canceling"
         # parse period fields when present (even if not active),
         # so "Last payment" can be shown after scheduling cancellation
-        if subscription and subscription.get("latest_invoice").get("status") == "paid":
-            if (
-                current_period_start := subscription.get("items")
-                .get("data")[0]
-                .get("current_period_start")
-            ):
+        latest_invoice = subscription.get("latest_invoice") if subscription else None
+        if isinstance(latest_invoice, dict) and latest_invoice.get("status") == "paid":
+            items = (subscription or {}).get("items") or {}
+            item_data = items.get("data") or []
+            first_item = item_data[0] if item_data else {}
+            if current_period_start := first_item.get("current_period_start"):
                 current_period_start = datetime.fromtimestamp(
                     current_period_start, tz=UTC
                 )
-            if (
-                current_period_end := subscription.get("items")
-                .get("data")[0]
-                .get("current_period_end")
-            ):
+            if current_period_end := first_item.get("current_period_end"):
                 current_period_end = datetime.fromtimestamp(current_period_end, tz=UTC)
 
     # transform into list of values
@@ -112,10 +108,10 @@ def _get_stripe_subscription(stripe_subscription_id):
             stripe_subscription_id,
             expand=["latest_invoice", "latest_invoice.payment_intent"],
         )
-    except stripe.error.InvalidRequestError as ex:
+    except stripe.InvalidRequestError as ex:
         logger.warning("Subscription %s not found: %s", stripe_subscription_id, str(ex))
         return None
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(
             "Failed to get subscription %s from Stripe: %s",
             stripe_subscription_id,
@@ -135,7 +131,7 @@ def _get_payment_methods(stripe_customer_id):
         default_pm_id = stripe.Customer.retrieve(
             stripe_customer_id
         ).invoice_settings.default_payment_method
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(str(ex))
         raise Exception("Failed to retrieve customer data from Stripe.") from ex
 
@@ -145,7 +141,7 @@ def _get_payment_methods(stripe_customer_id):
             customer=stripe_customer_id,
             type="card",
         )
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(str(ex))
         raise Exception("Failed to retrieve payment methods from Stripe.") from ex
 
@@ -173,7 +169,7 @@ def _get_invoices(stripe_customer_id):
     # get user invoices
     try:
         stripe_invoices = stripe.Invoice.list(customer=stripe_customer_id)
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(str(ex))
         raise Exception("Failed to retrieve invoices data from Stripe.") from ex
 
@@ -216,7 +212,7 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
                 created = stripe.Customer.create()
                 request.user.stripe_customer_id = created.get("id")
                 request.user.save()
-            except stripe.error.StripeError as ex:
+            except stripe.StripeError as ex:
                 logger.error("Failed creating customer before subscribe: %s", str(ex))
                 messages.error(
                     request, "payment processor unavailable; please try again later"
@@ -287,7 +283,7 @@ def _create_stripe_subscription(customer_id):
             payment_settings={"save_default_payment_method": "on_subscription"},
         )
         logger.info(f"Created subscription: {stripe_subscription.get('id')}")
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(str(ex))
         raise Exception("Failed to create subscription on Stripe.") from ex
 
@@ -337,7 +333,7 @@ def _create_setup_intent(customer_id):
             automatic_payment_methods={"enabled": True},
             customer=customer_id,
         )
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(str(ex))
         raise Exception("Failed to create setup intent on Stripe.") from ex
 
@@ -368,7 +364,7 @@ class BillingCardDelete(LoginRequiredMixin, View):
         card_id = self.kwargs.get(self.slug_url_kwarg)
         try:
             stripe.PaymentMethod.detach(card_id)
-        except stripe.error.StripeError as ex:
+        except stripe.StripeError as ex:
             logger.error(str(ex))
             messages.error(request, "payment processor unresponsive; please try again")
             return redirect(reverse_lazy("billing_overview"))
@@ -430,7 +426,7 @@ def billing_card_default(request, stripe_payment_method_id):
                 "default_payment_method": stripe_payment_method_id,
             },
         )
-    except stripe.error.StripeError as ex:
+    except stripe.StripeError as ex:
         logger.error(str(ex))
         return HttpResponse("Could not change default card.", status=503)
 
@@ -450,7 +446,7 @@ class BillingCancel(LoginRequiredMixin, View):
         try:
             # cancel at period end to keep access for the remainder of the paid period
             stripe.Subscription.modify(subscription["id"], cancel_at_period_end=True)
-        except stripe.error.StripeError as ex:
+        except stripe.StripeError as ex:
             logger.error(str(ex))
             return HttpResponse("Subscription could not be canceled.", status=503)
         mail_admins(
@@ -494,7 +490,7 @@ class BillingResume(LoginRequiredMixin, View):
         subscription = _get_stripe_subscription(request.user.stripe_subscription_id)
         try:
             stripe.Subscription.modify(subscription["id"], cancel_at_period_end=False)
-        except stripe.error.StripeError as ex:
+        except stripe.StripeError as ex:
             logger.error(str(ex))
             return HttpResponse("Subscription could not be resumed.", status=503)
         messages.success(request, self.success_message)
@@ -609,7 +605,7 @@ class BillingResubscribe(LoginRequiredMixin, View):
             else:
                 messages.info(request, "payment processing")
 
-        except stripe.error.StripeError as ex:
+        except stripe.StripeError as ex:
             logger.error("Failed to create resubscription: %s", str(ex))
             messages.error(
                 request,
@@ -738,7 +734,7 @@ def billing_stripe_webhook(request):
             data = json.loads(request.body.decode("utf-8"))
             event = stripe.Event.construct_from(data, stripe.api_key)
 
-    except (ValueError, stripe.error.SignatureVerificationError) as ex:
+    except (ValueError, stripe.SignatureVerificationError) as ex:
         # invalid payload or signature
         logger.error(f"Webhook validation failed: {type(ex).__name__}: {str(ex)}")
         return HttpResponse(status=400)
@@ -815,7 +811,7 @@ def billing_stripe_webhook(request):
                         logger.info(
                             f"Set payment method {payment_method.id} as default for customer {customer_id_str}"
                         )
-                except stripe.error.StripeError as ex:
+                except stripe.StripeError as ex:
                     logger.error(
                         f"Failed to set default payment method for customer {customer_id_str}: {str(ex)}"
                     )
