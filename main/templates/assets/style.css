@@ -281,9 +281,28 @@ hr {
     border-right: none;
 }
 
+details {
+    border: 1px solid var(--light-grey-color);
+    margin-bottom: 8px;
+}
+
+details > div {
+    padding: 16px 24px;
+}
+
+details > div > p {
+    margin: 0;
+}
+
+details > div > p + p {
+    margin-top: 16px;
+}
+
 summary {
     cursor: pointer;
     user-select: none;
+    background-color: var(--light-grey-color);
+    padding: 8px;
 }
 
 footer {

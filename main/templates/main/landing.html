@@ -150,6 +150,20 @@
                 No. The philosophy of mataroa is to be as minimal as possible without enabling
                 too many decisions about styling. Sorry! :)
             </p>
+            <p>
+                Check out <a href="https://bearblog.dev/">bearblog.dev</a>, a minimalist
+                blogging platform that supports custom CSS.
+            </p>
+        </div>
+    </details>
+
+    <details>
+        <summary>Can I upload images on my mataroa blog?</summary>
+        <div>
+            <p>
+                Yes. Even though mataroa is a text-focused platform, we do offer some support for
+                image hosting. See our <a href="{% url 'guides_images' %}">images guide</a> for more details.
+            </p>
         </div>
     </details>
 
@@ -157,7 +171,7 @@
         <summary>Can I self-host mataroa?</summary>
         <div>
             <p>
-                Absolutely. The project is
+                Yes. The project is
                 <a href="https://github.com/mataroablog/mataroa">open source</a>
                 and you can find deployment documentation
                 <a href="https://docs.mataroa.blog/deployment.html">in the docs</a>.
@@ -173,6 +187,11 @@
                 essence, the text content, over fancy features. The platform is based on a
                 design philosophy of minimalism with strong data interoperability. You own your
                 data and you can export it easily as well.
+            </p>
+            <p>
+                However, different platforms are optimised for different use cases.
+                Have a look at our <a href="{% url 'comparisons' %}">comparison table</a>, which
+                may help you decide what’s important to you.
             </p>
         </div>
     </details>
@@ -211,17 +230,13 @@
     </details>
 
     <details>
-        <summary>Why doesn't strikethrough markdown notation work?</summary>
+        <summary>What markdown implementation does mataroa use?</summary>
         <div>
             <p>
-                The markdown library we use
-                (<a href="https://github.com/Python-Markdown/markdown">Python-Markdown</a>)
-                supports
-                <a href="http://daringfireball.net/projects/markdown/syntax">
-                    John Gruber’s markdown spec</a>,
-                which does not define strikethrough text. We might migrate to another
-                markdown library at some point in the future, though, this is not
-                yet planned.
+                We use the <a href="https://github.com/Python-Markdown/markdown">Python-Markdown</a>
+                library, which implements the original markdown syntax defined by
+                <a href="http://daringfireball.net/projects/markdown/syntax"> John Gruber’s spec</a>
+                with the additions of code highlighting, tables, and footnotes.
             </p>
         </div>
     </details>
@@ -244,7 +259,7 @@
             <p>
                 We have considered this feature. We don't want to add a JavaScript library to
                 handle this on the frontend. However, we're open to creating this functionality in
-                the future to work from the backend.
+                the future to work from the backend as part of the markdown rendering.
             </p>
         </div>
     </details>
@@ -259,7 +274,7 @@
                 <a href="https://github.com/mermaid-js/mermaid/blob/develop/dist/mermaid.min.js">
                     2.7MB minified
                 </a>
-                JavaScript which is extremely too much for mataroa. Yet, we would be interested
+                JavaScript which is excessive for mataroa. Yet, we would be interested
                 in implementing something similar if it was rendered on the backend.
             </p>
         </div>
@@ -269,7 +284,17 @@
         <summary>Do you support ActivityPub Federation?</summary>
         <div>
             <p>
-                We do not, however, we'd like to. This is unplanned work that might
+                No, but we would like to. This is unplanned work that might
+                happen at some point in the future.
+            </p>
+        </div>
+    </details>
+
+    <details>
+        <summary>Do you support Bluesky/ATProto?</summary>
+        <div>
+            <p>
+                No, but we would also like to. This is unplanned work that might
                 happen at some point in the future.
             </p>
         </div>
