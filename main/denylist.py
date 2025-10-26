@@ -154,6 +154,43 @@ ALLOWED_HTML_ELEMENTS = [
     "wbr",
 ]
 
+# see https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Element
+mathml_elements = [
+    "math",
+    # "maction", # depracated
+    "annotation",
+    "annotation-xml",
+    # "memclose", # non-standard
+    "merror",
+    # "mfenced", # depracated
+    "mfrac",
+    "mi",
+    "mmultiscripts",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mprescript",
+    "mroot",
+    "mrow",
+    "ms",
+    "semantics",
+    "mspace",
+    "msqrt",
+    "mstyle",
+    "msub",
+    "msup",
+    "msubsup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+]
+ALLOWED_HTML_ELEMENTS += mathml_elements
+
 # attributes allowed to exist inside the elements of the HTML of a markdown text
 ALLOWED_HTML_ATTRS = [
     "align",
@@ -177,6 +214,78 @@ ALLOWED_HTML_ATTRS = [
     "title",
     "width",
 ]
+
+# https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Attribute
+# unsure if these are required for mathml to work? we could ask the `latex2mathml` project what attributes they use.
+mathml_attrs = [
+    # ### global attributes -> there are more see https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Global_attributes
+    "displaystyle",
+    "mathbackground",
+    "mathcolor",
+    "mathsize",
+    "scriptlevel",
+    # ### non-global
+    "accent",
+    "accentunder",
+    # "actiontype", # depracated
+    "align",
+    # "background", # depracated
+    # "close", # depracated
+    # "color", # depracated
+    "columnalign",
+    "columnlines",
+    "columnspacing",
+    "columnspan",
+    # "denomalign", # depracated
+    "depth",
+    "dir",
+    "display",
+    "displaystyle",
+    "fence",
+    # "fontfamily", # depracated
+    # "fontsize", # depracated
+    # "fontstyle", # depracated
+    # "fontweight", # depracated
+    "frame",
+    "framespacing",
+    "height",
+    "href",
+    "id",
+    "linethickness",
+    "lspace",
+    "lspace",
+    # "lquote", # depracated
+    "mathbackground",
+    "mathcolor",
+    "mathsize",
+    "mathvariant",
+    "maxsize",
+    "minsize",
+    "movablelimits",
+    "notation",
+    # "numalign", # depracated
+    # "open", # depracated
+    "rowalign",
+    "rowlines",
+    "rowspacing",
+    "rowspan",
+    "rspace",
+    # "rspace", # depracated
+    "scriptlevel",
+    # "scriptminsize", # depracated
+    # "scriptsizemultiplier", # depracated
+    # "selection", # depracated
+    "separator",
+    # "separators", # depracated
+    "stretchy",
+    # "subscriptshift", # depracated
+    # "superscriptshift", # depracated
+    "symmetric",
+    "voffset",
+    "width",
+    "xmlns",
+]
+ALLOWED_HTML_ATTRS += mathml_attrs
 
 # css rules allowed to exist as inline styles on HTML elements of a markdown text
 ALLOWED_CSS_STYLES = [

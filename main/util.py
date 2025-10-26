@@ -11,6 +11,7 @@ from django.conf import settings
 from django.utils.text import slugify
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import ClassNotFound, get_lexer_by_name, get_lexer_for_filename
+from l2m4m import LaTeX2MathMLExtension
 
 from main import denylist, models
 
@@ -148,6 +149,7 @@ def md_to_html(markdown_string, strip_tags=False):
             "markdown.extensions.tables",
             "markdown.extensions.footnotes",
             "markdown.extensions.toc",
+            LaTeX2MathMLExtension(),
         ],
     )
     return clean_html(dirty_html, strip_tags)
