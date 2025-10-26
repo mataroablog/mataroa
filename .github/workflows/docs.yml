@@ -19,15 +19,16 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     env:
-      MDBOOK_VERSION: 0.4.40
+      MDBOOK_VERSION: 0.4.52
     steps:
       - uses: actions/checkout@v4
-      - name: List versions
-        run: |
-          cargo --version
       - name: Install mdBook
         run: |
           cargo install --version ${MDBOOK_VERSION} mdbook
+      - name: List versions
+        run: |
+          cargo --version
+          mdbook --version
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
