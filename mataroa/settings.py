@@ -168,12 +168,6 @@ STORAGES = {
 }
 
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
 # Default forms.URLField scheme
 # https://docs.djangoproject.com/en/5.0/ref/settings/#forms-urlfield-assume-https
 
