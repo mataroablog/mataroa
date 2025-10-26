@@ -19,56 +19,61 @@ Condensed and commented sources file tree:
 ├── Makefile # make-defined tasks
 ├── README.md
 ├── backup-database.sh
-├── default.nix # nix profile
-├── deploy.sh
 ├── docker-compose.yml
 ├── docs/
 ├── export_base_epub/ # base sources for epub export functionality
 ├── export_base_hugo/ # base sources for hugo export functionality
 ├── export_base_zola/ # base sources for zola export functionality
 ├── main/
-│   ├── admin.py
-│   ├── apps.py
-│   ├── denylist.py # list of various keywords allowed and denied
-│   ├── feeds.py # django rss functionality
-│   ├── fixtures/
-│   │   └── dev-data.json # sample development data
-│   ├── forms.py
-│   ├── management/ # commands under `python manage.py`
-│   │   └── commands/
-│   │       └── processnotifications.py
-│   │       └── mailexports.py
-│   ├── middleware.py # mostly subdomain routing
-│   ├── migrations/
-│   ├── models.py
-│   ├── static/
-│   ├── templates
-│   │   ├── main/ # HTML templates for most pages
-│   │   ├── assets/
-│   │   │   ├── drag-and-drop-upload.js
-│   │   │   └── style.css
-│   │   ├── partials/
-│   │   │   ├── footer.html
-│   │   │   ├── footer_blog.html
-│   │   │   └── webring.html
-│   │   └── registration/
-│   ├── tests/
-│   │   ├── test_billing.py
-│   │   ├── test_blog.py
-│   │   ├── test_comments.py
-│   │   ├── test_images.py
-│   │   ├── test_management.py
-│   │   ├── test_pages.py
-│   │   ├── test_posts.py
-│   │   ├── test_users.py
-│   │   └── testdata/
-│   ├── urls.py
-│   ├── util.py
-│   ├── validators.py # custom form and field validators
-│   ├── views.py
-│   ├── views_api.py
-│   ├── views_billing.py
-│   └── views_export.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── denylist.py # list of various keywords allowed and denied
+│   ├── feeds.py # django rss functionality
+│   ├── fixtures/
+│   │   └── dev-data.json # sample development data
+│   ├── forms.py
+│   ├── management/ # commands under `python manage.py`
+│   │   └── commands/
+│   │       ├── checkstripe.py
+│   │       ├── mailexports.py
+│   │       ├── mailsummary.py
+│   │       ├── processnotifications.py
+│   │       └── testbulkmail.py
+│   ├── middleware.py # mostly subdomain routing
+│   ├── migrations/
+│   ├── models.py
+│   ├── sitemaps.py
+│   ├── static/
+│   ├── templates
+│   │   ├── main/ # HTML templates for most pages
+│   │   ├── assets/
+│   │   │   ├── drag-and-drop-upload.js
+│   │   │   └── style.css
+│   │   ├── partials/
+│   │   │   ├── footer.html
+│   │   │   ├── footer_blog.html
+│   │   │   └── webring.html
+│   │   └── registration/
+│   ├── tests/
+│   │   ├── test_api.py
+│   │   ├── test_billing.py
+│   │   ├── test_blog.py
+│   │   ├── test_comments.py
+│   │   ├── test_images.py
+│   │   ├── test_management.py
+│   │   ├── test_pages.py
+│   │   ├── test_posts.py
+│   │   ├── test_users.py
+│   │   └── testdata/
+│   ├── text_processing.py # markdown and text utilities
+│   ├── urls.py
+│   ├── validators.py # custom form and field validators
+│   └── views/
+│       ├── api.py
+│       ├── billing.py
+│       ├── export.py
+│       ├── general.py
+│       └── moderation.py
 ├── manage.py
 └── mataroa
     ├── asgi.py
@@ -92,23 +97,10 @@ All urls are in this module. They are visually divided into several sections:
 * analytics list and details
 * pages CRUD
 
-## [`main/views.py`](/main/views.py)
+## [`main/views/`](/main/views/)
 
-The majority of business logic is in the `views.py` module.
-
-It includes:
-
-* indexes, dashboard, static pages
-* user CRUD and login/logout
-* posts CRUD
-* comments CRUD
-* images CRUD
-* pages CRUD
-* webring
-* analytics
-* notifications subscribe/unsubscribe
-* moderation dashboard
-* sitemaps
+The majority of business logic is organized in the `views/` directory, split across
+several modules for better organization.
 
 Generally,
 [Django class-based generic views](https://docs.djangoproject.com/en/3.2/topics/class-based-views/generic-display/)
@@ -126,12 +118,26 @@ is also extremely readable:
 are used in cases where the CRUD/RESTful design pattern is not clear such as
 `notification_unsubscribe_key` where we unsubscribe an email via a GET operation.
 
-## [`main/views_api.py`](/main/views_api.py)
+### [`main/views/general.py`](/main/views/general.py)
+
+The main view module containing most of the application's business logic:
+
+* indexes, dashboard, static pages
+* user CRUD and login/logout
+* posts CRUD
+* comments CRUD
+* images CRUD
+* pages CRUD
+* webring
+* analytics
+* notifications subscribe/unsubscribe
+
+### [`main/views/api.py`](/main/views/api.py)
 
 This module contains all API related views. These views have their own
 api key based authentication.
 
-## [`main/views_export.py`](/main/views_export.py)
+### [`main/views/export.py`](/main/views/export.py)
 
 This module contains all views related to the export capabilities of mataroa.
 
@@ -144,10 +150,14 @@ using the appropriate content type (`application/zip` or `application/epub`) and
 [Content-Disposition](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition)
 `attachment`.
 
-## [`main/views_billing.py`](/main/views_billing.py)
+### [`main/views/billing.py`](/main/views/billing.py)
 
-This module contains all billing and subscription related views. It’s designed to
+This module contains all billing and subscription related views. It's designed to
 support one payment processor, Stripe.
+
+### [`main/views/moderation.py`](/main/views/moderation.py)
+
+This module contains all views related to moderating the content of the platform.
 
 ## [`main/tests/`](/main/tests/)
 
@@ -183,6 +193,12 @@ upload functionalities (for post import or image upload), and card details
 submission.
 
 See [Django Form fields reference](https://docs.djangoproject.com/en/3.2/ref/forms/fields/).
+
+## [`main/text_processing.py`](/main/text_processing.py)
+
+This module contains utilities for processing text content, including markdown
+rendering, syntax highlighting, and text transformations used throughout the
+application.
 
 ## [`main/templates/assets/style.css`](main/templates/assets/style.css)
 
