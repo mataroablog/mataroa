@@ -5,7 +5,7 @@ from django.core import mail
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from main import models, util
+from main import models, scheme
 
 
 def get_mail_connection():
@@ -21,8 +21,8 @@ def get_mail_connection():
 
 def get_email_body(post, notification):
     """Returns the email body (which contains the post body) along with titles and links."""
-    post_url = util.get_protocol() + post.get_proper_url()
-    unsubscribe_url = util.get_protocol() + notification.get_unsubscribe_url()
+    post_url = scheme.get_protocol() + post.get_proper_url()
+    unsubscribe_url = scheme.get_protocol() + notification.get_unsubscribe_url()
     blog_title = post.owner.blog_title or post.owner.username
 
     body = f"""{blog_title} has published:
@@ -54,7 +54,7 @@ def get_email(post, notification):
     if post.owner.blog_title and "," not in post.owner.blog_title:
         blog_title = post.owner.blog_title
 
-    unsubscribe_url = util.get_protocol() + notification.get_unsubscribe_url()
+    unsubscribe_url = scheme.get_protocol() + notification.get_unsubscribe_url()
     body = get_email_body(post, notification)
     email = mail.EmailMessage(
         subject=post.title,

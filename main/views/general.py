@@ -35,7 +35,7 @@ from django.views.generic import (
     UpdateView,
 )
 
-from main import denylist, forms, models, util
+from main import denylist, forms, models, scheme, text_processing
 from main.sitemaps import PageSitemap, PostSitemap, StaticSitemap
 from main.views import billing
 
@@ -302,9 +302,11 @@ class PostCreate(LoginRequiredMixin, SuccessMessageMixin, CreateView):
 
     def form_valid(self, form):
         self.object = form.save(commit=False)
-        self.object.slug = util.create_post_slug(self.object.title, self.request.user)
+        self.object.slug = text_processing.create_post_slug(
+            self.object.title, self.request.user
+        )
         self.object.owner = self.request.user
-        self.object.body = util.remove_control_chars(self.object.body)
+        self.object.body = text_processing.remove_control_chars(self.object.body)
         self.object.save()
         return HttpResponseRedirect(self.get_success_url())
 
@@ -330,17 +332,17 @@ class PostUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         # hidden code for slug: if slug is ":gen" then generate it from the title
         if form.cleaned_data.get("slug") == ":gen":
             self.object = form.save(commit=False)
-            self.object.slug = util.create_post_slug(
+            self.object.slug = text_processing.create_post_slug(
                 self.object.title, self.request.user, post=self.object
             )
-            self.object.body = util.remove_control_chars(self.object.body)
+            self.object.body = text_processing.remove_control_chars(self.object.body)
             self.object.save()
             return super().form_valid(form)
 
         # normalise and validate slug
         self.object = form.save(commit=False)
         updated_slug = form.cleaned_data.get("slug")
-        self.object.slug = util.create_post_slug(
+        self.object.slug = text_processing.create_post_slug(
             updated_slug, self.request.user, post=self.object
         )
         self.object.save()
@@ -409,7 +411,7 @@ class SnapshotCreate(LoginRequiredMixin, CreateView):
         # save new Snapshot with current user as owner
         self.object = form.save(commit=False)
         self.object.owner = self.request.user
-        self.object.body = util.remove_control_chars(self.object.body)
+        self.object.body = text_processing.remove_control_chars(self.object.body)
         self.object.save()
         # delete all user Snapshots except the most recent 250
         most_recent = (
@@ -520,13 +522,13 @@ class CommentCreate(SuccessMessageMixin, CreateView):
         self.object.save()
 
         # inform blog_user
-        comment_url = util.get_protocol() + self.object.get_absolute_url()
+        comment_url = scheme.get_protocol() + self.object.get_absolute_url()
         approve_url = (
-            f"{util.get_protocol()}//{self.object.post.owner.username}.{settings.CANONICAL_HOST}"
+            f"{scheme.get_protocol()}//{self.object.post.owner.username}.{settings.CANONICAL_HOST}"
             + reverse("comment_approve", args=(self.object.post.slug, self.object.id))
         )
         delete_url = (
-            f"{util.get_protocol()}//{self.object.post.owner.username}.{settings.CANONICAL_HOST}"
+            f"{scheme.get_protocol()}//{self.object.post.owner.username}.{settings.CANONICAL_HOST}"
             + reverse("comment_delete", args=(self.object.post.slug, self.object.id))
         )
         body = f"Someone commented on your post: {self.object.post.title}\n"
@@ -630,7 +632,7 @@ class BlogImport(LoginRequiredMixin, FormView):
                 return self.form_invalid(form)
             models.Post.objects.create(
                 title=f.name,
-                slug=util.create_post_slug(f.name, self.request.user),
+                slug=text_processing.create_post_slug(f.name, self.request.user),
                 body=content,
                 owner=self.request.user,
                 published_at=None,
@@ -940,7 +942,9 @@ def populate_analytics_context(context, date_25d_ago, current_date, day_counts):
             count_percent = count_per_day[current_date] * 100 / highest_day_count
 
         context["analytics_per_day"][current_date] = {
-            "count_approx": util.get_approx_number(count_per_day[current_date]),
+            "count_approx": text_processing.get_approx_number(
+                count_per_day[current_date]
+            ),
             "count_exact": count_per_day[current_date],
             "x_offset": current_x_offset,
             "count_percent": count_percent,

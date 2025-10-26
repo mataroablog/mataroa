@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjUserAdmin
 from django.utils.html import format_html
 
-from main import models, util
+from main import models, scheme
 
 
 @admin.action(description="Mark selected users as approved")
@@ -34,7 +34,7 @@ class UserAdmin(DjUserAdmin):
 
     @admin.display
     def blog_url(self, obj):
-        url = f"{util.get_protocol()}"
+        url = f"{scheme.get_protocol()}"
         if obj.custom_domain:
             url += f"//{obj.custom_domain}"
         else:
@@ -92,7 +92,7 @@ class PostAdmin(admin.ModelAdmin):
 
     @admin.display
     def post_url(self, obj):
-        url = util.get_protocol() + obj.get_proper_url()
+        url = scheme.get_protocol() + obj.get_proper_url()
         return format_html(f'<a href="{url}">{url}</a>')
 
 

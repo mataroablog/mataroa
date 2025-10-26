@@ -20,7 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic.edit import FormView
 
-from main import forms, models, util
+from main import forms, models, scheme
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,7 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
                 )
                 return redirect("billing_overview")
 
-        url = f"{util.get_protocol()}//{settings.CANONICAL_HOST}"
+        url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}"
         url += reverse_lazy("billing_welcome")
 
         if request.user.stripe_subscription_id:
@@ -308,7 +308,7 @@ class BillingCard(LoginRequiredMixin, FormView):
         data = _create_setup_intent(request.user.stripe_customer_id)
         context["stripe_client_secret"] = data["stripe_client_secret"]
 
-        url = f"{util.get_protocol()}//{settings.CANONICAL_HOST}"
+        url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}"
         url += reverse_lazy("billing_card_confirm")
         context["stripe_return_url"] = url
 

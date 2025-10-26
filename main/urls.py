@@ -264,7 +264,9 @@ urlpatterns += [
         api.api_post_comments,
         name="api_post_comments",
     ),
-    path("api/comments/pending/", api.api_comments_pending, name="api_comments_pending"),
+    path(
+        "api/comments/pending/", api.api_comments_pending, name="api_comments_pending"
+    ),
     path("api/comments/<int:comment_id>/", api.api_comment, name="api_comment"),
     path(
         "api/comments/<int:comment_id>/approve/",

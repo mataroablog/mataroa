@@ -4,7 +4,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
-from main import models, util
+from main import models, scheme
 
 
 class APIDocsAnonTestCase(TestCase):
@@ -246,7 +246,8 @@ class APIListPostTestCase(TestCase):
         )
         self.assertEqual(
             response.json()["url"],
-            util.get_protocol() + models.Post.objects.all().first().get_absolute_url(),
+            scheme.get_protocol()
+            + models.Post.objects.all().first().get_absolute_url(),
         )
         models.Post.objects.all().first().delete()
 
@@ -327,7 +328,8 @@ class APIListPatchTestCase(TestCase):
         self.assertTrue(response.json()["ok"])
         self.assertEqual(
             response.json()["url"],
-            util.get_protocol() + models.Post.objects.all().first().get_absolute_url(),
+            scheme.get_protocol()
+            + models.Post.objects.all().first().get_absolute_url(),
         )
         models.Post.objects.all().first().delete()
 
@@ -546,7 +548,8 @@ class APIGetTestCase(TestCase):
         self.assertTrue(response.json()["ok"])
         self.assertEqual(
             response.json()["url"],
-            util.get_protocol() + models.Post.objects.all().first().get_absolute_url(),
+            scheme.get_protocol()
+            + models.Post.objects.all().first().get_absolute_url(),
         )
         models.Post.objects.all().first().delete()
 
@@ -675,7 +678,7 @@ class APIListGetTestCase(TestCase):
                 "slug": "hello-world",
                 "body": "## Hey\n\nHey world.",
                 "published_at": "2020-01-01",
-                "url": f"{util.get_protocol()}//{self.user.username}.{settings.CANONICAL_HOST}/blog/hello-world/",
+                "url": f"{scheme.get_protocol()}//{self.user.username}.{settings.CANONICAL_HOST}/blog/hello-world/",
             },
             post_list,
         )
@@ -685,7 +688,7 @@ class APIListGetTestCase(TestCase):
                 "slug": "bye-world",
                 "body": "## Bye\n\nBye world.",
                 "published_at": "2020-09-14",
-                "url": f"{util.get_protocol()}//{self.user.username}.{settings.CANONICAL_HOST}/blog/bye-world/",
+                "url": f"{scheme.get_protocol()}//{self.user.username}.{settings.CANONICAL_HOST}/blog/bye-world/",
             },
             post_list,
         )

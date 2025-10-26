@@ -8,7 +8,7 @@ from django.core import mail
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from main import models, util
+from main import models, scheme
 
 
 def get_mail_connection():
@@ -20,7 +20,7 @@ def get_mail_connection():
 
 
 def get_unsubscribe_url(user):
-    return util.get_protocol() + user.get_export_unsubscribe_url()
+    return scheme.get_protocol() + user.get_export_unsubscribe_url()
 
 
 def get_email_body(user):

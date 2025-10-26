@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.generic.edit import FormView
 
-from main import forms, models, util
+from main import forms, models, scheme, text_processing
 
 
 def api_docs(request):
@@ -19,7 +19,7 @@ def api_docs(request):
         "main/api_docs.html",
         {
             "host": settings.CANONICAL_HOST,
-            "protocol": util.get_protocol(),
+            "protocol": scheme.get_protocol(),
         },
     )
 
@@ -64,8 +64,8 @@ def _serialize_comment(comment):
         "id": comment.id,
         "post_slug": comment.post.slug,
         "post_title": comment.post.title,
-        "post_url": util.get_protocol() + comment.post.get_absolute_url(),
-        "url": util.get_protocol() + comment.get_absolute_url(),
+        "post_url": scheme.get_protocol() + comment.post.get_absolute_url(),
+        "url": scheme.get_protocol() + comment.get_absolute_url(),
         "created_at": comment.created_at,
         "name": comment.name,
         "email": comment.email,
@@ -169,7 +169,7 @@ def api_posts(request):
                 "slug": p.slug,
                 "body": p.body,
                 "published_at": p.published_at,
-                "url": util.get_protocol() + p.get_absolute_url(),
+                "url": scheme.get_protocol() + p.get_absolute_url(),
             }
             for p in post_list
         ]
@@ -194,7 +194,7 @@ def api_posts(request):
         )
 
     # POST case - create post
-    slug = util.create_post_slug(data["title"], user)
+    slug = text_processing.create_post_slug(data["title"], user)
     published_at = None
     if "published_at" in data:
         published_at = data["published_at"]
@@ -206,7 +206,11 @@ def api_posts(request):
     )
 
     return JsonResponse(
-        {"ok": True, "slug": slug, "url": util.get_protocol() + post.get_absolute_url()}
+        {
+            "ok": True,
+            "slug": slug,
+            "url": scheme.get_protocol() + post.get_absolute_url(),
+        }
     )
 
 
@@ -253,7 +257,7 @@ def api_post(request, slug):
         return JsonResponse(
             {
                 "ok": True,
-                "url": util.get_protocol() + post.get_absolute_url(),
+                "url": scheme.get_protocol() + post.get_absolute_url(),
                 "slug": post.slug,
                 "title": post.title,
                 "body": post.body,
@@ -266,11 +270,11 @@ def api_post(request, slug):
         if "title" in data:
             post.title = form.cleaned_data["title"]
         if "slug" in data:
-            post.slug = util.create_post_slug(
+            post.slug = text_processing.create_post_slug(
                 form.cleaned_data["slug"], user, post=post
             )
         if "body" in data:
-            post.body = util.remove_control_chars(form.cleaned_data["body"])
+            post.body = text_processing.remove_control_chars(form.cleaned_data["body"])
         if "published_at" in data:
             post.published_at = form.cleaned_data["published_at"]
         post.save()
@@ -278,6 +282,6 @@ def api_post(request, slug):
             {
                 "ok": True,
                 "slug": post.slug,
-                "url": util.get_protocol() + post.get_absolute_url(),
+                "url": scheme.get_protocol() + post.get_absolute_url(),
             }
         )

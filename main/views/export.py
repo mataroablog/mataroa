@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
-from main import models, util
+from main import models, scheme, text_processing
 
 
 def prepend_zola_frontmatter(body, post_title, pub_date):
@@ -98,7 +98,9 @@ def export_zola(request):
     for p in posts:
         pub_date = p.published_at or p.created_at.date()
         title = p.slug + ".md"
-        body = prepend_zola_frontmatter(p.body, util.escape_quotes(p.title), pub_date)
+        body = prepend_zola_frontmatter(
+            p.body, text_processing.escape_quotes(p.title), pub_date
+        )
         export_posts.append((title, io.BytesIO(body.encode())))
 
     # create zip archive in memory
@@ -158,7 +160,7 @@ def export_hugo(request):
         title = p.slug + ".md"
         pub_date = p.published_at or p.created_at.date()
         body = prepend_hugo_frontmatter(
-            p.body, util.escape_quotes(p.title), pub_date, p.slug
+            p.body, text_processing.escape_quotes(p.title), pub_date, p.slug
         )
         export_posts.append((title, io.BytesIO(body.encode())))
 
@@ -275,7 +277,7 @@ def _get_epub_chapter(post):
     chapter_body = post.body_as_html
 
     # process image urls
-    image_url_like = util.get_protocol() + "//" + settings.CANONICAL_HOST + "/images/"
+    image_url_like = scheme.get_protocol() + "//" + settings.CANONICAL_HOST + "/images/"
     if image_url_like in chapter_body:
         chapter_body = chapter_body.replace(image_url_like, "images/")
 

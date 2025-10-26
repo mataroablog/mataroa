@@ -10,7 +10,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
-from main import util, validators
+from main import scheme, text_processing, validators
 
 
 def _generate_key():
@@ -139,12 +139,12 @@ class User(AbstractUser):
 
     @property
     def blog_absolute_url(self):
-        protocol = f"{util.get_protocol()}"
+        protocol = f"{scheme.get_protocol()}"
         return f"{protocol}//{self.username}.{settings.CANONICAL_HOST}"
 
     @property
     def blog_url(self):
-        url = f"{util.get_protocol()}"
+        url = f"{scheme.get_protocol()}"
         if self.custom_domain:
             return url + f"//{self.custom_domain}"
         else:
@@ -153,24 +153,24 @@ class User(AbstractUser):
     @property
     def blog_byline_as_text(self):
         linker = bleach.linkifier.Linker(callbacks=[lambda attrs, new: None])
-        html_text = util.md_to_html(self.blog_byline, strip_tags=True)
+        html_text = text_processing.md_to_html(self.blog_byline, strip_tags=True)
         return linker.linkify(html_text)
 
     @property
     def blog_byline_as_html(self):
-        return util.md_to_html(self.blog_byline)
+        return text_processing.md_to_html(self.blog_byline)
 
     @property
     def about_as_html(self):
-        return util.md_to_html(self.about, strip_tags=True)
+        return text_processing.md_to_html(self.about, strip_tags=True)
 
     @property
     def subscribe_note_as_html(self):
-        return util.md_to_html(self.subscribe_note)
+        return text_processing.md_to_html(self.subscribe_note)
 
     @property
     def footer_note_as_html(self):
-        return util.md_to_html(self.footer_note)
+        return text_processing.md_to_html(self.footer_note)
 
     @property
     def post_count(self):
@@ -216,11 +216,11 @@ class Post(models.Model):
 
     @property
     def body_as_html(self):
-        return util.md_to_html(self.body)
+        return text_processing.md_to_html(self.body)
 
     @property
     def body_as_text(self):
-        as_html = util.md_to_html(self.body)
+        as_html = text_processing.md_to_html(self.body)
         return bleach.clean(as_html, strip=True, tags=[])
 
     @property
@@ -314,7 +314,7 @@ class Page(models.Model):
 
     @property
     def body_as_html(self):
-        return util.md_to_html(self.body)
+        return text_processing.md_to_html(self.body)
 
     def get_absolute_url(self):
         path = reverse("page_detail", kwargs={"slug": self.slug})
@@ -363,7 +363,7 @@ class Comment(models.Model):
 
     @property
     def body_as_html(self):
-        return util.md_to_html(self.body)
+        return text_processing.md_to_html(self.body)
 
     def get_absolute_url(self):
         path = reverse("post_detail", kwargs={"slug": self.post.slug})
