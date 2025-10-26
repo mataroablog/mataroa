@@ -57,6 +57,102 @@ def _authenticate_token(request):
     return users_from_token.first()
 
 
+def _serialize_comment(comment):
+    """Return comment data suitable for API responses."""
+
+    return {
+        "id": comment.id,
+        "post_slug": comment.post.slug,
+        "post_title": comment.post.title,
+        "post_url": util.get_protocol() + comment.post.get_absolute_url(),
+        "url": util.get_protocol() + comment.get_absolute_url(),
+        "created_at": comment.created_at,
+        "name": comment.name,
+        "email": comment.email,
+        "body": comment.body,
+        "is_approved": comment.is_approved,
+        "is_author": comment.is_author,
+    }
+
+
+@require_http_methods(["GET"])
+@csrf_exempt
+def api_comments(request):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    comment_qs = models.Comment.objects.filter(post__owner=user)
+    comment_list = [_serialize_comment(comment) for comment in comment_qs]
+    return JsonResponse({"ok": True, "comment_list": comment_list})
+
+
+@require_http_methods(["GET"])
+@csrf_exempt
+def api_post_comments(request, slug):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    post = models.Post.objects.filter(owner=user, slug=slug).first()
+    if not post:
+        return JsonResponse({"ok": False, "error": "Not found."}, status=404)
+
+    comment_qs = models.Comment.objects.filter(post=post)
+    comment_list = [_serialize_comment(comment) for comment in comment_qs]
+    return JsonResponse({"ok": True, "comment_list": comment_list})
+
+
+@require_http_methods(["GET"])
+@csrf_exempt
+def api_comments_pending(request):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    comment_qs = models.Comment.objects.filter(post__owner=user, is_approved=False)
+    comment_list = [_serialize_comment(comment) for comment in comment_qs]
+    return JsonResponse({"ok": True, "comment_list": comment_list})
+
+
+@require_http_methods(["GET", "DELETE"])
+@csrf_exempt
+def api_comment(request, comment_id):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    comment_qs = models.Comment.objects.filter(id=comment_id, post__owner=user)
+    if not comment_qs.exists():
+        return JsonResponse({"ok": False, "error": "Not found."}, status=404)
+    comment = comment_qs.first()
+
+    if request.method == "GET":
+        return JsonResponse({"ok": True, "comment": _serialize_comment(comment)})
+
+    comment.delete()
+    return JsonResponse({"ok": True})
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_comment_approve(request, comment_id):
+    user = _authenticate_token(request)
+    if not user:
+        return JsonResponse({"ok": False, "error": "Not authorized."}, status=403)
+
+    comment_qs = models.Comment.objects.filter(id=comment_id, post__owner=user)
+    if not comment_qs.exists():
+        return JsonResponse({"ok": False, "error": "Not found."}, status=404)
+
+    comment = comment_qs.first()
+    if not comment.is_approved:
+        comment.is_approved = True
+        comment.save(update_fields=["is_approved"])
+
+    return JsonResponse({"ok": True, "comment": _serialize_comment(comment)})
+
+
 @require_http_methods(["POST", "GET"])
 @csrf_exempt
 def api_posts(request):
