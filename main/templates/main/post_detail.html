@@ -27,11 +27,9 @@
             {% endif %}
 
             {% if post.is_draft %}
-            <blockquote>
-                <strong>
-                    ⚠️ This post is accessible to anyone with the link!
-                </strong>
-            </blockquote>
+            <div class="posts-item-notice">
+                This is a draft post and is accessible to anyone with the link.
+            </div>
             {% endif %}
         </div>
 

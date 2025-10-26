@@ -538,6 +538,12 @@ form .helptext {
     margin-bottom: 8px;
 }
 
+.posts-item-notice {
+    border: 1px solid var(--dark-grey-color);
+    padding: 8px 16px;
+    margin-top: 16px;
+}
+
 .posts-item-body p {
     {% if not request.theme_sansserif %}
     font-family: serif;
