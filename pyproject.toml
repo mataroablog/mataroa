@@ -7,8 +7,8 @@ requires-python = ">=3.13"
 dependencies = [
     "bleach[css]>=6.2.0",
     "django==5.2.7",
-    "gunicorn>=23.0.0",
-    "l2m4m>=1.0.4",
+    "gunicorn>=23.0",
+    "latex2mathml>=3.78",
     "markdown>=3.9",
     "psycopg[binary]>=3.2",
     "pygments>=2.19",

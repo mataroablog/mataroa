@@ -335,19 +335,6 @@ wheels = [
 ]
 
 [[package]]
-name = "l2m4m"
-version = "1.0.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "latex2mathml" },
-    { name = "markdown" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1d/71/2548c288ef1b27f3419285e45430b8f10b9be8f4c34b4d2ecec2d34baf42/l2m4m-1.0.4.tar.gz", hash = "sha256:7fc451edb281604c1eb9d6fa626a8cce874e8a0d3641cca581c20b7544f51396", size = 16567, upload-time = "2024-06-15T16:49:04.798Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/8a/500639fe4b0b1dfc7775633b9173d96a474bbc0811578e916595c9b323f0/L2M4M-1.0.4-py3-none-any.whl", hash = "sha256:766e232b28cfdc6397e9c47162a938dba26e5ab90bddec8d82eccb7896ab46d1", size = 14985, upload-time = "2024-06-15T16:49:03.88Z" },
-]
-
-[[package]]
 name = "latex2mathml"
 version = "3.78.1"
 source = { registry = "https://pypi.org/simple" }
@@ -425,7 +412,7 @@ dependencies = [
     { name = "bleach", extra = ["css"] },
     { name = "django" },
     { name = "gunicorn" },
-    { name = "l2m4m" },
+    { name = "latex2mathml" },
     { name = "markdown" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pygments" },
@@ -444,8 +431,8 @@ dev = [
 requires-dist = [
     { name = "bleach", extras = ["css"], specifier = ">=6.2.0" },
     { name = "django", specifier = "==5.2.7" },
-    { name = "gunicorn", specifier = ">=23.0.0" },
-    { name = "l2m4m", specifier = ">=1.0.4" },
+    { name = "gunicorn", specifier = ">=23.0" },
+    { name = "latex2mathml", specifier = ">=3.78" },
     { name = "markdown", specifier = ">=3.9" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pygments", specifier = ">=2.19" },
