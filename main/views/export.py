@@ -1,4 +1,5 @@
 import io
+import re
 import uuid
 import zipfile
 from datetime import datetime
@@ -10,7 +11,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
-from main import models, scheme, text_processing
+from main import models, text_processing
 
 
 def prepend_zola_frontmatter(body, post_title, pub_date):
@@ -276,13 +277,43 @@ def _get_epub_titlepage(blog_user):
 def _get_epub_chapter(post):
     chapter_body = post.body_as_html
 
-    # process image urls
-    image_url_like = scheme.get_protocol() + "//" + settings.CANONICAL_HOST + "/images/"
-    if image_url_like in chapter_body:
-        chapter_body = chapter_body.replace(image_url_like, "images/")
+    # convert absolute image URLs to relative paths for epub
+    if "<img" in chapter_body:
+        # find complete img tags
+        img_pattern = re.compile(r"<img\s+([^>]+?)(/?)>")
 
-    # xhtml replacements
+        for img_match in img_pattern.finditer(chapter_body):
+            original_tag = img_match.group(0)
+            attributes = img_match.group(1)
+
+            # extract src attribute
+            src_match = re.search(r'src="([^"]+)"', attributes)
+            if src_match:
+                original_url = src_match.group(1)
+                new_url = original_url
+
+                # check if this URL points to our CANONICAL_HOST and has /images/ path
+                if (
+                    settings.CANONICAL_HOST in original_url
+                    and "/images/" in original_url
+                ):
+                    # extract just the filename part (everything after /images/)
+                    images_index = original_url.find("/images/")
+                    if images_index != -1:
+                        new_url = original_url[
+                            images_index + 1 :
+                        ]  # +1 to remove leading /
+
+                # build new img tag with relative URL and self-closing
+                new_attributes = attributes.replace(original_url, new_url)
+                new_tag = f"<img {new_attributes} />"
+
+                # replace old tag with new tag
+                chapter_body = chapter_body.replace(original_tag, new_tag)
+
+    # xhtml replacements for other self-closing tags
     chapter_body = chapter_body.replace("<br>", "<br/>").replace("<hr>", "<hr/>")
+
     return f"""<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html>
 <html xml:lang="en" lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
@@ -331,6 +362,27 @@ def export_epub(request):
             + "\n"
         )
         content_opf_spine += f'    <itemref idref="{chapter["id"]}"/>' + "\n"
+
+    # add images to manifest
+    for img in models.Image.objects.filter(owner=request.user):
+        # determine media type based on file extension
+        if img.filename.lower().endswith((".jpg", ".jpeg")):
+            media_type = "image/jpeg"
+        elif img.filename.lower().endswith(".png"):
+            media_type = "image/png"
+        elif img.filename.lower().endswith(".gif"):
+            media_type = "image/gif"
+        elif img.filename.lower().endswith(".webp"):
+            media_type = "image/webp"
+        else:
+            media_type = "image/jpeg"  # default fallback
+
+        content_opf_manifest += (
+            f'    <item id="img-{img.slug}" href="images/{img.filename}"'
+            + f' media-type="{media_type}"/>'
+            + "\n"
+        )
+
     with open("./export_base_epub/content.opf") as opf_content_file:
         content_opf_content = opf_content_file.read()
 
