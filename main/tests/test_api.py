@@ -743,3 +743,213 @@ class APISingleGetTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["published_at"], "2021-06-02")
+
+
+class APICommentsAnonTestCase(TestCase):
+    def test_comments_requires_auth(self):
+        response = self.client.get(reverse("api_comments"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_post_comments_requires_auth(self):
+        response = self.client.get(reverse("api_post_comments", args=("hello-world",)))
+        self.assertEqual(response.status_code, 403)
+
+    def test_comments_pending_requires_auth(self):
+        response = self.client.get(reverse("api_comments_pending"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_comment_detail_requires_auth(self):
+        response = self.client.get(reverse("api_comment", args=(1,)))
+        self.assertEqual(response.status_code, 403)
+
+    def test_comment_approve_requires_auth(self):
+        response = self.client.post(reverse("api_comment_approve", args=(1,)))
+        self.assertEqual(response.status_code, 403)
+
+
+class APICommentsListTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.post = models.Post.objects.create(
+            owner=self.user,
+            title="Hello world",
+            slug="hello-world",
+            body="content",
+        )
+        self.comment_approved = models.Comment.objects.create(
+            post=self.post,
+            body="Approved comment",
+            name="Eve",
+            email="eve@example.com",
+            is_approved=True,
+        )
+        self.comment_pending = models.Comment.objects.create(
+            post=self.post,
+            body="Pending comment",
+            name="Mallory",
+            email="mallory@example.com",
+            is_approved=False,
+        )
+        other_user = models.User.objects.create(username="bob")
+        other_post = models.Post.objects.create(
+            owner=other_user,
+            title="Other post",
+            slug="other-post",
+            body="content",
+        )
+        models.Comment.objects.create(
+            post=other_post,
+            body="Foreign comment",
+            is_approved=False,
+        )
+
+    def test_comments_list(self):
+        response = self.client.get(
+            reverse("api_comments"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 200)
+        comment_list = response.json()["comment_list"]
+        self.assertEqual(len(comment_list), 2)
+        ids = {c["id"] for c in comment_list}
+        self.assertEqual(ids, {self.comment_approved.id, self.comment_pending.id})
+        for comment in comment_list:
+            self.assertIn("post_slug", comment)
+            self.assertIn("url", comment)
+
+    def test_comments_pending_list(self):
+        response = self.client.get(
+            reverse("api_comments_pending"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 200)
+        comment_list = response.json()["comment_list"]
+        self.assertEqual(len(comment_list), 1)
+        self.assertEqual(comment_list[0]["id"], self.comment_pending.id)
+        self.assertFalse(comment_list[0]["is_approved"])
+
+
+class APIPostCommentsTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.post = models.Post.objects.create(
+            owner=self.user,
+            title="Hello world",
+            slug="hello-world",
+            body="content",
+        )
+        self.comment_approved = models.Comment.objects.create(
+            post=self.post,
+            body="Approved comment",
+            is_approved=True,
+        )
+        self.comment_pending = models.Comment.objects.create(
+            post=self.post,
+            body="Pending comment",
+            is_approved=False,
+        )
+        other_user = models.User.objects.create(username="bob")
+        self.other_post = models.Post.objects.create(
+            owner=other_user,
+            title="Hello world",
+            slug="bob-post",
+            body="content",
+        )
+        models.Comment.objects.create(
+            post=self.other_post,
+            body="Foreign comment",
+            is_approved=False,
+        )
+
+    def test_post_comments_list(self):
+        response = self.client.get(
+            reverse("api_post_comments", args=(self.post.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 200)
+        comment_list = response.json()["comment_list"]
+        ids = {comment["id"] for comment in comment_list}
+        self.assertEqual(ids, {self.comment_approved.id, self.comment_pending.id})
+
+    def test_post_comments_not_found(self):
+        response = self.client.get(
+            reverse("api_post_comments", args=("missing",)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_post_comments_foreign_slug(self):
+        response = self.client.get(
+            reverse("api_post_comments", args=(self.other_post.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 404)
+
+
+class APICommentDetailMutationsTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.post = models.Post.objects.create(
+            owner=self.user,
+            title="Hello world",
+            slug="hello-world",
+            body="content",
+        )
+        self.comment = models.Comment.objects.create(
+            post=self.post,
+            body="Pending comment",
+            is_approved=False,
+        )
+        other_user = models.User.objects.create(username="bob")
+        other_post = models.Post.objects.create(
+            owner=other_user,
+            title="Other post",
+            slug="other-post",
+            body="content",
+        )
+        self.foreign_comment = models.Comment.objects.create(
+            post=other_post,
+            body="Foreign comment",
+            is_approved=False,
+        )
+
+    def test_comment_detail(self):
+        response = self.client.get(
+            reverse("api_comment", args=(self.comment.id,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["comment"]["id"], self.comment.id)
+
+    def test_comment_approve(self):
+        response = self.client.post(
+            reverse("api_comment_approve", args=(self.comment.id,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.comment.refresh_from_db()
+        self.assertTrue(self.comment.is_approved)
+
+    def test_comment_approve_foreign(self):
+        response = self.client.post(
+            reverse("api_comment_approve", args=(self.foreign_comment.id,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_comment_delete(self):
+        response = self.client.delete(
+            reverse("api_comment", args=(self.comment.id,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(models.Comment.objects.filter(id=self.comment.id).exists())
+
+    def test_comment_delete_foreign(self):
+        response = self.client.delete(
+            reverse("api_comment", args=(self.foreign_comment.id,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+        )
+        self.assertEqual(response.status_code, 404)

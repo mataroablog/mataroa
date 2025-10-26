@@ -258,6 +258,19 @@ urlpatterns += [
 urlpatterns += [
     path("api/docs/", api.api_docs, name="api_docs"),
     path("api/reset/", api.APIKeyReset.as_view(), name="api_reset"),
+    path("api/comments/", api.api_comments, name="api_comments"),
+    path(
+        "api/posts/<slug:slug>/comments/",
+        api.api_post_comments,
+        name="api_post_comments",
+    ),
+    path("api/comments/pending/", api.api_comments_pending, name="api_comments_pending"),
+    path("api/comments/<int:comment_id>/", api.api_comment, name="api_comment"),
+    path(
+        "api/comments/<int:comment_id>/approve/",
+        api.api_comment_approve,
+        name="api_comment_approve",
+    ),
     path("api/posts/", api.api_posts, name="api_posts"),
     path("api/posts/<slug:slug>/", api.api_post, name="api_post"),
 ]

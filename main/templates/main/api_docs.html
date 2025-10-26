@@ -198,6 +198,203 @@
     {{ protocol }}//{{ host }}/api/posts/
 </code></pre>
 
+    <h2>GET /api/comments/</h2>
+    <p>
+        List all comments on your posts.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "comment_list": [
+        {
+            "id": 12,
+            "post_slug": "on-life",
+            "post_title": "On life",
+            "post_url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/",
+            "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/#comment-12",
+            "created_at": "2024-01-15T12:33:45Z",
+            "name": "Visitor",
+            "email": "visitor@example.com",
+            "body": "An inspiring post!",
+            "is_approved": true,
+            "is_author": false
+        }
+    ]
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X GET \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/comments/
+</code></pre>
+
+    <h2>GET /api/comments/pending/</h2>
+    <p>
+        List comments awaiting approval.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "comment_list": [
+        {
+            "id": 13,
+            "post_slug": "on-life",
+            "post_title": "On life",
+            "post_url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/",
+            "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/#comment-13",
+            "created_at": "2024-01-16T09:01:02Z",
+            "name": "Reader",
+            "email": null,
+            "body": "Please approve this comment.",
+            "is_approved": false,
+            "is_author": false
+        }
+    ]
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X GET \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/comments/pending/
+</code></pre>
+
+    <h2>GET /api/posts/&lt;post-slug&gt;/comments/</h2>
+    <p>
+        List comments for a specific post.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "comment_list": [
+        {
+            "id": 12,
+            "post_slug": "on-life",
+            "post_title": "On life",
+            "post_url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/",
+            "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/#comment-12",
+            "created_at": "2024-01-15T12:33:45Z",
+            "name": "Visitor",
+            "email": "visitor@example.com",
+            "body": "An inspiring post!",
+            "is_approved": true,
+            "is_author": false
+        }
+    ]
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X GET \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/posts/on-life/comments/
+</code></pre>
+
+    <h2>GET /api/comments/&lt;comment-id&gt;/</h2>
+    <p>
+        Get details for a single comment.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "comment": {
+        "id": 13,
+        "post_slug": "on-life",
+        "post_title": "On life",
+        "post_url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/",
+        "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/#comment-13",
+        "created_at": "2024-01-16T09:01:02Z",
+        "name": "Reader",
+        "email": null,
+        "body": "Please approve this comment.",
+        "is_approved": false,
+        "is_author": false
+    }
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X GET \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/comments/13/
+</code></pre>
+
+    <h2>POST /api/comments/&lt;comment-id&gt;/approve/</h2>
+    <p>
+        Approve a pending comment.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true,
+    "comment": {
+        "id": 13,
+        "post_slug": "on-life",
+        "post_title": "On life",
+        "post_url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/",
+        "url": "{{ protocol }}//{{ request.user.username|default:"your-username" }}.{{ host }}/blog/on-life/#comment-13",
+        "created_at": "2024-01-16T09:01:02Z",
+        "name": "Reader",
+        "email": null,
+        "body": "Please approve this comment.",
+        "is_approved": true,
+        "is_author": false
+    }
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X POST \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/comments/13/approve/
+</code></pre>
+
+    <h2>DELETE /api/comments/&lt;comment-id&gt;/</h2>
+    <p>
+        Delete a comment.
+    </p>
+
+    <strong>Parameters</strong>
+    <ul>
+        <li><em>(no parameters)</em></li>
+    </ul>
+
+    <strong>Response</strong>
+    <pre><code>{
+    "ok": true
+}</code></pre>
+
+    <strong>curl</strong>
+    <pre><code>$ curl -X DELETE \
+    -H 'Authorization: Bearer {{ request.user.api_key|default:"your-api-key" }}' \
+    {{ protocol }}//{{ host }}/api/comments/13/
+</code></pre>
+
     <div style="margin-top: 64px;"></div>
 </main>
 {% endblock content %}
