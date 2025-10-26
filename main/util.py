@@ -9,9 +9,9 @@ import pygments
 from bleach.css_sanitizer import CSSSanitizer
 from django.conf import settings
 from django.utils.text import slugify
+from l2m4m import LaTeX2MathMLExtension
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import ClassNotFound, get_lexer_by_name, get_lexer_for_filename
-from l2m4m import LaTeX2MathMLExtension
 
 from main import denylist, models
 
