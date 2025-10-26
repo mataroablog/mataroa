@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.3.0](https://github.com/mataroablog/mataroa/compare/v1.2...v1.3)
+## [1.3.0](https://github.com/mataroablog/mataroa/compare/v1.2...v1.3) - 2025-10-26
 
 ### Important changes
 
@@ -14,12 +14,18 @@ All notable changes to this project will be documented in this file.
     * images overview
     * global stats
     * daily admin summary email
-* Switch to astral uv
+* Rewrite Stripe integration:
+    * Upgrade to latest Stripe SDK and API version
+    * Improve webhook handling for more cases
+    * Handle Stripe-side changes more robustly
+* Add FAQ section on landing page
+* Switch to pyproject and astral uv
 * Add hard check for image uploading limit
 * Change sign up text
 * Remove robot checks from sign up form
 * Upgrade to Django 5.2
 * Add docker image auto-push to ghcr.io
+* Add AGENTS.md to help onboarding of AI-enhanced contributors
 
 ### Bug fixes
 
