@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [1.4.0](https://github.com/mataroablog/mataroa/compare/v1.3...v1.4)
 
+### Important changes
+
+* Add support for LaTeX-style mathematical markup
+* Merge subscribe note with footer note
+
 ## [1.3.0](https://github.com/mataroablog/mataroa/compare/v1.2...v1.3) - 2025-10-26
 
 ### Important changes
