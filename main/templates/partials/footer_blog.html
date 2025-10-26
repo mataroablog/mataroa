@@ -1,6 +1,4 @@
 <footer>
-    {{ blog_user.subscribe_note_as_html|safe }}
-
     {% if blog_user.footer_note %}
     {{ blog_user.footer_note_as_html|safe }}
     {% endif %}

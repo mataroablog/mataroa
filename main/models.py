@@ -42,18 +42,11 @@ class User(AbstractUser):
         null=True,
         help_text="Supports markdown",
     )
-    subscribe_note = models.CharField(
-        max_length=350,
-        blank=True,
-        null=True,
-        default="Subscribe via [RSS](/rss/) / [via Email](/newsletter/).",
-        help_text="Default: Subscribe via [RSS](/rss/) / [via Email](/newsletter/).",
-    )
     footer_note = models.TextField(
         blank=True,
         null=True,
-        default="Powered by [mataroa.blog](https://mataroa.blog/).",
-        help_text="Supports markdown",
+        default="Subscribe via [RSS](/rss/) / [via Email](/newsletter/).\n\nPowered by [mataroa.blog](https://mataroa.blog/).",
+        help_text="Supports markdown. Appears at the bottom of your blog.",
     )
     theme_zialucia = models.BooleanField(
         default=False,
@@ -163,10 +156,6 @@ class User(AbstractUser):
     @property
     def about_as_html(self):
         return text_processing.md_to_html(self.about, strip_tags=True)
-
-    @property
-    def subscribe_note_as_html(self):
-        return text_processing.md_to_html(self.subscribe_note)
 
     @property
     def footer_note_as_html(self):
