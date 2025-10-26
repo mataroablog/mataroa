@@ -16,7 +16,9 @@ def host_middleware(get_response):
             return get_response(request)
 
         # allow localhost for webhooks in local development
-        if host.startswith("localhost:") or host.startswith("127.0.0.1:"):
+        if (host.startswith("localhost:") or host.startswith("127.0.0.1:")) and (
+            request.path == "/billing/stripe/webhook/"
+        ):
             return get_response(request)
 
         host_parts = host.split(".")
