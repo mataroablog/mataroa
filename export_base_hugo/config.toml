@@ -6,6 +6,9 @@ theme = "mataroa"
 [params]
     description = "Example blog description"
 
+[markup.goldmark.renderer]
+    unsafe = true
+
 [outputFormats]
   [outputFormats.RSS]
     mediatype = "application/rss"

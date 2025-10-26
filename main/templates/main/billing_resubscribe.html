@@ -1,0 +1,27 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Resubscribe to Premium{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Resubscribe to Premium</h1>
+
+    <p>
+        Your <strong>{{ default_card.brand|capfirst }}</strong> card ending in <strong>{{ default_card.last4 }}</strong>
+        will be charged <strong>$9</strong> immediately.
+    </p>
+
+    <p>
+        You'll be charged $9 per year. You will be able to cancel anytime from the billing page.
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Confirm">
+    </form>
+
+    <p style="margin-top: 24px;">
+        <a href="{% url 'billing_overview' %}">← Back to Billing</a>
+    </p>
+</main>
+{% endblock content %}

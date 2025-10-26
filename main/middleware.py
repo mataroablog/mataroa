@@ -15,6 +15,10 @@ def host_middleware(get_response):
         if not host:
             return get_response(request)
 
+        # allow localhost for webhooks in local development
+        if host.startswith("localhost:") or host.startswith("127.0.0.1:"):
+            return get_response(request)
+
         host_parts = host.split(".")
         canonical_parts = settings.CANONICAL_HOST.split(".")
 

@@ -107,7 +107,9 @@ def build_summary_text(target_date: datetime.date) -> str:
         lines.append("- None.")
 
     lines.append("")
-    lines.append(f"Prev day: {prev_date.strftime('%Y-%m-%d')} | Next day: {next_date.strftime('%Y-%m-%d')}")
+    lines.append(
+        f"Prev day: {prev_date.strftime('%Y-%m-%d')} | Next day: {next_date.strftime('%Y-%m-%d')}"
+    )
 
     return "\n".join(lines)
 
@@ -126,7 +128,9 @@ class Command(BaseCommand):
 
         to_addresses = [email for _name, email in settings.ADMINS]
         if not to_addresses:
-            self.stdout.write(self.style.ERROR("No admin addresses configured (ADMINS)."))
+            self.stdout.write(
+                self.style.ERROR("No admin addresses configured (ADMINS).")
+            )
             return
 
         email = mail.EmailMessage(

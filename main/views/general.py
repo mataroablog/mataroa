@@ -235,7 +235,7 @@ class UserDelete(LoginRequiredMixin, DeleteView):
             )
             try:
                 stripe.Subscription.delete(subscription["id"])
-            except stripe.error.StripeError as ex:
+            except stripe.StripeError as ex:
                 logger.error(str(ex))
                 return HttpResponse("Subscription could not be canceled.", status=503)
         self.object.delete()
