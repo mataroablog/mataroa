@@ -13,7 +13,6 @@ postgres_password: "{{ lookup('env', 'POSTGRES_PASSWORD') }}"
 
 email_host_user: "{{ lookup('env', 'EMAIL_HOST_USER') }}"
 email_host_password: "{{ lookup('env', 'EMAIL_HOST_PASSWORD') }}"
-email_test_receive_list: "{{ lookup('env', 'EMAIL_TEST_RECEIVE_LIST') }}"
 
 stripe_api_key: "{{ lookup('env', 'STRIPE_API_KEY') }}"
 stripe_public_key: "{{ lookup('env', 'STRIPE_PUBLIC_KEY') }}"

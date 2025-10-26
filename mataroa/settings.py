@@ -198,8 +198,6 @@ NOTIFICATIONS_FROM_EMAIL = f"Mataroa Notifications <notifications@{EMAIL_FROM_HO
 SERVER_EMAIL = f"Mataroa Server <server@{EMAIL_FROM_HOST}>"
 EMAIL_SUBJECT_PREFIX = "[Mataroa Notification] "
 
-EMAIL_TEST_RECEIVE_LIST = os.environ.get("EMAIL_TEST_RECEIVE_LIST")
-
 
 # Security middleware
 
