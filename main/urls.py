@@ -96,6 +96,11 @@ urlpatterns += [
     path("blog/<slug:slug>/delete/", general.PostDelete.as_view(), name="post_delete"),
 ]
 
+# post by email
+urlpatterns += [
+    path("webhook/postmark/", general.postmark_webhook, name="postmark_webhook"),
+]
+
 # blog extras
 urlpatterns += [
     path("rss/", feeds.RSSBlogFeed(), name="rss_feed"),
@@ -193,7 +198,7 @@ urlpatterns += [
         name="billing_subscription_resume",
     ),
     path(
-        "billing/stripe/webhook/",
+        "webhook/stripe/",
         billing.billing_stripe_webhook,
         name="billing_stripe_webhook",
     ),

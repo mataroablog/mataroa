@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from collections import defaultdict
@@ -25,6 +26,8 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -1164,6 +1167,79 @@ class NotificationRecordList(LoginRequiredMixin, ListView):
             .filter(post__isnull=False)  # do not show nr for deleted posts
         )
         return context
+
+
+@csrf_exempt
+@require_POST
+def postmark_webhook(request):
+    """
+    Handle Postmark webhooks.
+    See: https://postmarkapp.com/developer/webhooks/webhooks-overview
+    """
+
+    data = json.loads(request.body)
+    from_email = data.get("From")
+    to_email = data.get("To")
+    subject = data.get("Subject")
+    text_body = data.get("TextBody")
+    header_list = data.get("Headers", [])
+
+    # check spam status
+    spam_status = False
+    for header in header_list:
+        if (
+            header.get("Name") == "X-Spam-Status"
+            and header.get("Value").lower() == "yes"
+        ):
+            spam_status = True
+            break
+    if spam_status:
+        return HttpResponse(status=200)
+
+    # get message id from headers
+    message_id = None
+    for header in header_list:
+        if header.get("Name").lower() == "message-id":
+            message_id = header.get("Value")
+            break
+
+    # check inbound host
+    to_email_parts = to_email.split("@")
+    if to_email_parts[0] != "posts":
+        return HttpResponse(status=200)
+    if to_email_parts[1] != "posts." + settings.CANONICAL_HOST:
+        return HttpResponse(status=200)
+
+    # get user if exists
+    try:
+        user = models.User.objects.get(email=from_email)
+    except models.User.DoesNotExist:
+        return HttpResponse(status=200)
+
+    # create new post with subject as title and text_body as body
+    post = models.Post.objects.create(
+        title=subject,
+        slug=text_processing.create_post_slug(subject, user),
+        published_at=timezone.now(),
+        body=text_body,
+        owner=user,
+    )
+
+    # send reply email to user with post link as content
+    extra_headers = {}
+    if message_id:
+        extra_headers["In-Reply-To"] = message_id
+        extra_headers["References"] = message_id
+    email = mail.EmailMessage(
+        subject=subject,
+        body=scheme.get_protocol() + post.get_proper_url(),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[from_email],
+        headers=extra_headers,
+    )
+    email.send()
+
+    return HttpResponse(status=200)
 
 
 def comparisons(request):
