@@ -1,69 +1,4 @@
-/* reset */
-html {
-    line-height: 1.15;
-    /* prevent adjustments of font size after orientation changes in iOS */
-    -webkit-text-size-adjust: 100%;
-}
-
-body {
-    margin: 0;
-}
-
-small {
-    /* fix font size in all browsers */
-    font-size: 80%;
-}
-
-/* prevent sub and sup from affecting the line height in all browsers */
-sub,
-sup {
-    font-size: 75%;
-    line-height: 0;
-    position: relative;
-    vertical-align: baseline;
-}
-sub {
-    bottom: -0.25em;
-}
-sup {
-    top: -0.5em;
-}
-
-table {
-    /* remove text indentation from table contents in Chrome and Safari */
-    text-indent: 0;
-    /* fix table border color inheritance in Chrome and Safari */
-    border-color: inherit;
-}
-
-button,
-input,
-optgroup,
-select,
-textarea {
-    /* fix font styles in all browsers */
-    font-family: inherit;
-    font-size: 100%;
-    line-height: 1.15;
-    /* remove margin in Firefox and Safari */
-    margin: 0;
-}
-
-button,
-select {
-    /* remove inheritance of text transform in Edge and Firefox */
-    text-transform: none;
-}
-
-button,
-[type='button'],
-[type='reset'],
-[type='submit'] {
-    /* fix inability to style clickable types in iOS and Safari */
-    -webkit-appearance: button;
-}
-
-/* general */
+/* variables */
 :root {
     {% if request.theme_zialucia %}
     font-size: 20px;
@@ -109,6 +44,17 @@ button,
     }
 }
 
+/* general */
+html {
+    line-height: 1.15;
+    /* prevent adjustments of font size after orientation changes in iOS */
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+}
+
 a {
     text-decoration: none;
     color: var(--link-color);
@@ -137,7 +83,6 @@ a.btn:disabled {
     pointer-events: none;
     background: var(--ascent-color);
 }
-
 
 h1 {
     font-size: 1.8rem;
@@ -216,6 +161,26 @@ nav {
     }
 }
 
+small {
+    /* fix font size in all browsers */
+    font-size: 80%;
+}
+
+/* prevent sub and sup from affecting the line height in all browsers */
+sub,
+sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+sub {
+    bottom: -0.25em;
+}
+sup {
+    top: -0.5em;
+}
+
 ol,
 ul {
     padding-left: 24px;
@@ -248,6 +213,12 @@ dd {
 }
 
 table {
+    /* remove text indentation from table contents in Chrome and Safari */
+    text-indent: 0;
+
+    /* fix table border color inheritance in Chrome and Safari */
+    border-color: inherit;
+
     border-collapse: collapse;
     border: 1px solid var(--light-grey-color);
     width: 100%;
@@ -344,6 +315,33 @@ footer {
 label {
     display: block;
     margin-top: 16px;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+    /* fix font styles in all browsers */
+    font-family: inherit;
+    font-size: 100%;
+    line-height: 1.15;
+    /* remove margin in Firefox and Safari */
+    margin: 0;
+}
+
+button,
+select {
+    /* remove inheritance of text transform in Edge and Firefox */
+    text-transform: none;
+}
+
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+    /* fix inability to style clickable types in iOS and Safari */
+    -webkit-appearance: button;
 }
 
 input[type="text"],
@@ -745,227 +743,4 @@ svg .analytics-chart-text {
 #card-element-errors {
     margin-top: 8px;
     color: var(--red-color);
-}
-
-/* moderation */
-.moderation-content {
-    max-width: 100%;
-    margin-bottom: 32px;
-    overflow: auto;
-}
-
-.filterbar {
-    margin: 0 0 12px 0;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-
-.filterbar a {
-    padding: 2px 6px;
-    border: 1px solid var(--light-grey-color);
-}
-
-.filterbar .filterbar-clear {
-    margin-left: auto;
-    border: none;
-    padding: 0;
-}
-
-.filterbar .filterbar-form {
-    margin-left: 12px;
-    display: inline-flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.filterbar .filterbar-form input[type="number"] {
-    width: 90px;
-    box-sizing: border-box;
-}
-
-.filterbar .filterbar-form button[type="submit"] {
-    display: inline-block;
-    padding: 2px 8px;
-    border: 1px solid var(--light-grey-color);
-    background: transparent;
-    color: var(--link-color);
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.filterbar .filterbar-form button[type="submit"]:hover {
-    text-decoration: underline;
-}
-
-/* ensure vertical alignment for compact inline controls */
-.filterbar .filterbar-form label,
-.pagination form label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-}
-
-.moderation-content-row {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--light-grey-color);
-}
-@media (max-width: 34rem) {
-    .moderation-content-row {
-        padding: 8px 0;
-    }
-}
-
-.moderation-content-row:nth-child(even) {
-    background: var(--airy-grey-color);
-}
-
-.moderation-content-row div {
-    box-sizing: border-box;
-    padding: 4px;
-}
-
-.moderation-content-row ul {
-    margin: 0;
-}
-
-.moderation-content-row-id {
-    width: 45px;
-    white-space: nowrap;
-    font-family: monospace;
-    line-height: 1.8;
-}
-@media (max-width: 34rem) {
-    .moderation-content-row-id a {
-        color: darksalmon;
-    }
-}
-
-.moderation-content-row-id2 {
-    width: 115px;
-    font-family: monospace;
-    font-size: 70%;
-    line-height: 2;
-    white-space: nowrap;
-}
-
-.moderation-content-row-username {
-    width: 250px;
-    white-space: nowrap;
-    font-family: monospace;
-    line-height: 1.8;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.moderation-content-row-actions {
-    width: 170px;
-    white-space: nowrap;
-    font-family: monospace;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.moderation-content-row-url {
-    width: 400px;
-    white-space: nowrap;
-    font-family: monospace;
-    line-height: 1.8;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-@media (max-width: 34rem) {
-    .moderation-content-row-url a {
-        color: var(--dark-grey-color);
-        text-decoration: underline;
-    }
-}
-
-.moderation-content-row-email {
-    width: 300px;
-    white-space: nowrap;
-    font-family: monospace;
-    line-height: 1.8;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-@media (max-width: 34rem) {
-    .moderation-content-row-email {
-        color: var(--dark-grey-color);
-    }
-}
-
-.moderation-content-row-posts {
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.moderation-content-cards {
-    display: flex;
-}
-
-.moderation-content-cards-col1 {
-    width: 20vw;
-}
-
-.moderation-content-cards-col2 {
-    width: 20vw;
-}
-
-.moderation-content-cards-col3 {
-    width: 30vw;
-    padding: 0 4px;
-}
-
-.moderation-content-cards-col4 {
-    width: 30vw;
-    padding: 0 4px;
-}
-
-/* pagination */
-.pagination {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    margin: 16px 0;
-}
-
-.pagination a,
-.pagination button[type="submit"] {
-    display: inline-block;
-    padding: 2px 8px;
-    border: 1px solid var(--light-grey-color);
-    background: transparent;
-    color: var(--link-color);
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.pagination a:hover,
-.pagination button[type="submit"]:hover {
-    text-decoration: underline;
-}
-
-.pagination .disabled {
-    color: var(--dark-grey-color);
-}
-
-.pagination .status {
-    white-space: nowrap;
-}
-
-.pagination form {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.pagination input[type="number"] {
-    width: 70px;
-    box-sizing: border-box;
 }
