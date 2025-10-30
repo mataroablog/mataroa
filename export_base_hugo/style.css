@@ -4,6 +4,7 @@
     --light-grey-color: #eff1f5;
     --green-color: #26bd60;
     --red-color: #ff0000;
+    --airy-grey-color: #fafafa;
 }
 
 html,
@@ -148,4 +149,13 @@ footer {
         padding-left: 8px;
         padding-right: 8px;
     }
+}
+
+pre {
+    background: var(--airy-grey-color);
+    overflow-x: auto;
+}
+
+code {
+    background: var(--airy-grey-color);
 }
