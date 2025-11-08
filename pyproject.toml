@@ -17,7 +17,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ansible>=12.1",
     "coverage>=7.11",
     "djade>=1.6",
     "ruff>=0.14",

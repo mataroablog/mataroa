@@ -5,7 +5,7 @@ Description=Backup mataroa database
 Type=oneshot
 User=deploy
 WorkingDirectory=/home/deploy
-Environment="PGPASSWORD={{ postgres_password }}"
+Environment="PGPASSWORD=${POSTGRES_PASSWORD}"
 ExecStart=/home/deploy/backup-database.sh
 
 [Install]

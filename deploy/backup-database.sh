@@ -26,7 +26,7 @@ main() {
     # dump database in the home folder
     pg_dump -Fc --no-acl mataroa -h localhost -U mataroa -f /home/deploy/mataroa.dump -w
 
-    # upload using aws cli
+    # upload using rclone
     /usr/bin/rclone copy --progress /home/deploy/mataroa.dump scaleway:bucket/mataroa-backups/postgres-mataroa-"$(date --utc +%Y%m%d-%H%M%S)"/
 }
 

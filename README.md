@@ -235,8 +235,21 @@ uv sync --all-groups
 
 ## Deployment
 
-See the [Deployment](./docs/deployment.md) document for an overview on steps
-required to deploy a mataroa instance.
+See the [Deployment](./docs/src/deployment.md) document on how to deploy a
+mataroa instance. Briefly, the steps are:
+
+```sh
+cd deploy/
+cp .envrc.example .envrc
+
+# edit .envrc with your settings
+vim .envrc
+
+source .envrc
+./provision.sh
+```
+
+After initial provisioning, deploy updates with `./deploy.sh`.
 
 ### Useful Commands
 

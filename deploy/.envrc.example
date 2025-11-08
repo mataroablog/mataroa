@@ -1,15 +1,12 @@
-# inventory.yaml
+# Server connection details
+export SERVER_IP=
+export SERVER_USER=root
 
-# Server IP and user with ssh access
-export ANSIBLE_HOST=
-export ANSIBLE_USER=root
+# Main domain name
+export DOMAIN=example.com
 
-
-# vars.yaml
-
-# Domain name and email for Caddy
-export DOMAIN=mataroa.blog
-export EMAIL=admin@mataroa.blog
+# Admin email for server error alerts
+export ADMIN_EMAIL=
 
 # Show exceptions and tracebacks on errors
 # 1: show
@@ -33,10 +30,8 @@ export POSTGRES_PASSWORD=xxx
 export EMAIL_HOST_USER=
 export EMAIL_HOST_PASSWORD=
 
-# Receivers for email tests (comma separated)
-export EMAIL_TEST_RECEIVE_LIST=
-
 # Stripe payments details
 export STRIPE_API_KEY=
 export STRIPE_PUBLIC_KEY=
+export STRIPE_WEBHOOK_SECRET=
 export STRIPE_PRICE_ID=

@@ -19,3 +19,6 @@ docker-compose.override.yml
 
 # mdbook docs
 /docs/book/
+
+# deployment generated files
+/deploy/generated/

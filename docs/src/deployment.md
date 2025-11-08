@@ -1,66 +1,58 @@
 # Deployment
 
-## Step 1: Ansible
+## 1. Choose domain
 
-We use ansible to provision a Debian 12 Linux server.
+Let's assume `example.com` is your domain of choice, for the purposes of this
+guide.
 
-(1a) First, set up configuration files:
+## 2. Setup DNS
+
+Setup both `example.com` and `*.example.com` to point the mataroa server IP.
+
+## 3. Provision server
+
+(3a) First, set up config environment for provisioning:
 
 ```sh
-cd ansible/
-# Make a copy of the example file
+cd deploy/
+
+# make a copy of the example file
 cp .envrc.example .envrc
 
-# Edit parameters as required
+# edit parameters as required
 vim .envrc
 
-# Load variables into environment
+# load variables into environment
 source .envrc
 ```
 
-(1b) Then, provision:
+(3b) Then, run the provisioning script:
 
 ```sh
-ansible-playbook playbook.yaml -v
+./provision.sh
 ```
 
-## Step 2: Wildcard certificates
+This script will:
 
-We use Automatic DNS API integration with DNSimple:
+* install essential packages (gcc, git, rclone, vim, postgresql)
+* install and configure Caddy web server
+* create the deploy user with proper permissions
+* set up the postgresql database
+* install uv and clone the mataroa repository
+* configure all systemd services and timers
+* run initial Django migrations and collect static files
+* enable and start all systemd services
 
-* https://github.com/acmesh-official/acme.sh?tab=readme-ov-file#1-how-to-install
-* https://github.com/acmesh-official/acme.sh/wiki/dnsapi#dns_dnsimple
+Note: Caddy will automatically obtain and manage SSL certificates for your
+domain and all subdomains using Let's Encrypt. The first certificate request
+happens when a domain is first accessed.
 
-Note: acme.sh's default SSL provider is ZeroSSL which does not accept email with
-plus-subaddressing. It will not error gracefully, just fail with a cryptic
-message (tested with acmesh v3.0.7).
+## 4. Future deployments
 
-```sh
-curl https://get.acme.sh | sh -s email=person@example.com
-# Note: Installation inserts a cronjob for auto-renewal
+Running `./deploy.sh` will connect to the server and:
 
-# Setup DNSimple API
-echo 'export DNSimple_OAUTH_TOKEN="token-here"' >> /root/.acme.sh/acme.sh.env
-
-# Issue cert
-acme.sh --issue --dns dns_dnsimple -d mataroa.blog -d *.mataroa.blog
-
-# We "install" (copy) the cert because we should not use the cert from acme.sh's internal store
-acme.sh --install-cert -d mataroa.blog -d *.mataroa.blog --key-file /etc/caddy/mataroa-blog-key.pem --fullchain-file /etc/caddy/mataroa-blog-cert.pem --reloadcmd "chown caddy:www-data /etc/caddy/mataroa-blog-{cert,key}.pem && systemctl restart caddy"
-```
-
-## Step 3: Cronjobs and Automated backups
-
-There are a few cronjobs that need setting up and, of course, backups are essential:
-
-* (3a) [Cronjobs](./cronjobs.md)
-* (3b) [Database Backup](./database-backup.md)
-
-## Step 4: Deploy changes
-
-```sh
-git push origin main
-source .venv/bin/activate
-cd ansible/
-ansible-playbook -v deploy.yaml
-```
+* pull the latest code from git
+* update Python dependencies
+* run database migrations
+* collect static files
+* reload the gunicorn service
