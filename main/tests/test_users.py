@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
@@ -282,10 +283,28 @@ class UserDomainCheckTestCase(TestCase):
             username="alice", custom_domain="example.com"
         )
 
-    def test_domain_exists(self):
+    def test_custom_domain_exists(self):
         response = self.client.get(reverse("domain_check") + "?domain=example.com")
         self.assertEqual(response.status_code, 200)
 
     def test_domain_unknown(self):
         response = self.client.get(reverse("domain_check") + "?domain=randomdomain.com")
+        self.assertEqual(response.status_code, 403)
+
+    def test_canonical_host(self):
+        response = self.client.get(
+            reverse("domain_check") + "?domain=" + settings.CANONICAL_HOST
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_subdomain_with_existing_user(self):
+        response = self.client.get(
+            reverse("domain_check") + f"?domain=alice.{settings.CANONICAL_HOST}"
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_subdomain_with_nonexistent_user(self):
+        response = self.client.get(
+            reverse("domain_check") + f"?domain=bob.{settings.CANONICAL_HOST}"
+        )
         self.assertEqual(response.status_code, 403)

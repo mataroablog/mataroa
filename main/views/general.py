@@ -113,15 +113,35 @@ def index(request):
 
 def domain_check(request):
     """
-    This view returns 200 if domain given exists as custom domain in any
-    user account.
+    This view returns 200 if the domain given exists as:
+    * canonical host (main domain)
+    * subdomain of canonical host of existing user/blog
+    * custom domain of existing user/blog
     """
     url = request.GET.get("domain")
     if not url:
         raise PermissionDenied()
-    if not models.User.objects.filter(custom_domain=url).exists():
-        raise PermissionDenied()
-    return HttpResponse()
+
+    # allow canonical host
+    if url == settings.CANONICAL_HOST:
+        return HttpResponse()
+
+    # allow user blog subdomains
+    host_parts = url.split(".")
+    canonical_parts = settings.CANONICAL_HOST.split(".")
+    if (
+        len(host_parts) == len(canonical_parts) + 1
+        and ".".join(host_parts[1:]) == settings.CANONICAL_HOST
+    ):
+        subdomain = host_parts[0]
+        if models.User.objects.filter(username=subdomain).exists():
+            return HttpResponse()
+
+    # allow custom domains
+    if models.User.objects.filter(custom_domain=url).exists():
+        return HttpResponse()
+
+    raise PermissionDenied()
 
 
 class Logout(DjLogoutView):
