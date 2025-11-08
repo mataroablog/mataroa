@@ -515,6 +515,10 @@ form .helptext {
     margin: 16px 0 24px;
 }
 
+.byline img {
+  width: 100%;
+}
+
 .webring {
     margin-top: 64px;
     display: flex;
