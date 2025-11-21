@@ -20,15 +20,22 @@ fi
 # Required environment variables
 REQUIRED_VARS=(
     "DOMAIN"
-    "EMAIL"
+    "ADMIN_EMAIL"
     "DEBUG"
     "LOCALDEV"
     "SECRET_KEY"
     "DATABASE_URL"
+    "POSTGRES_USERNAME"
     "POSTGRES_PASSWORD"
     "EMAIL_HOST_USER"
     "EMAIL_HOST_PASSWORD"
+    "STRIPE_API_KEY"
+    "STRIPE_PUBLIC_KEY"
+    "STRIPE_PRICE_ID"
+    "STRIPE_WEBHOOK_SECRET"
 )
+
+SUBST_VARS="$(printf '$%s ' "${REQUIRED_VARS[@]}")"
 
 # Check required variables
 echo "==> Checking required environment variables..."
@@ -71,9 +78,7 @@ for template in "${TEMPLATE_FILES[@]}"; do
     fi
 
     echo "  Processing: ${template}"
-    envsubst < "${input_file}" > "${output_file}"
+    envsubst "${SUBST_VARS}" < "${input_file}" > "${output_file}"
 done
 
 echo "==> Generated files written to: ${OUTPUT_DIR}"
-echo ""
-echo "To deploy these files to the server, use provision.sh or deploy.sh"

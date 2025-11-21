@@ -15,9 +15,10 @@ def host_middleware(get_response):
         if not host:
             return get_response(request)
 
-        # allow localhost for webhooks in local development
+        # allow localhost for webhooks and Caddy on-demand TLS validation
         if (host.startswith("localhost:") or host.startswith("127.0.0.1:")) and (
             request.path.startswith("/webhook/")
+            or request.path.startswith("/accounts/domain/")
         ):
             return get_response(request)
 
