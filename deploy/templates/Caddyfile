@@ -1,6 +1,6 @@
 {
 	on_demand_tls {
-		ask http://127.0.0.1:5000/accounts/domain/
+		ask https://${DOMAIN}/accounts/domain/
 	}
 }
 
