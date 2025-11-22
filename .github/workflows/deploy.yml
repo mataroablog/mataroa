@@ -22,31 +22,31 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ vars.SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Pull latest code
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
             "sudo -u deploy bash -c 'cd /var/www/mataroa && git pull'"
 
       - name: Update Python dependencies
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
             "sudo -u deploy bash -c 'cd /var/www/mataroa && /home/deploy/.local/bin/uv sync --all-groups'"
 
       - name: Run database migrations
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
             "sudo -u deploy bash -c 'cd /var/www/mataroa && export DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" && /home/deploy/.local/bin/uv run python manage.py migrate --no-input'"
 
       - name: Collect static files
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
             "sudo -u deploy bash -c 'cd /var/www/mataroa && /home/deploy/.local/bin/uv run python manage.py collectstatic --no-input'"
 
       - name: Reload mataroa service
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
             "systemctl reload mataroa"
 
       - name: Cleanup SSH
