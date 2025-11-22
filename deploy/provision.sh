@@ -98,18 +98,32 @@ run_remote "sudo -u deploy bash -c 'cd /var/www/mataroa && /home/deploy/.local/b
 
 # 9. Deploy systemd files
 echo "==> Deploying systemd configuration files..."
-cat "${SYSTEMD_FILES}/mataroa.service" | run_remote "cat > /etc/systemd/system/mataroa.service"
-cat "${SYSTEMD_FILES}/mataroa.env" | run_remote "cat > /etc/systemd/system/mataroa.env && chmod 640 /etc/systemd/system/mataroa.env"
-cat "${SYSTEMD_FILES}/Caddyfile" | run_remote "cat > /etc/caddy/Caddyfile"
-cat "${SYSTEMD_FILES}/caddy.service" | run_remote "cat > /etc/systemd/system/caddy.service"
-cat "${SYSTEMD_FILES}/mataroa-notifications.timer" | run_remote "cat > /etc/systemd/system/mataroa-notifications.timer"
-cat "${SYSTEMD_FILES}/mataroa-notifications.service" | run_remote "cat > /etc/systemd/system/mataroa-notifications.service"
-cat "${SYSTEMD_FILES}/mataroa-exports.timer" | run_remote "cat > /etc/systemd/system/mataroa-exports.timer"
-cat "${SYSTEMD_FILES}/mataroa-exports.service" | run_remote "cat > /etc/systemd/system/mataroa-exports.service"
-cat "${SYSTEMD_FILES}/mataroa-backup.timer" | run_remote "cat > /etc/systemd/system/mataroa-backup.timer"
-cat "${SYSTEMD_FILES}/mataroa-backup.service" | run_remote "cat > /etc/systemd/system/mataroa-backup.service"
-cat "${SYSTEMD_FILES}/mataroa-dailysummary.timer" | run_remote "cat > /etc/systemd/system/mataroa-dailysummary.timer"
-cat "${SYSTEMD_FILES}/mataroa-dailysummary.service" | run_remote "cat > /etc/systemd/system/mataroa-dailysummary.service"
+(cd "${SYSTEMD_FILES}" && tar cf - .) | run_remote "
+    mkdir -p /tmp/mataroa-deploy
+    tar -C /tmp/mataroa-deploy -xf -
+    cd /tmp/mataroa-deploy
+
+    # Move files to destinations
+    mv mataroa.service /etc/systemd/system/
+    mv mataroa.env /etc/systemd/system/
+    chmod 640 /etc/systemd/system/mataroa.env
+    mv Caddyfile /etc/caddy/
+    mv caddy.service /etc/systemd/system/
+
+    # Move timers and services
+    mv mataroa-notifications.timer /etc/systemd/system/
+    mv mataroa-notifications.service /etc/systemd/system/
+    mv mataroa-exports.timer /etc/systemd/system/
+    mv mataroa-exports.service /etc/systemd/system/
+    mv mataroa-backup.timer /etc/systemd/system/
+    mv mataroa-backup.service /etc/systemd/system/
+    mv mataroa-dailysummary.timer /etc/systemd/system/
+    mv mataroa-dailysummary.service /etc/systemd/system/
+
+    # Cleanup
+    cd /
+    rm -rf /tmp/mataroa-deploy
+"
 
 # 10. Setup rclone
 echo "==> Setting up rclone..."
