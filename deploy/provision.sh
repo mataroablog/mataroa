@@ -79,7 +79,7 @@ run_remote "
 
 # 6. Install uv as deploy user
 echo "==> Installing uv for deploy user..."
-run_remote "sudo -u deploy bash -c 'curl -LsSf https://astral.sh/uv/0.8.8/install.sh | sh'"
+run_remote "sudo -u deploy bash -c 'curl -LsSf https://astral.sh/uv/0.9.11/install.sh | sh'"
 
 # 7. Clone repository
 echo "==> Cloning mataroa repository..."
