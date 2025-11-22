@@ -4,9 +4,9 @@ Description=Backup mataroa database
 [Service]
 Type=oneshot
 User=deploy
-WorkingDirectory=/home/deploy
-Environment="PGPASSWORD=${POSTGRES_PASSWORD}"
-ExecStart=/home/deploy/backup-database.sh
+WorkingDirectory=/var/www/mataroa
+EnvironmentFile=/etc/systemd/system/mataroa.env
+ExecStart=/var/www/mataroa/deploy/backup-database.sh
 
 [Install]
 WantedBy=multi-user.target

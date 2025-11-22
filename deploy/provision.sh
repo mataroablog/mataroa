@@ -111,9 +111,16 @@ cat "${SYSTEMD_FILES}/mataroa-backup.service" | run_remote "cat > /etc/systemd/s
 cat "${SYSTEMD_FILES}/mataroa-dailysummary.timer" | run_remote "cat > /etc/systemd/system/mataroa-dailysummary.timer"
 cat "${SYSTEMD_FILES}/mataroa-dailysummary.service" | run_remote "cat > /etc/systemd/system/mataroa-dailysummary.service"
 
-# 10. Deploy backup script
-echo "==> Deploying backup script..."
-cat "${SCRIPT_DIR}/backup-database.sh" | run_remote "cat > /home/deploy/backup-database.sh && chown deploy:deploy /home/deploy/backup-database.sh && chmod 755 /home/deploy/backup-database.sh"
+# 10. Setup rclone
+echo "==> Setting up rclone..."
+echo "==> Setting up rclone..."
+run_remote "
+    export RCLONE_ACCESS_KEY_ID='${RCLONE_ACCESS_KEY_ID:-}'
+    export RCLONE_SECRET_ACCESS_KEY='${RCLONE_SECRET_ACCESS_KEY:-}'
+    export RCLONE_REGION='${RCLONE_REGION:-}'
+    export RCLONE_ENDPOINT='${RCLONE_ENDPOINT:-}'
+    bash -s
+" < "${SCRIPT_DIR}/setup-rclone.sh"
 
 # 11. Run Django migrations and collectstatic
 echo "==> Running Django migrations..."
