@@ -8,7 +8,7 @@ Naked blogging platform.
 - [Contributing](#contributing)
 - [Development](#development)
     - [Structure](#structure)
-    - [Set up subdomains](#set-up-subdomains)
+    - [Subdomains](#subdomains)
     - [Docker](#docker)
     - [Dependencies](#dependencies)
     - [Environment variables](#environment-variables)
@@ -17,7 +17,7 @@ Naked blogging platform.
     - [Testing](#testing)
     - [Code linting & formatting](#code-linting--formatting)
 - [Architecture](#architecture)
-    - [File Structure Walkthrough](#file-structure-walkthrough)
+    - [File structure walkthrough](#file-structure-walkthrough)
     - [Coding Conventions](#coding-conventions)
     - [Git Commit Message Guidelines](#git-commit-message-guidelines)
     - [Dependency Policy](#dependency-policy)
@@ -67,24 +67,22 @@ Send an email patch to
 See how to contribute using email patches here:
 [git-send-email.io](https://git-send-email.io/).
 
-## Development
+## Local Development
 
 This is a [Django](https://www.djangoproject.com/) codebase. Check out the
 [Django docs](https://docs.djangoproject.com/) for general technical
 documentation.
-
-### Structure
 
 The Django project is [`mataroa`](mataroa). There is one Django app,
 [`main`](main), with all business logic. Application CLI commands are generally
 divided into two categories, those under `python manage.py` and those under
 `make`.
 
-### Set up subdomains
+### Subdomains
 
-Because mataroa works primarily with subdomain, one cannot access the basic web app
+Mataroa works primarily with subdomain, thus one cannot access the basic web app
 using the standard `http://127.0.0.1:8000` or `http://localhost:8000` URLs. What we do
-for local development is adding a few custom entries on our `/etc/hosts` system file.
+for local development is add a few custom entries on our `/etc/hosts` system file.
 
 Important note: there needs to be an entry of each user account created in the local
 development environment, so that the web server can respond to it.
@@ -122,7 +120,7 @@ to start the web server and database:
 docker compose up
 ```
 
-If you have also configured hosts as described above in the "Set up subdomains"
+If you have also configured hosts as described above in the "Subdomains"
 section, mataroa should now be locally accessible at
 [http://mataroalocal.blog:8000/](http://mataroalocal.blog:8000/)
 
@@ -150,36 +148,12 @@ file one can copy as base:
 cp .envrc.example .envrc
 ```
 
-`.envrc` should contain the following variables:
-
-```sh
-# .envrc
-
-export DEBUG=1
-export SECRET_KEY=some-secret-key
-export DATABASE_URL=postgres://mataroa:db-password@db:5432/mataroa
-export EMAIL_HOST_USER=smtp-user
-export EMAIL_HOST_PASSWORD=smtp-password
-```
-
-When on production, also include/update the following variables (see
-[Deployment](#deployment) and [Database Backup](#database-backup)):
-
-```sh
-# .envrc
-
-export DEBUG=0
-export PGPASSWORD=db-password
-```
-
 When on Docker, to change or populate environment variables, edit the `environment`
 key of the `web` service either directly on `docker-compose.yml` or by overriding it
 using the standard named git-ignored `docker-compose.override.yml`.
 
 ```yaml
 # docker-compose.override.yml
-
-version: "3.8"
 
 services:
   web:
@@ -195,8 +169,18 @@ as it has the default name `docker-compose.override.yml`.
 
 This project is using one PostreSQL database for persistence.
 
-One can use the `make pginit` command to initialise a database in the
-`postgres-data/` directory.
+One can use the provided script to set up a local Postgres database (user `mataroa`,
+passwordless):
+
+```sh
+./setup-database-localdev.sh
+```
+
+And also easily reset it (drop database and user):
+
+```sh
+./reset-database-localdev.sh
+```
 
 After setting the `DATABASE_URL` ([see above](#environment-variables)), create
 the database schema with:
@@ -222,7 +206,7 @@ To run the Django development server:
 uv python manage.py runserver
 ```
 
-If you have also configured hosts as described above in the "Set up subdomains"
+If you have also configured hosts as described above in the "Subdomains"
 section, mataroa should now be locally accessible at
 [http://mataroalocal.blog:8000/](http://mataroalocal.blog:8000/)
 
@@ -260,7 +244,7 @@ uv run ruff check --fix
 
 ## Architecture
 
-### File Structure Walkthrough
+### File structure walkthrough
 
 Here, an overview of the project's code sources is presented. The purpose is
 for the reader to understand what kind of functionality is located where in
@@ -277,10 +261,6 @@ Condensed and commented sources file tree:
 ├── .github/ # GitHub Actions config files
 ├── Caddyfile # configuration for Caddy webserver
 ├── Dockerfile
-├── LICENSE
-├── Makefile # make-defined tasks
-├── README.md
-├── backup-database.sh
 ├── docker-compose.yml
 ├── export_base_epub/ # base sources for epub export functionality
 ├── export_base_hugo/ # base sources for hugo export functionality
@@ -349,7 +329,7 @@ All urls are in this module. They are visually divided into several sections:
 
 * general, includes index, dashboard, static pages
 * user system, includes signup, settings, logout
-* blog posts, the CRUD opertions of
+* blog posts, the CRUD operations of
 * blog extras, includes rss and newsletter features
 * comments, related to the blog post comments
 * billing, subscription and card related
