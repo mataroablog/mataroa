@@ -113,8 +113,8 @@ cat "${SYSTEMD_FILES}/mataroa-dailysummary.service" | run_remote "cat > /etc/sys
 
 # 10. Setup rclone
 echo "==> Setting up rclone..."
-echo "==> Setting up rclone..."
 run_remote "
+    export RCLONE_PROVIDER='${RCLONE_PROVIDER:-}'
     export RCLONE_ACCESS_KEY_ID='${RCLONE_ACCESS_KEY_ID:-}'
     export RCLONE_SECRET_ACCESS_KEY='${RCLONE_SECRET_ACCESS_KEY:-}'
     export RCLONE_REGION='${RCLONE_REGION:-}'

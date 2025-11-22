@@ -44,7 +44,7 @@ fi
 
 # Upload using rclone
 echo "  Uploading to ${BACKUP_BUCKET}..."
-rclone copy --progress "${DUMP_FILE}" "scaleway:${BACKUP_BUCKET}/postgres-mataroa-${TIMESTAMP}/"
+rclone copy --progress "${DUMP_FILE}" "${RCLONE_PROVIDER}:${BACKUP_BUCKET}/postgres-mataroa-${TIMESTAMP}/"
 
 # Cleanup
 echo "  Cleaning up local dump file..."

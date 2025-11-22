@@ -17,8 +17,6 @@ if [ -z "${POSTGRES_PASSWORD:-}" ]; then
     exit 1
 fi
 
-echo "==> Setting up PostgreSQL database..."
-
 # Create PostgreSQL user
 echo "Creating PostgreSQL user: ${POSTGRES_USERNAME}..."
 sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename = '${POSTGRES_USERNAME}'" | grep -q 1 || \
