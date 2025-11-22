@@ -5,7 +5,7 @@ ENV PYTHONFAULTHANDLER=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
-ADD https://astral.sh/uv/0.8.13/install.sh /uv-installer.sh
+ADD https://astral.sh/uv/0.9.11/install.sh /uv-installer.sh
 RUN sh /uv-installer.sh
 ENV PATH="/root/.local/bin/:$PATH"
 
