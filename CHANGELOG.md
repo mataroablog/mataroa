@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 * Add API endpoints for managing comments
 * Add API endpoints for managing pages (create, read, update, delete, list)
 * Replace ansible deployment with bash scripts
+* Add deploy GitHub Actions workflow
 * Upgrade to Django 6.0
 * Merge subscribe note with footer note
 * Make admin email configurable from the environment
