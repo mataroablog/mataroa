@@ -44,7 +44,11 @@ fi
 
 # Upload using rclone
 echo "  Uploading to ${BACKUP_BUCKET}..."
-rclone copy --progress "${DUMP_FILE}" "${RCLONE_PROVIDER}:${BACKUP_BUCKET}/postgres-mataroa-${TIMESTAMP}/"
+rclone copy --progress "${DUMP_FILE}" "${RCLONE_PROVIDER}:${BACKUP_BUCKET}/mataroa-backups/postgres-mataroa-${TIMESTAMP}/"
+
+# Cleanup old backups
+echo "  Deleting backups older than 20 days..."
+rclone delete "${RCLONE_PROVIDER}:${BACKUP_BUCKET}/mataroa-backups" --min-age 20d --rmdirs --include "postgres-mataroa-*/mataroa.dump"
 
 # Cleanup
 echo "  Cleaning up local dump file..."
