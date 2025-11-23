@@ -3,7 +3,8 @@ name: Image
 on:
   release:
     types: [ published ]
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 # Set permissions to allow deployment to ghcr.io
 permissions:
@@ -37,7 +38,8 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
 
       - uses: docker/build-push-action@v5
         with:
