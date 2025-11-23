@@ -171,6 +171,9 @@ class UserCreateStepTwo(CreateView):
             return self.render_to_response(self.get_context_data(form=form))
         self.object = form.save(commit=False)
         self.object.blog_title = self.object.username
+        if models.User.objects.filter(username=self.object.username).exists():
+            form.add_error("username", "This username is not available.")
+            return self.render_to_response(self.get_context_data(form=form))
         self.object.save()
         self.onboard.user = self.object
         self.onboard.save()
