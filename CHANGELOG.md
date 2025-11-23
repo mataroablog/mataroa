@@ -11,14 +11,20 @@ All notable changes to this project will be documented in this file.
 * Add API endpoints for managing comments
 * Add API endpoints for managing pages (create, read, update, delete, list)
 * Replace ansible deployment with bash scripts
+* Move all docs pages into README
 * Add deploy GitHub Actions workflow
-* Upgrade to Django 6.0
+* Upgrade to Django 6.0 Release Candidate 1
 * Merge subscribe note with footer note
+* Add database bash scripts for local development
 * Make admin email configurable from the environment
+* Make database backup setup part of server provisioning process
+* Make old backups deletion as part of the backup process
 
 ### Bugfixes
 
 * Fix broken image paths for epub exports
+* Fix existing username error from human diagnostics endpoint
+* Fix Docker image build workflow for ghcr.io
 
 ## [1.3.0](https://github.com/mataroablog/mataroa/compare/v1.2...v1.3) - 2025-10-26
 
