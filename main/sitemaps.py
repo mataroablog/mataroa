@@ -24,14 +24,18 @@ class PostSitemap(Sitemap):
         self.subdomain = subdomain
 
     def items(self):
-        return models.Post.objects.filter(
-            owner__username=self.subdomain,
-            published_at__isnull=False,
-            published_at__lte=timezone.now().date(),
-        ).order_by("-published_at")
+        return (
+            models.Post.objects.filter(
+                owner__username=self.subdomain,
+                published_at__isnull=False,
+                published_at__lte=timezone.now().date(),
+            )
+            .order_by("-published_at")
+            .select_related("owner")
+        )
 
     def location(self, obj):
-        return reverse("post_detail", kwargs={"slug": obj.slug})
+        return obj.url_path
 
     def lastmod(self, obj):
         return obj.updated_at

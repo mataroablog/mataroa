@@ -7,7 +7,7 @@
     <h1>Cancel sending this email to {{ notificationrecord.notification.email }}?</h1>
     <p>
         The email content is the post:
-        <a href="{% url 'post_detail' notificationrecord.post.slug %}">{{ notificationrecord.post.title }}</a>.
+        <a href="{{ notificationrecord.post.url_path }}">{{ notificationrecord.post.title }}</a>.
     </p>
 
     <form method="post">

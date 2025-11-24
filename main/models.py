@@ -94,6 +94,11 @@ class User(AbstractUser):
         help_text="Enable/disable automatic post backups.",
         verbose_name="Post Backups On",
     )
+    post_altpath_on = models.BooleanField(
+        default=False,
+        help_text="Serve posts under /p/ instead of /blog/.",
+        verbose_name="Alternative Post Path",
+    )
     export_unsubscribe_key = models.UUIDField(default=uuid.uuid4, unique=True)
 
     # webring related
@@ -226,14 +231,20 @@ class Post(models.Model):
             return False
         return True
 
+    @property
+    def url_path(self):
+        if self.owner.post_altpath_on:
+            return reverse("post_detail_p", kwargs={"slug": self.slug})
+        return reverse("post_detail", kwargs={"slug": self.slug})
+
     def get_absolute_url(self):
-        path = reverse("post_detail", kwargs={"slug": self.slug})
+        path = self.url_path
         return f"//{self.owner.username}.{settings.CANONICAL_HOST}{path}"
 
     def get_proper_url(self):
         """Returns custom domain URL if custom_domain exists, else subdomain URL."""
         if self.owner.custom_domain:
-            path = reverse("post_detail", kwargs={"slug": self.slug})
+            path = self.url_path
             return f"//{self.owner.custom_domain}{path}"
         else:
             return self.get_absolute_url()
@@ -355,7 +366,10 @@ class Comment(models.Model):
         return text_processing.md_to_html(self.body)
 
     def get_absolute_url(self):
-        path = reverse("post_detail", kwargs={"slug": self.post.slug})
+        if self.post.owner.post_altpath_on:
+            path = reverse("post_detail_p", kwargs={"slug": self.post.slug})
+        else:
+            path = reverse("post_detail", kwargs={"slug": self.post.slug})
         return f"//{self.post.owner.username}.{settings.CANONICAL_HOST}{path}#comment-{self.id}"
 
     def __str__(self):

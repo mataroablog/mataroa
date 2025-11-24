@@ -74,20 +74,30 @@ def index(request):
         if models.User.objects.filter(username=request.subdomain).exists():
             drafts = []
             if request.user.is_authenticated and request.user == request.blog_user:
-                posts = models.Post.objects.filter(owner=request.blog_user).defer(
-                    "body"
+                posts = (
+                    models.Post.objects.filter(owner=request.blog_user)
+                    .defer("body")
+                    .select_related("owner")
                 )
-                drafts = models.Post.objects.filter(
-                    owner=request.blog_user,
-                    published_at__isnull=True,
-                ).defer("body")
+                drafts = (
+                    models.Post.objects.filter(
+                        owner=request.blog_user,
+                        published_at__isnull=True,
+                    )
+                    .defer("body")
+                    .select_related("owner")
+                )
             else:
                 models.AnalyticPage.objects.create(user=request.blog_user, path="index")
-                posts = models.Post.objects.filter(
-                    owner=request.blog_user,
-                    published_at__isnull=False,
-                    published_at__lte=timezone.now().date(),
-                ).defer("body")
+                posts = (
+                    models.Post.objects.filter(
+                        owner=request.blog_user,
+                        published_at__isnull=False,
+                        published_at__lte=timezone.now().date(),
+                    )
+                    .defer("body")
+                    .select_related("owner")
+                )
 
             return render(
                 request,
@@ -205,6 +215,7 @@ class UserUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         "footer_note",
         "theme_zialucia",
         "theme_sansserif",
+        "post_altpath_on",
         "custom_domain",
         "comments_on",
         "notifications_on",
@@ -268,6 +279,10 @@ class UserDelete(LoginRequiredMixin, DeleteView):
 
 
 def post_detail_redir(request, slug):
+    """
+    Accept and redirect /posts/ as valid blog post paths for backwards compatibility
+    with people migrating from other platforms.
+    """
     return redirect("post_detail", slug=slug, permanent=True)
 
 
@@ -316,6 +331,20 @@ class PostDetail(DetailView):
                 # if post is requested without subdomain and non-authed
                 # then redirect to index
                 return redirect("index")
+
+        # check post_altpath_on and redirect to chosen
+        if request.blog_user.post_altpath_on:
+            if request.path.startswith("/blog/"):
+                return redirect(
+                    f"//{request.subdomain}.{settings.CANONICAL_HOST}/p/{kwargs['slug']}/",
+                    permanent=True,
+                )
+        else:
+            if request.path.startswith("/p/"):
+                return redirect(
+                    f"//{request.subdomain}.{settings.CANONICAL_HOST}/blog/{kwargs['slug']}/",
+                    permanent=True,
+                )
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -1180,7 +1209,7 @@ class NotificationRecordList(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return models.NotificationRecord.objects.filter(
             notification__blog_user=self.request.user
-        ).select_related("post", "notification")
+        ).select_related("post", "notification", "post__owner")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -29,7 +29,7 @@
         {% regroup notificationrecord_list_sent by post as post_list %}
         {% for post, notificationrecord_list in post_list %}
         <li>
-            <a href="{% url 'post_detail' post.slug %}">{{ post.title }}</a>
+            <a href="{{ post.url_path }}">{{ post.title }}</a>
 
             sent at
             <time datetime="{{ notificationrecord_list.0.sent_at|date:'Y-m-d' }}">

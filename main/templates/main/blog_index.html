@@ -40,7 +40,7 @@
         <ul>
             {% for d in drafts %}
             <li>
-                <a href="{% url 'post_detail' d.slug %}">{{ d.title }}</a>
+                <a href="{{ d.url_path }}">{{ d.title }}</a>
             </li>
             {% endfor %}
         </ul>
@@ -51,7 +51,7 @@
         {% for p in posts %}
         {% if p.published_at %}
         <li>
-            <a href="{% url 'post_detail' p.slug %}">{{ p.title }}</a>
+            <a href="{{ p.url_path }}">{{ p.title }}</a>
             <small>
                 —
                 <time datetime="{{ p.published_at|date:'Y-m-d' }}" itemprop="datePublished">

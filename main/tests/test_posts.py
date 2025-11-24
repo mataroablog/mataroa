@@ -430,3 +430,58 @@ class PostDeleteNotOwnTestCase(TestCase):
                 slug=self.data["slug"], owner=self.victim
             ).exists()
         )
+
+
+class PostPathTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.client.force_login(self.user)
+        self.data = {
+            "title": "New post",
+            "slug": "new-post",
+            "body": "Content sentence.",
+        }
+        self.post = models.Post.objects.create(owner=self.user, **self.data)
+        self.domain = self.user.username + "." + settings.CANONICAL_HOST
+
+    def test_default_path(self):
+        """Test default path is /blog/."""
+        self.assertFalse(self.user.post_altpath_on)
+        self.assertEqual(
+            self.post.get_absolute_url(), f"//{self.domain}/blog/{self.post.slug}/"
+        )
+
+        response = self.client.get(
+            reverse("post_detail", args=(self.post.slug,)),
+            HTTP_HOST=self.domain,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get(
+            reverse("post_detail_p", args=(self.post.slug,)),
+            HTTP_HOST=self.domain,
+        )
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, f"//{self.domain}/blog/{self.post.slug}/")
+
+    def test_alt_path(self):
+        """Test alt path is /p/."""
+        self.user.post_altpath_on = True
+        self.user.save()
+        self.assertTrue(self.user.post_altpath_on)
+        self.assertEqual(
+            self.post.get_absolute_url(), f"//{self.domain}/p/{self.post.slug}/"
+        )
+
+        response = self.client.get(
+            reverse("post_detail_p", args=(self.post.slug,)),
+            HTTP_HOST=self.domain,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get(
+            reverse("post_detail", args=(self.post.slug,)),
+            HTTP_HOST=self.domain,
+        )
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, f"//{self.domain}/p/{self.post.slug}/")

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0](https://github.com/mataroablog/mataroa/compare/v1.4...v1.5)
+
+### Important changes
+
+* Add /p/ as an alternative blog post path option
+
 ## [1.4.0](https://github.com/mataroablog/mataroa/compare/v1.3...v1.4)
 
 ### Important changes

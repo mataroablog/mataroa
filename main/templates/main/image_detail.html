@@ -31,7 +31,7 @@
     <p>Used by posts:</p>
     <ul>
         {% for post in used_by_posts %}
-        <li><a href="{% url 'post_detail' post.slug %}">{{ post.title }}</a></li>
+        <li><a href="{{ post.url_path }}">{{ post.title }}</a></li>
         {% endfor %}
     </ul>
     {% endif %}

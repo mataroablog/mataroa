@@ -90,6 +90,7 @@ urlpatterns += [
     ),
     path("new/post/", general.PostCreate.as_view(), name="post_create"),
     path("blog/<slug:slug>/", general.PostDetail.as_view(), name="post_detail"),
+    path("p/<slug:slug>/", general.PostDetail.as_view(), name="post_detail_p"),
     path("posts/<slug:slug>/", general.post_detail_redir, name="post_detail_redir_a"),
     path("post/<slug:slug>/", general.post_detail_redir, name="post_detail_redir_b"),
     path("blog/<slug:slug>/edit/", general.PostUpdate.as_view(), name="post_update"),
