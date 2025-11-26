@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('main', '0106_remove_subscribe_note'),
+        ("main", "0106_remove_subscribe_note"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='post_altpath_on',
-            field=models.BooleanField(default=False, help_text='Serve posts under /p/ instead of /blog/.', verbose_name='Alternative Post Path'),
+            model_name="user",
+            name="post_altpath_on",
+            field=models.BooleanField(
+                default=False,
+                help_text="Serve posts under /p/ instead of /blog/.",
+                verbose_name="Alternative Post Path",
+            ),
         ),
     ]
