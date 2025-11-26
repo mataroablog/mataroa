@@ -5,9 +5,8 @@ Naked blogging platform.
 ## Table of Contents
 
 - [Community](#community)
-- [Contributing](#contributing)
-- [Development](#development)
-    - [Structure](#structure)
+    - [Tools](#tools)
+- [Local Development](#local-development)
     - [Subdomains](#subdomains)
     - [Docker](#docker)
     - [Dependencies](#dependencies)
@@ -15,57 +14,40 @@ Naked blogging platform.
     - [Database](#database)
     - [Serve](#serve)
     - [Testing](#testing)
-    - [Code linting & formatting](#code-linting--formatting)
-- [Architecture](#architecture)
-    - [File structure walkthrough](#file-structure-walkthrough)
+    - [Code linting and formatting](#code-linting-and-formatting)
+- [Contributing](#contributing)
+    - [Directory structure](#directory-structure)
     - [Coding Conventions](#coding-conventions)
     - [Git Commit Message Guidelines](#git-commit-message-guidelines)
+    - [Feature Release Checklist](#feature-release-checklist)
     - [Dependency Policy](#dependency-policy)
 - [Operations](#operations)
     - [Deployment](#deployment)
     - [Billing](#billing)
-    - [Cronjobs](#cronjobs)
+    - [Recurring Tasks](#recurring-tasks)
     - [Database Backup](#database-backup)
-    - [Feature Release Playbook](#feature-release-playbook)
-    - [Server Migration](#server-migration)
+    - [Server Migration Checklist](#server-migration-checklist)
     - [On Server Outage](#on-server-outage)
 - [License](#license)
 
 ## Community
 
-We have a mailing list at
-[~sirodoht/mataroa-community@lists.sr.ht](mailto:~sirodoht/mataroa-community@lists.sr.ht)
-for the mataroa community to introduce themselves, their blogs, and discuss
-anything that’s on their mind!
+Main repository on GitHub:
+[github.com/mataroablog/mataroa](https://github.com/mataroablog/mataroa)
 
-Archives at
+Mirror on sr.ht:
+[git.sr.ht/~sirodoht/mataroa](https://git.sr.ht/~sirodoht/mataroa)
+
+Bug tracking on GitHub:
+[github.com/mataroablog/mataroa/issues](https://github.com/mataroablog/mataroa/issues)
+
+Community mailing list on sr.ht:
 [lists.sr.ht/~sirodoht/mataroa-community](https://lists.sr.ht/~sirodoht/mataroa-community)
 
 ### Tools
 
 * [mataroa-cli](https://github.com/mataroablog/mataroa-cli)
 * [Mataroa Telegram Bot](https://github.com/jorphex/Mataroa-Telegram-Bot)
-
-## Contributing
-
-**Main repository on GitHub**
-[github.com/mataroablog/mataroa](https://github.com/mataroablog/mataroa)
-
-**Mirror repository on sr.ht**
-[git.sr.ht/~sirodoht/mataroa](https://git.sr.ht/~sirodoht/mataroa)
-
-**Report bugs on GitHub**
-[github.com/mataroablog/mataroa/issues](https://github.com/mataroablog/mataroa/issues)
-
-**Contribute on GitHub with Pull Requests**
-[github.com/mataroablog/mataroa/pulls](https://github.com/mataroablog/mataroa/pulls)
-
-Open a PR on [GitHub](https://github.com/mataroablog/mataroa).
-
-Send an email patch to
-[~sirodoht/public-inbox@lists.sr.ht](mailto:~sirodoht/public-inbox@lists.sr.ht).
-See how to contribute using email patches here:
-[git-send-email.io](https://git-send-email.io/).
 
 ## Local Development
 
@@ -109,7 +91,7 @@ and if we make a user account with username `paul`, then we will be able to acce
 
 ### Docker
 
-> [!NOTE]  
+> [!NOTE]
 > This is the last step for initial Docker setup. See the "Environment variables"
 > section below, for further configuration details.
 
@@ -225,30 +207,51 @@ uv run coverage run --source='.' --omit '.venv/*' manage.py test
 uv run coverage report -m
 ```
 
-### Code linting & formatting
+### Code linting and formatting
 
-We use [ruff](https://github.com/astral-sh/ruff) for Python code formatting and linting.
-
-To format:
-
-```sh
-uv run ruff format
-```
+We use [ruff](https://github.com/astral-sh/ruff) for Python linting and code formatting.
 
 To lint:
 
 ```sh
 uv run ruff check
+```
+
+To apply automatic fixes if they exist:
+
+```sh
 uv run ruff check --fix
 ```
 
-## Architecture
+To format:
 
-### File structure walkthrough
+```sh
+uv run ruff format --check
+```
+
+## Contributing
+
+Main repository on GitHub:
+[github.com/mataroablog/mataroa](https://github.com/mataroablog/mataroa)
+
+Mirror repository on sr.ht:
+[git.sr.ht/~sirodoht/mataroa](https://git.sr.ht/~sirodoht/mataroa)
+
+Report bugs on GitHub:
+[github.com/mataroablog/mataroa/issues](https://github.com/mataroablog/mataroa/issues)
+
+Contribute on GitHub with Pull Requests:
+[github.com/mataroablog/mataroa/pulls](https://github.com/mataroablog/mataroa/pulls)
+
+Contribute with email patches on sr.ht:
+[~sirodoht/public-inbox@lists.sr.ht](mailto:~sirodoht/public-inbox@lists.sr.ht).
+See how to contribute using email patches on [git-send-email.io](https://git-send-email.io/).
+
+### Directory structure
 
 Here, an overview of the project's code sources is presented. The purpose is
 for the reader to understand what kind of functionality is located where in
-the sources.
+the source code.
 
 All business logic of the application is in one Django app: [`main`](main).
 
@@ -299,12 +302,6 @@ Condensed and commented sources file tree:
 │   │   ├── test_api.py
 │   │   ├── test_billing.py
 │   │   ├── test_blog.py
-│   │   ├── test_comments.py
-│   │   ├── test_images.py
-│   │   ├── test_management.py
-│   │   ├── test_pages.py
-│   │   ├── test_posts.py
-│   │   ├── test_users.py
 │   │   └── testdata/
 │   ├── text_processing.py # markdown and text utilities
 │   ├── urls.py
@@ -312,9 +309,7 @@ Condensed and commented sources file tree:
 │   └── views/
 │       ├── api.py
 │       ├── billing.py
-│       ├── export.py
 │       ├── general.py
-│       └── moderation.py
 ├── manage.py
 └── mataroa
     ├── asgi.py
@@ -443,7 +438,7 @@ application.
 
 #### [`main/templates/assets/style.css`](main/templates/assets/style.css)
 
-On Mataroa, a user can enable an option, Theme Zia Lucia, and get a higher font
+On mataroa, a user can enable an option, Theme Zia Lucia, and get a higher font
 size by default. Because we need to change the body font-size value, we render
 the CSS. It is not static. This is why it lives inside the templates directory.
 
@@ -467,6 +462,18 @@ We follow some simple non-austere git commit message guidelines.
 * Start with a lowercase letter
     * eg. `change analytic page path to the same of page slug`
 * Do not end with a fullstop
+
+### Feature Release Checklist
+
+This document provides a comprehensive checklist for releasing a new version of Mataroa.
+
+1. Finish with all commits, push to main
+1. Verify `CHANGELOG.md` is up-to-date
+1. Verify CI is green
+1. Bump in in `pyproject.toml` with `git commit -m "release v1.x"`
+1. Run `uv lock`
+1. Create Git tag: `git tag -a v1.x -m "v1.x"`
+1. Push tag: `git push origin --tags` and `git push srht --tags`
 
 ### Dependency Policy
 
@@ -516,28 +523,26 @@ Steps:
 
 ## Operations
 
+Details for people hosting their own mataroa instance.
+
 ### Deployment
 
-See the [Deployment](./docs/src/deployment.md) document on how to deploy a
-mataroa instance. Briefly, the steps are:
+#### 1. Choose domain name
 
-#### 1. Choose domain
-
-Let's assume `example.com` is your domain of choice, for the purposes of this
-guide.
+For the purposes of this guide let us assume `example.com` is the domain name of choice.
 
 #### 2. Setup DNS
 
-Setup both `example.com` and `*.example.com` to point the mataroa server IP.
+Setup both `example.com` and `*.example.com` to point to the mataroa server IP.
 
-#### 3. Provision server
+#### 3. Configuration
 
-(3a) First, set up config environment for provisioning:
+Set up the config environment for provisioning. The config environment remains on your local machine.
 
 ```sh
 cd deploy/
 
-# make a copy of the example file
+# make a copy of the example envrc file
 cp .envrc.example .envrc
 
 # edit parameters as required
@@ -547,36 +552,47 @@ vim .envrc
 source .envrc
 ```
 
-(3b) Then, run the provisioning script:
+#### 4. Provision
+
+Finally, run the provisioning script:
 
 ```sh
+cd deploy/
 ./provision.sh
 ```
 
 This script will:
 
-* install essential packages (gcc, git, rclone, vim, postgresql)
+* install essential packages (gcc, git, rclone, postgresql, etc.)
 * install and configure Caddy web server
 * create the deploy user with proper permissions
-* set up the postgresql database
-* install uv and clone the mataroa repository
+* set up the postgres database
+* install uv
+* clone the mataroa repository
 * configure all systemd services and timers
 * run initial Django migrations and collect static files
 * enable and start all systemd services
 
-Note: Caddy will automatically obtain and manage SSL certificates for your
-domain and all subdomains using Let's Encrypt. The first certificate request
-happens when a domain is first accessed.
+Note: Caddy will automatically obtain and manage SSL certificates for your domain and all
+subdomains using Let's Encrypt. The certificate generation for each domain happens when that domain
+is first accessed, which leads to increased latency for that first page visit.
 
-#### 4. Future deployments
+#### 5. Future deployments
 
-Running `./deploy.sh` will connect to the server and:
+To deploy new changes:
+
+```sh
+cd deploy/
+./deploy.sh
+```
+
+This will connect to the server and:
 
 * pull the latest code from git
-* update Python dependencies
+* update python dependencies
 * run database migrations
 * collect static files
-* reload the gunicorn service
+* reload the gunicorn/django service
 
 #### Useful Commands
 
@@ -626,10 +642,11 @@ To configure, add the following variables from your Stripe account to your
 ```sh
 export STRIPE_API_KEY="sk_test_XXX"
 export STRIPE_PUBLIC_KEY="pk_test_XXX"
+export STRIPE_WEBHOOK_SECRET="whsec_XXX"
 export STRIPE_PRICE_ID="price_XXX"
 ```
 
-### Cronjobs
+### Recurring Tasks
 
 We don't use cron but systemd timers for jobs that need to run recurringly.
 
@@ -665,13 +682,8 @@ Triggers daily at 00:15 server time.
 
 ### Database Backup
 
-#### Shell Script
-
-We use the script [`backup-database.sh`](./deploy/backup-database.sh) to dump the
-database and upload it into an S3-compatible object storage cloud using
-[rclone](https://rclone.org/).
-
-#### Commands
+We use the script [`backup-database.sh`](./deploy/backup-database.sh) to dump the database and
+upload it into an S3-compatible object storage cloud using [rclone](https://rclone.org/).
 
 To create a database dump run:
 
@@ -685,45 +697,33 @@ To restore a database dump run:
 pg_restore --disable-triggers -j 4 -v -h localhost -cO --if-exists -d mataroa -U mataroa -W mataroa.dump
 ```
 
-### Feature Release Playbook
+### Server Migration Checklist
 
-This document provides a comprehensive checklist for releasing a new version of Mataroa.
+Nothing lasts forever. One day you might want to migrate your mataroa platform to another server.
+Mataroa stores everything, images including, in the PostgreSQL database. Naughty indeed, yet it
+makes it much easier to backup and migrate.
 
-1. Finish with all commits, push to main
-1. Verify `CHANGELOG.md` is up-to-date
-1. Verify CI is green
-1. Bump in in `pyproject.toml` with `git commit -m "release v1.x"`
-1. Run `uv lock`
-1. Create Git tag: `git tag -a v1.x -m "v1.x"`
-1. Push tag: `git push origin --tags` and `git push srht --tags`
+> [!CAUTION]
+> This migration process involves downtime.
 
-### Server Migration
+To start with, one a migrator has setup their new server we recommend that they they test everything
+in another domain, other than the main (existing) one:
 
-Sadly or not, nothing lasts forever. One day you might do a server migration.
-Among many, mataroa is doing something naughty. We store everything, images
-including, in the Postgres database. Naughty indeed, yet makes it much easier to
-backup but also migrate.
+1. Run `deploy/provision.sh` in the new server with a test domain.
+2. Verify everything in the new server with the test domain works.
 
-To start with, one a migrator has setup their new server (see
-[Deployment](#deployment)) we recommend testing everything in another
-domain, other than the main (existing) one.
-
-Once everything works:
+Then, for the migration:
 
 1. Verify all production variables and canonical server names exist in settings et al.
-1. Disconnect production server from public IP. This is not a zero-downtime migration — to be clear.
-1. Run backup-database.sh one last time.
+1. Disconnect production server from public IP.
+1. Run `deploy/backup-database.sh` one last time.
 1. Assign elastic/floating IP to new server.
 1. Run TLS certificate (naked and wildcard) generations.
 1. `scp` database dump into new server.
 1. Restore database dump in new server.
-1. Start mataroa and caddy systemd services
+1. Start mataroa and caddy systemd services.
 
-Later:
-
-1. Setup cronjobs / systemd timers
-1. Setup healthcheks for recurring jobs.
-1. Verify DEBUG is 0.
+Finally, once the new server is set up, verify DEBUG is 0.
 
 The above assume the migrator has a floating IP that they can move around. If
 not, there are two problems. The migrator needs to coordinate DNS but much
@@ -736,8 +736,8 @@ know. I only hope I never decide to switch away from Hetzner.
 
 So, mataroa is down. What do we do?
 
-First, panic. Run around in circles with your hands up in despair. It's important to
-do this, don't think of it as a joke. Once that's done:
+First, we panic. We run around in circles with our hands up in despair. It's important to do this
+first, don't think of it as a joke. Once that's done:
 
 #### 1. Check Caddy
 
@@ -773,17 +773,13 @@ journalctl -u caddy -r
 journalctl -u caddy -f
 ```
 
-To search within all logs do slash and then the keyword itself, eg: `/keyword-here`,
-then hit enter.
+To search within all logs do slash and then the keyword itself, eg: `/keyword-here`, then hit enter.
 
 The config for Caddy is:
 
 ```sh
 cat /etc/caddy/Caddyfile
 ```
-
-One entry is to serve anything with *.mataroa.blog host, and the second is for anything
-not in that domain, which is exclusively all the blogs custom domains.
 
 The systemd config for Caddy is:
 
@@ -793,8 +789,8 @@ cat /etc/systemd/system/multi-user.target.wants/caddy.service
 
 #### 2. Check gunicorn
 
-After caddy receives the request, it forwards it to gunicorn. Gunicorn is what runs the
-mataroa Django instances, so it's named `mataroa`. It also runs as a systemd service.
+After Caddy receives the request, it forwards it to gunicorn. Gunicorn is what manages the mataroa
+Django instances, so it's named `mataroa`. It runs as a systemd service.
 
 To see status:
 
@@ -826,7 +822,11 @@ The systemd config for mataroa/gunicorn is:
 cat /etc/systemd/system/multi-user.target.wants/mataroa.service
 ```
 
-Note that the env variables for production live inside the systemd service file.
+The env variables in a separate file:
+
+```sh
+cat /etc/systemd/system/mataroa.env
+```
 
 #### 3. How to hotfix code
 
@@ -835,13 +835,16 @@ Here's where the code lives and how to access it:
 ```sh
 sudo -i -u deploy
 cd /var/www/mataroa/
-source .envrc  # load env variables for manual runs
-source .venv/bin/activate  # activate venv
-python manage.py
+
+# load env variables from the systemd env file:
+# /etc/systemd/system/mataroa.env
+# note: this file is root permissioned
+
+uv run python manage.py
 ```
 
-If you make a change in the source code files (inside `/var/www/mataroa`) you need to
-restart the service for the changes to take effect:
+If you make a change in the source code files (inside `/var/www/mataroa`) you need to restart the
+service for the changes to take effect:
 
 ```sh
 systemctl restart mataroa
