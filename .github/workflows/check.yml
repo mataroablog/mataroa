@@ -36,6 +36,9 @@ jobs:
       - name: Run Python linting
         run: uv run ruff check
 
+      - name: Run Python formatting
+        run: uv run ruff format --check
+
       - name: Run HTML linting
         run: uv run djade main/templates/**/*.html
 
