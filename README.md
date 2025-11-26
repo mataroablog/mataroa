@@ -25,6 +25,7 @@ Naked blogging platform.
     - [Deployment](#deployment)
     - [Billing](#billing)
     - [Recurring Tasks](#recurring-tasks)
+    - [Post by email](#post-by-email)
     - [Database Backup](#database-backup)
     - [Server Migration Checklist](#server-migration-checklist)
     - [On Server Outage](#on-server-outage)
@@ -533,7 +534,14 @@ For the purposes of this guide let us assume `example.com` is the domain name of
 
 #### 2. Setup DNS
 
-Setup both `example.com` and `*.example.com` to point to the mataroa server IP.
+Both `example.com` and `*.example.com` should point to the mataroa server IP. Verify changes have
+propagated before provisioning:
+
+```sh
+dig example.com A
+dig *.example.com A
+dig randomsubdomain.example.com A
+```
 
 #### 3. Configuration
 
@@ -709,24 +717,28 @@ makes it much easier to backup and migrate.
 To start with, one a migrator has setup their new server we recommend that they they test everything
 in another domain, other than the main (existing) one:
 
-1. Run `deploy/provision.sh` in the new server with a test domain.
-2. Verify everything in the new server with the test domain works.
+1. Find a test domain name and set up DNS pointing to the new server
+1. Set up `deploy/.envrc` for test domain name
+1. Run `deploy/provision.sh` for new server via test domain name
+1. Verify everything in the new server with the test domain works
+1. Install old server's public key to new server's authorized keys so that we can scp the database dump
 
 Then, for the migration:
 
-1. Verify all production variables and canonical server names exist in settings et al.
-1. Disconnect production server from public IP.
-1. Run `deploy/backup-database.sh` one last time.
-1. Assign elastic/floating IP to new server.
-1. Run TLS certificate (naked and wildcard) generations.
-1. `scp` database dump into new server.
-1. Restore database dump in new server.
-1. Start mataroa and caddy systemd services.
+1. Change Caddyfile to not reverse proxy to mataroa in the new server (so that we switch it on when we are ready)
+1. Change Caddyfile to not reverse proxy to mataroa in the old server. This means down time begins.
+1. Disconnect old server from public IP (we assume a floating IP is used)
+1. Start the final database dump in the old server. Important: this assumes we are connected to the old server via another non-floating IP.
+1. Change `/etc/systemd/system/mataroa.env` to point to the proper domain name (not the test one)
+1. Install floating IP to new server (restart server to verify)
+1. Once database dump finishes, secure copy it to the new server
+1. Restore database dump in new server
+1. Restore Caddyfile and restart Caddy
 
-Finally, once the new server is set up, verify DEBUG is 0.
+Finally, once the new server everything works don't forget to verify DEBUG is 0.
 
 The above assume the migrator has a floating IP that they can move around. If
-not, there are two problems. The migrator needs to coordinate DNS but much
+not, there are two problems. The migrator needs to change DNS records but much
 more problematically all custom domains stop working :/ For this reason we
 should implement CNAME custom domains. However, CNAME custom domains do not
 support root domains, so what's the point anyway you ask. Good question. I don't
