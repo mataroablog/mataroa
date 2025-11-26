@@ -11,6 +11,9 @@ export LOCALDEV=1
 # Admin email for receiving server errors
 export ADMIN_EMAIL=
 
+# Custom domain IP
+export CUSTOM_DOMAIN_IP=95.217.30.133
+
 # Session cookies secret
 export SECRET_KEY=some-secret-key
 

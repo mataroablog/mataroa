@@ -25,11 +25,13 @@ export SECRET_KEY=some-secret-key
 export DATABASE_URL=postgres://mataroa:xxx@localhost:5432/mataroa
 export POSTGRES_USERNAME=mataroa
 export POSTGRES_PASSWORD=xxx
-export BACKUP_BUCKET=
 
 # SMTP credentials
 export EMAIL_HOST_USER=
 export EMAIL_HOST_PASSWORD=
+
+# Custom domain IP
+export CUSTOM_DOMAIN_IP=
 
 # Stripe payments details
 export STRIPE_API_KEY=
@@ -37,7 +39,8 @@ export STRIPE_PUBLIC_KEY=
 export STRIPE_WEBHOOK_SECRET=
 export STRIPE_PRICE_ID=
 
-# Rclone configuration
+# Backup and rclone configuration
+export BACKUP_BUCKET=
 export RCLONE_PROVIDER=
 export RCLONE_ACCESS_KEY_ID=
 export RCLONE_SECRET_ACCESS_KEY=

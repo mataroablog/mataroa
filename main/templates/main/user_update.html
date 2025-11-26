@@ -7,7 +7,157 @@
     <h1>Blog settings</h1>
 
     <form method="post">
-        {{ form.as_p }}
+        {{ form.non_field_errors }}
+
+        <p>
+            <label for="id_username">Username</label>
+            {% if form.username.errors %}
+                {% for error in form.username.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="text" name="username" id="id_username" maxlength="150" required value="{{ form.username.value|default_if_none:'' }}">
+            <span class="helptext">{{ form.username.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_email">Email</label>
+            {% if form.email.errors %}
+                {% for error in form.email.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="email" name="email" id="id_email" value="{{ form.email.value|default_if_none:'' }}">
+            <span class="helptext">{{ form.email.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_blog_title">Blog title</label>
+            {% if form.blog_title.errors %}
+                {% for error in form.blog_title.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="text" name="blog_title" id="id_blog_title" maxlength="500" value="{{ form.blog_title.value|default_if_none:'' }}">
+        </p>
+
+        <p>
+            <label for="id_blog_byline">Blog byline</label>
+            {% if form.blog_byline.errors %}
+                {% for error in form.blog_byline.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <textarea name="blog_byline" id="id_blog_byline" cols="40" rows="10">{{ form.blog_byline.value|default_if_none:'' }}</textarea>
+            <span class="helptext">{{ form.blog_byline.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_footer_note">Footer note</label>
+            {% if form.footer_note.errors %}
+                {% for error in form.footer_note.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <textarea name="footer_note" id="id_footer_note" cols="40" rows="10">{{ form.footer_note.value|default_if_none:'' }}</textarea>
+            <span class="helptext">{{ form.footer_note.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_theme_zialucia">Theme Zia Lucia</label>
+            {% if form.theme_zialucia.errors %}
+                {% for error in form.theme_zialucia.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="checkbox" name="theme_zialucia" id="id_theme_zialucia" {% if form.theme_zialucia.value %}checked{% endif %}>
+            <span class="helptext">{{ form.theme_zialucia.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_theme_sansserif">Theme Sans-serif</label>
+            {% if form.theme_sansserif.errors %}
+                {% for error in form.theme_sansserif.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="checkbox" name="theme_sansserif" id="id_theme_sansserif" {% if form.theme_sansserif.value %}checked{% endif %}>
+            <span class="helptext">{{ form.theme_sansserif.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_post_altpath_on">Alternative Post Path</label>
+            {% if form.post_altpath_on.errors %}
+                {% for error in form.post_altpath_on.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="checkbox" name="post_altpath_on" id="id_post_altpath_on" {% if form.post_altpath_on.value %}checked{% endif %}>
+            <span class="helptext">{{ form.post_altpath_on.help_text }}</span>
+        </p>
+
+        {% if CUSTOM_DOMAIN_IP %}
+        <p>
+            <label for="id_custom_domain">
+                Custom domain
+                (<a href="https://mataroa.blog/guides/custom-domain/">guide</a>)
+            </label>
+            {% if form.custom_domain.errors %}
+                {% for error in form.custom_domain.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="text" name="custom_domain" id="id_custom_domain" maxlength="150" value="{{ form.custom_domain.value|default_if_none:'' }}">
+            <span class="helptext">
+                To setup: Add an A record in your domain's DNS with IP {{ CUSTOM_DOMAIN_IP }}
+            </span>
+        </p>
+        {% endif %}
+
+        <p>
+            <label for="id_comments_on">Comments</label>
+            {% if form.comments_on.errors %}
+                {% for error in form.comments_on.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="checkbox" name="comments_on" id="id_comments_on" {% if form.comments_on.value %}checked{% endif %}>
+            <span class="helptext">{{ form.comments_on.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_notifications_on">Newsletter</label>
+            {% if form.notifications_on.errors %}
+                {% for error in form.notifications_on.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="checkbox" name="notifications_on" id="id_notifications_on" {% if form.notifications_on.value %}checked{% endif %}>
+            <span class="helptext">{{ form.notifications_on.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_mail_export_on">Mail export</label>
+            {% if form.mail_export_on.errors %}
+                {% for error in form.mail_export_on.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="checkbox" name="mail_export_on" id="id_mail_export_on" {% if form.mail_export_on.value %}checked{% endif %}>
+            <span class="helptext">{{ form.mail_export_on.help_text }}</span>
+        </p>
+
+        <p>
+            <label for="id_redirect_domain">Redirect domain</label>
+            {% if form.redirect_domain.errors %}
+                {% for error in form.redirect_domain.errors %}
+                    <span class="form-error">{{ error|escape }}</span><br>
+                {% endfor %}
+            {% endif %}
+            <input type="text" name="redirect_domain" id="id_redirect_domain" maxlength="150" value="{{ form.redirect_domain.value|default_if_none:'' }}">
+            <span class="helptext">{{ form.redirect_domain.help_text }}</span>
+        </p>
+
         {% csrf_token %}
         <input type="submit" value="Save">
     </form>

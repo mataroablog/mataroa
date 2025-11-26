@@ -43,6 +43,7 @@ CANONICAL_HOST = os.getenv("DOMAIN", "mataroa.blog")
 if LOCALDEV:
     CANONICAL_HOST = "mataroalocal.blog:8000"
 
+CUSTOM_DOMAIN_IP = os.getenv("CUSTOM_DOMAIN_IP")
 
 # Application definition
 

@@ -4,8 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# Deployment script for mataroa updates
-# This script updates an existing mataroa installation with new code changes
+# Deploy script
+# This script connects to the mataroa server via SSH, pulls latest commits, reloads service.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
