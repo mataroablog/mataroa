@@ -45,7 +45,7 @@ run_remote() {
 
 # 1. Install essential packages
 echo "==> Installing essential packages..."
-run_remote "apt-get update && apt-get install -y gcc git rclone vim postgresql postgresql-contrib curl gettext-base"
+run_remote "apt update && apt install -y gcc git rclone vim postgresql postgresql-contrib curl gettext-base btop"
 
 # 2. Install Caddy
 echo "==> Installing Caddy..."
