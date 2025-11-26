@@ -57,7 +57,7 @@ run_remote "
     if ! id -u deploy &>/dev/null; then
         useradd -m -s /bin/bash -G sudo,www-data deploy
         mkdir -p /home/deploy/.ssh
-        ssh-keygen -t ed25519 -f /home/deploy/.ssh/id_ed25519 -N ''
+        ssh-keygen -t ed25519 -f /home/deploy/.ssh/id_ed25519 -N '' -C "deploy@mataroa"
         chown -R deploy:deploy /home/deploy/.ssh
         echo 'deploy user created successfully'
     else
@@ -159,6 +159,13 @@ run_remote "
     systemctl start mataroa-dailysummary.timer
     systemctl start mataroa
     systemctl start caddy
+"
+
+# 13. Wait and restart Caddy
+echo "==> Waiting for 30 seconds before restarting Caddy..."
+run_remote "
+    sleep 30
+    systemctl restart caddy
 "
 
 echo ""
