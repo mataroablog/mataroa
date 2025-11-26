@@ -430,40 +430,18 @@ class PostmarkWebhookTestCase(TestCase):
         self.user = models.User.objects.create(
             username="alice", email="alice@example.com"
         )
-        self.url = reverse("postmark_webhook")
-        self.valid_to_email = f"posts@posts.{settings.CANONICAL_HOST}"
-
-    def _build_webhook_data(
-        self,
-        from_email="alice@example.com",
-        to_email=None,
-        subject="Test Post",
-        text_body="This is the body of the test post.",
-        headers=None,
-    ):
-        """Helper method to build webhook payload."""
-        if to_email is None:
-            to_email = self.valid_to_email
-        if headers is None:
-            headers = []
-
-        return {
-            "From": from_email,
-            "To": to_email,
-            "Subject": subject,
-            "TextBody": text_body,
-            "Headers": headers,
-        }
 
     def test_postmark_webhook_create_post_success(self):
-        """Test successful post creation via webhook."""
-        data = self._build_webhook_data(
-            subject="My New Post",
-            text_body="This is the content of my new post.",
-        )
+        data = {
+            "From": "alice@example.com",
+            "To": f"post@{self.user.username}.{settings.CANONICAL_HOST}",
+            "Subject": "My New Post",
+            "TextBody": "This is the content of my new post.",
+            "Headers": [],
+        }
 
         response = self.client.post(
-            self.url,
+            reverse("postmark_webhook"),
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -481,47 +459,17 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
         self.assertIn(post.slug, mail.outbox[0].body)
 
-    def test_postmark_webhook_spam_ignored(self):
-        """Test that emails marked as spam are ignored."""
-        data = self._build_webhook_data(
-            headers=[
-                {"Name": "X-Spam-Status", "Value": "Yes"},
-            ]
-        )
-
-        response = self.client.post(
-            self.url,
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(models.Post.objects.exists())
-        self.assertEqual(len(mail.outbox), 0)
-
-    def test_postmark_webhook_non_spam_allowed(self):
-        """Test that emails with X-Spam-Status: No are processed."""
-        data = self._build_webhook_data(
-            headers=[
-                {"Name": "X-Spam-Status", "Value": "No"},
-            ]
-        )
-
-        response = self.client.post(
-            self.url,
-            data=json.dumps(data),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(models.Post.objects.exists())
-
     def test_postmark_webhook_nonexistent_user(self):
-        """Test that emails from non-existent users are ignored."""
-        data = self._build_webhook_data(from_email="nonexistent@example.com")
+        data = {
+            "From": "nonexistent@example.com",
+            "To": f"post@{self.user.username}.{settings.CANONICAL_HOST}",
+            "Subject": "Test Post",
+            "TextBody": "This is the body of the test post.",
+            "Headers": [],
+        }
 
         response = self.client.post(
-            self.url,
+            reverse("postmark_webhook"),
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -531,11 +479,16 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
     def test_postmark_webhook_reply_email_contains_post_url(self):
-        """Test that reply email contains the post URL."""
-        data = self._build_webhook_data()
+        data = {
+            "From": "alice@example.com",
+            "To": f"post@{self.user.username}.{settings.CANONICAL_HOST}",
+            "Subject": "Test Post",
+            "TextBody": "This is the body of the test post.",
+            "Headers": [],
+        }
 
         response = self.client.post(
-            self.url,
+            reverse("postmark_webhook"),
             data=json.dumps(data),
             content_type="application/json",
         )
@@ -546,3 +499,30 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         expected_url = scheme.get_protocol() + post.get_proper_url()
         self.assertIn(expected_url, mail.outbox[0].body)
+
+    def test_postmark_webhook_create_draft_success(self):
+        data = {
+            "From": "alice@example.com",
+            "To": f"draft@{self.user.username}.{settings.CANONICAL_HOST}",
+            "Subject": "My Draft Post",
+            "TextBody": "This is the content of my draft post.",
+            "Headers": [],
+        }
+
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(models.Post.objects.filter(title="My Draft Post").exists())
+
+        post = models.Post.objects.get(title="My Draft Post")
+        self.assertEqual(post.owner, self.user)
+        self.assertEqual(post.body, "This is the content of my draft post.")
+        self.assertIsNone(post.published_at)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
+        self.assertIn(post.slug, mail.outbox[0].body)

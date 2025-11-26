@@ -20,6 +20,11 @@ urlpatterns = [
         "guides/custom-domain/", general.guides_customdomain, name="guides_customdomain"
     ),
     path("guides/comments/", general.guides_comments, name="guides_comments"),
+    path(
+        "guides/post-by-email/",
+        general.guides_post_by_email,
+        name="guides_post_by_email",
+    ),
 ]
 
 # user system

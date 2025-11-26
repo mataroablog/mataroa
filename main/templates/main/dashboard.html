@@ -35,6 +35,7 @@
     <strong>Manage</strong>
     <div class="dashboard-list">
         <a href="{% url 'webring' %}">Webring</a>
+        <br><a href="{% url 'guides_post_by_email' %}">Post by email</a>
         <br><a href="{% url 'api_docs' %}">API</a>
 
         {% if billing_enabled %}
@@ -50,6 +51,7 @@
         <a href="{% url 'user_update' %}">Blog settings</a>
         <br><a href="{% url 'password_change' %}">Change password</a>
         <br><a href="{% url 'methodology' %}">Methodology</a>
+        <br><a href="{% url 'transparency' %}">Business Transparency</a>
         <br><a href="mailto:admin@mataroa.blog">Help and support</a>
         <br>
         <form method="post" action="{% url 'logout' %}" class="form-inline">

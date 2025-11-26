@@ -106,11 +106,6 @@ def build_summary_text(target_date: datetime.date) -> str:
     else:
         lines.append("- None.")
 
-    lines.append("")
-    lines.append(
-        f"Prev day: {prev_date.strftime('%Y-%m-%d')} | Next day: {next_date.strftime('%Y-%m-%d')}"
-    )
-
     return "\n".join(lines)
 
 

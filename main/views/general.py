@@ -229,6 +229,11 @@ class UserUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     def get_object(self):
         return self.request.user
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["CUSTOM_DOMAIN_IP"] = settings.CUSTOM_DOMAIN_IP
+        return context
+
     def form_valid(self, form):
         if denylist.is_disallowed(form.cleaned_data.get("username")):
             form.add_error("username", "This username is not available.")
@@ -1255,24 +1260,34 @@ def postmark_webhook(request):
             message_id = header.get("Value")
             break
 
-    # check inbound host
-    to_email_parts = to_email.split("@")
-    if to_email_parts[0] != "posts":
-        return HttpResponse(status=200)
-    if to_email_parts[1] != "posts." + settings.CANONICAL_HOST:
-        return HttpResponse(status=200)
-
     # get user if exists
     try:
         user = models.User.objects.get(email=from_email)
     except models.User.DoesNotExist:
         return HttpResponse(status=200)
+    except models.User.MultipleObjectsReturned:
+        mail.mail_admins(
+            subject="Multiple users with same email in inbound post",
+            message=f"Email: {from_email}\n",
+        )
+        return HttpResponse(status=500)
+
+    # check inbound host
+    to_email_parts = to_email.split("@")
+    email_prefix = to_email_parts[0]
+    if email_prefix not in ("post", "draft"):
+        return HttpResponse(status=200)
+    if to_email_parts[1] != user.username + "." + settings.CANONICAL_HOST:
+        return HttpResponse(status=200)
+
+    # determine if post should be published or saved as draft
+    is_draft = email_prefix == "draft"
 
     # create new post with subject as title and text_body as body
     post = models.Post.objects.create(
         title=subject,
         slug=text_processing.create_post_slug(subject, user),
-        published_at=timezone.now(),
+        published_at=None if is_draft else timezone.now(),
         body=text_body,
         owner=user,
     )
@@ -1428,7 +1443,23 @@ def guides_comments(request):
 
 
 def guides_customdomain(request):
+    if not settings.CUSTOM_DOMAIN_IP:
+        raise Http404()
+
     return render(
         request,
         "main/guides_customdomain.html",
+        {
+            "CUSTOM_DOMAIN_IP": settings.CUSTOM_DOMAIN_IP,
+        },
+    )
+
+
+def guides_post_by_email(request):
+    return render(
+        request,
+        "main/guides_postbyemail.html",
+        {
+            "canonical_host": settings.CANONICAL_HOST,
+        },
     )

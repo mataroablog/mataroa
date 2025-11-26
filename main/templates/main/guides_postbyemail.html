@@ -1,0 +1,75 @@
+{% extends 'main/layout.html' %}
+
+{% load static %}
+
+{% block title %}Post by email{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Post by email</h1>
+    <p>
+        Mataroa supports publishing blog posts via email, inspired by <a href="https://posthaven.com/">Posthaven</a>.
+    </p>
+
+    {% if request.user.is_authenticated and not request.user.email %}
+    <h2>Requirements</h2>
+    <p>
+        An email address is required to use this feature. <a href="{% url 'user_update' %}">Add in settings</a>.
+    </p>
+    {% endif %}
+
+    <h2>How it works</h2>
+    <ol>
+        {% if request.user.is_authenticated and request.user.email %}
+        <li>
+            Either send an email from {{ request.user.email }} to
+            <code>post@{{ request.user.username }}.{{ canonical_host }}</code>
+            to publish immediately.
+        </li>
+        <li>Or from {{ request.user.email }} to
+            <code>draft@{{ request.user.username }}.{{ canonical_host }}</code>
+            to save as a draft.
+        </li>
+        {% else %}
+        <li>
+            Either send an email from your registered email address to
+            <code>post@{username}.{{ canonical_host }}</code> to publish immediately.
+        </li>
+        <li>Or send an email from your registered email address to
+            <code>draft@{username}.{{ canonical_host }}</code> to save as a draft.
+        </li>
+        {% endif %}
+        <li>The email subject becomes the post title.</li>
+        <li>The email body becomes the post content.</li>
+        <li>You receive a reply email with the link to your post.</li>
+    </ol>
+
+    <h2>Notes</h2>
+    <ul>
+        <li>
+            You must send the email from the same email address that is
+            registered with your mataroa account. Emails from other addresses
+            will be ignored.
+        </li>
+        <li>
+            Emails to <code>post@</code> are published immediately. Use
+            <code>draft@</code> to save as a draft instead.
+        </li>
+        <li>
+            Drafts are unlisted but still accessible via their URL.
+        </li>
+        <li>
+            Only the plain text version of the email is used for the post body.
+            HTML formatting in your email will not be preserved.
+        </li>
+        <li>
+            The post slug is automatically generated from the email subject
+            (post title).
+        </li>
+    </ul>
+
+</main>
+
+{% include 'partials/footer.html' %}
+
+{% endblock content %}
