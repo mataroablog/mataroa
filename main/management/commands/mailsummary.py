@@ -60,7 +60,7 @@ def build_summary_text(target_date: datetime.date) -> str:
     if top_posts_by_visits_qs.exists():
         for post in top_posts_by_visits_qs[:20]:
             lines.append(
-                f"- {post.title} — {post.visit_count} — {post.owner.username} — {post.get_proper_url}"
+                f"- {post.title} — {post.visit_count} — {post.owner.username} — {post.get_proper_url()}"
             )
     else:
         lines.append("- None.")
@@ -70,7 +70,7 @@ def build_summary_text(target_date: datetime.date) -> str:
     if new_posts_qs.exists():
         for p in new_posts_qs:
             lines.append(
-                f"- {p.title} by {p.owner.username} ({p.created_at.strftime('%H:%M')}) — {p.get_proper_url}"
+                f"- {p.title} by {p.owner.username} ({p.created_at.strftime('%H:%M')}) — {p.get_proper_url()}"
             )
     else:
         lines.append("- None.")
@@ -101,7 +101,7 @@ def build_summary_text(target_date: datetime.date) -> str:
         for c in new_comments_qs:
             pending_note = " pending" if not c.is_approved else ""
             lines.append(
-                f"- on {c.post.title} by {c.post.owner.username} ({c.created_at.strftime('%H:%M')}){pending_note} — {c.post.get_proper_url}#comment-{c.id}"
+                f"- on {c.post.title} by {c.post.owner.username} ({c.created_at.strftime('%H:%M')}){pending_note} — {c.post.get_proper_url()}#comment-{c.id}"
             )
     else:
         lines.append("- None.")
