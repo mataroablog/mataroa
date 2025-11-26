@@ -126,7 +126,7 @@ class Command(BaseCommand):
 
         subject = f"Mataroa moderation summary {target_date.isoformat()} — {settings.CANONICAL_HOST}"
 
-        to_addresses = [email for _name, email in settings.ADMINS]
+        to_addresses = list(settings.ADMINS)
         if not to_addresses:
             self.stdout.write(
                 self.style.ERROR("No admin addresses configured (ADMINS).")
