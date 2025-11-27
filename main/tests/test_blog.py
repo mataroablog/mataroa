@@ -526,3 +526,26 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
         self.assertIn(post.slug, mail.outbox[0].body)
+
+    def test_postmark_webhook_cannot_post_to_another_users_blog(self):
+        bob = models.User.objects.create(username="bob", email="bob@example.com")
+
+        data = {
+            "From": "alice@example.com",
+            "To": f"post@{bob.username}.{settings.CANONICAL_HOST}",
+            "Subject": "Trying to Post to Bob's Blog",
+            "TextBody": "This should not be allowed.",
+            "Headers": [],
+        }
+
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # no post created
+        self.assertFalse(models.Post.objects.exists())
+        # no email sent
+        self.assertEqual(len(mail.outbox), 0)
