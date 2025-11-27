@@ -143,7 +143,9 @@ def md_to_html(markdown_string, strip_tags=False):
             "markdown.extensions.tables",
             "markdown.extensions.footnotes",
             "markdown.extensions.toc",
-            LaTeX2MathMLExtension(),
+            # disable latex2mathml; \[ and \] denote display math mode but some users use
+            # them for other reasons, which makes their posts break rendering completely
+            # LaTeX2MathMLExtension(),
         ],
     )
     return clean_html(dirty_html, strip_tags)
