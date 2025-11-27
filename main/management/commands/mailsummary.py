@@ -9,9 +9,6 @@ from main import models, scheme
 
 
 def build_summary_text(target_date: datetime.date) -> str:
-    prev_date = target_date - timedelta(days=1)
-    next_date = target_date + timedelta(days=1)
-
     new_users_qs = models.User.objects.filter(date_joined__date=target_date).order_by(
         "-id"
     )
