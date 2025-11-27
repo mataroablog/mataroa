@@ -3,6 +3,7 @@ from timeit import default_timer as timer
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
+from django.utils.http import MAX_URL_LENGTH
 
 from main import denylist, models, scheme
 
@@ -75,12 +76,12 @@ def host_middleware(get_response):
                             request.blog_user.redirect_domain + request.path_info[5:]
                         )
 
-                    # if there is no protocol prefix,
-                    # prepend double slashes to indicate other domain
                     if redir_domain and "://" not in redir_domain:
-                        redir_domain = "//" + redir_domain
+                        redir_domain = scheme.get_protocol() + "//" + redir_domain
 
                     if redir_domain:
+                        if len(redir_domain) > MAX_URL_LENGTH:
+                            return HttpResponseBadRequest()
                         return redirect(redir_domain)
             else:
                 raise Http404()
@@ -96,11 +97,11 @@ def host_middleware(get_response):
             if request.blog_user.redirect_domain:
                 redir_domain = request.blog_user.redirect_domain + request.path_info[5:]
 
-                # if there is no protocol prefix,
-                # prepend double slashes to indicate other domain
                 if "://" not in redir_domain:
-                    redir_domain = "//" + redir_domain
+                    redir_domain = scheme.get_protocol() + "//" + redir_domain
 
+                if len(redir_domain) > MAX_URL_LENGTH:
+                    return HttpResponseBadRequest()
                 return redirect(redir_domain)
 
         else:
