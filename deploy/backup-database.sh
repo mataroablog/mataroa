@@ -24,14 +24,14 @@ if [ -z "${BACKUP_BUCKET:-}" ]; then
 fi
 
 if [ -z "${DATABASE_URL:-}" ] && [ -z "${PGPASSWORD:-}" ]; then
-    echo "WARNING: Neither DATABASE_URL nor PGPASSWORD is set. Database connection might fail."
+    echo "WARNING: Neither DATABASE_URL nor PGPASSWORD is set."
 fi
 
 echo "==> Starting database backup..."
 
 # Generate timestamp
 TIMESTAMP="$(date --utc +%Y%m%d-%H%M%S)"
-DUMP_FILE="/var/tmp/mataroa-${TIMESTAMP}.dump"
+DUMP_FILE="/var/tmp/mataroa.dump"
 
 # Dump database
 echo "  Dumping database..."
@@ -44,14 +44,10 @@ fi
 
 # Upload using rclone
 echo "  Uploading to ${BACKUP_BUCKET}..."
-rclone copy --progress "${DUMP_FILE}" "${RCLONE_PROVIDER}:${BACKUP_BUCKET}/mataroa-backups/postgres-mataroa-${TIMESTAMP}/"
+rclone copy --stats 5m --stats-one-line "${DUMP_FILE}" "offsite-backup:${BACKUP_BUCKET}/mataroa-backups/postgres-mataroa-${TIMESTAMP}/"
 
-# Cleanup old backups
+# Delete old backups on remote
 echo "  Deleting backups older than 20 days..."
-rclone delete "${RCLONE_PROVIDER}:${BACKUP_BUCKET}/mataroa-backups" --min-age 20d --rmdirs --include "postgres-mataroa-*/mataroa.dump"
-
-# Cleanup
-echo "  Cleaning up local dump file..."
-rm "${DUMP_FILE}"
+rclone delete "offsite-backup:${BACKUP_BUCKET}/mataroa-backups" --min-age 20d --rmdirs --include "postgres-mataroa-*/mataroa.dump"
 
 echo "==> Backup completed successfully!"

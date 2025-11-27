@@ -17,7 +17,7 @@ echo "==> Setting up rclone configuration..."
 mkdir -p /home/deploy/.config/rclone
 
 cat > /home/deploy/.config/rclone/rclone.conf <<EOF
-[scaleway]
+[offsite-backup]
 type = s3
 provider = ${RCLONE_PROVIDER}
 access_key_id = ${RCLONE_ACCESS_KEY_ID}
