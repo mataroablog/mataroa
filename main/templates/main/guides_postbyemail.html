@@ -11,7 +11,7 @@
         Mataroa supports publishing blog posts via email, inspired by <a href="https://posthaven.com/">Posthaven</a>.
     </p>
 
-    {% if request.user.is_authenticated and (not request.user.is_premium and not request.user.is_grandfathered) %}
+    {% if request.user.is_authenticated and not request.user.is_premium and not request.user.is_grandfathered %}
     <p>
         This is a premium feature. <a href="{% url 'billing_overview' %}">Upgrade to Premium</a> to use it.
     </p>
