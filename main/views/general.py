@@ -1275,7 +1275,7 @@ def postmark_webhook(request):
     # check if user is premium
     if not user.has_premium_features:
         logger.warning(f"Post by email attempted by non-premium user: {user.username}")
-        body = "This is a premium feature. Please upgrade to Premium to use it. https://mataroa.blog/billing/overview/"
+        body = "This is a premium feature. Subscribe to Premium to use it: https://mataroa.blog/billing/overview/"
         extra_headers = {}
         if message_id:
             extra_headers["In-Reply-To"] = message_id
