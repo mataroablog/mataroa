@@ -11,6 +11,12 @@
         Mataroa supports publishing blog posts via email, inspired by <a href="https://posthaven.com/">Posthaven</a>.
     </p>
 
+    {% if request.user.is_authenticated and not request.user.is_premium %}
+    <p>
+        This is a premium feature. <a href="{% url 'billing_overview' %}">Upgrade to Premium</a> to use it.
+    </p>
+    {% endif %}
+
     {% if request.user.is_authenticated and not request.user.email %}
     <h2>Requirements</h2>
     <p>
@@ -52,11 +58,8 @@
             will be ignored.
         </li>
         <li>
-            Emails to <code>post@</code> are published immediately. Use
-            <code>draft@</code> to save as a draft instead.
-        </li>
-        <li>
-            Drafts are unlisted but still accessible via their URL.
+            Drafts do not appear in a blog's home page but are accessible
+            directly from their URL.
         </li>
         <li>
             Only the plain text version of the email is used for the post body.
@@ -64,7 +67,7 @@
         </li>
         <li>
             The post slug is automatically generated from the email subject
-            (post title).
+            (which becomes the post title).
         </li>
     </ul>
 

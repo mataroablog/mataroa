@@ -1272,6 +1272,24 @@ def postmark_webhook(request):
         )
         return HttpResponse(status=500)
 
+    # check if user is premium
+    if not user.has_premium_features:
+        logger.warning(f"Post by email attempted by non-premium user: {user.username}")
+        body = "This is a premium feature. Please upgrade to Premium to use it. https://mataroa.blog/billing/overview/"
+        extra_headers = {}
+        if message_id:
+            extra_headers["In-Reply-To"] = message_id
+            extra_headers["References"] = message_id
+        email = mail.EmailMessage(
+            subject=subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[from_email],
+            headers=extra_headers,
+        )
+        email.send()
+        return HttpResponse(status=200)
+
     # check inbound host
     to_email_parts = to_email.split("@")
     email_prefix = to_email_parts[0]

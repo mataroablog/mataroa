@@ -170,6 +170,10 @@ class User(AbstractUser):
         return Post.objects.filter(owner=self).count()
 
     @property
+    def has_premium_features(self):
+        return self.is_premium or self.is_grandfathered
+
+    @property
     def class_status(self):
         if self.is_premium or self.is_grandfathered:
             return "💠"

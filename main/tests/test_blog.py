@@ -430,7 +430,7 @@ class PostmarkWebhookTestCase(TestCase):
 
     def setUp(self):
         self.user = models.User.objects.create(
-            username="alice", email="alice@example.com"
+            username="alice", email="alice@example.com", is_premium=True
         )
 
     def test_postmark_webhook_create_post_success(self):
@@ -551,3 +551,60 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertFalse(models.Post.objects.exists())
         # no email sent
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_postmark_webhook_non_premium_user_cannot_post(self):
+        """Non-premium users should receive an upgrade email instead of creating a post."""
+        non_premium_user = models.User.objects.create(
+            username="freemium", email="freemium@example.com", is_premium=False
+        )
+
+        data = {
+            "From": "freemium@example.com",
+            "To": f"post@{non_premium_user.username}.{settings.CANONICAL_HOST}",
+            "Subject": "My Post Attempt",
+            "TextBody": "This should not create a post.",
+            "Headers": [],
+        }
+
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # no post created
+        self.assertFalse(models.Post.objects.exists())
+        # upgrade email sent
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["freemium@example.com"])
+        self.assertIn("premium feature", mail.outbox[0].body.lower())
+        self.assertIn("https://mataroa.blog/billing/overview/", mail.outbox[0].body)
+
+    def test_postmark_webhook_non_premium_user_cannot_create_draft(self):
+        """Non-premium users should receive an upgrade email when trying to create a draft."""
+        non_premium_user = models.User.objects.create(
+            username="freemium", email="freemium@example.com", is_premium=False
+        )
+
+        data = {
+            "From": "freemium@example.com",
+            "To": f"draft@{non_premium_user.username}.{settings.CANONICAL_HOST}",
+            "Subject": "My Draft Attempt",
+            "TextBody": "This should not create a draft.",
+            "Headers": [],
+        }
+
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # no post created
+        self.assertFalse(models.Post.objects.exists())
+        # upgrade email sent
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["freemium@example.com"])
+        self.assertIn("premium feature", mail.outbox[0].body.lower())
