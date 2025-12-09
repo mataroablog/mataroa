@@ -196,6 +196,22 @@ class BillingCancelSubscriptionTestCase(TestCase):
         self.assertTrue(models.User.objects.get(id=self.user.id).is_premium)
 
 
+class BillingCancelAnonymousUserTestCase(TestCase):
+    """Test billing cancel subscription handles anonymous users gracefully."""
+
+    def test_cancel_subscription_get_anonymous(self):
+        """Anonymous users should be redirected to login."""
+        response = self.client.get(reverse("billing_subscription_cancel"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    def test_cancel_subscription_post_anonymous(self):
+        """Anonymous users should be redirected to login."""
+        response = self.client.post(reverse("billing_subscription_cancel"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+
 class BillingCancelSubscriptionTwiceTestCase(TestCase):
     """Test billing cancel subscription when already canceled."""
 
