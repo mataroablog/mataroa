@@ -375,3 +375,28 @@ class BillingWebhookTestCase(TestCase):
             )
 
         self.assertEqual(response.status_code, 400)
+
+
+class BillingCancelAnonymousUserTestCase(TestCase):
+    """Test that anonymous users are properly handled when accessing billing cancel."""
+
+    def test_cancel_subscription_anonymous_user(self):
+        """Anonymous users should be redirected to login, not cause AttributeError."""
+        response = self.client.get(reverse("billing_subscription_cancel"))
+        # LoginRequiredMixin should redirect to login page
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    def test_resume_subscription_anonymous_user(self):
+        """Anonymous users should be redirected to login, not cause AttributeError."""
+        response = self.client.get(reverse("billing_subscription_resume"))
+        # LoginRequiredMixin should redirect to login page
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    def test_resubscribe_anonymous_user(self):
+        """Anonymous users should be redirected to login, not cause AttributeError."""
+        response = self.client.get(reverse("billing_resubscribe"))
+        # LoginRequiredMixin should redirect to login page
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
