@@ -51,6 +51,24 @@ class BillingIndexGrandfatherTestCase(TestCase):
         self.assertRedirects(response, reverse("dashboard"))
 
 
+class BillingCancelAnonymousUserTestCase(TestCase):
+    """Test billing cancel endpoint handles anonymous users correctly."""
+
+    def test_cancel_subscription_anonymous_redirects_to_login(self):
+        """Anonymous users should be redirected to login page."""
+        response = self.client.get(reverse("billing_subscription_cancel"))
+        # LoginRequiredMixin should redirect to login page
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    def test_cancel_subscription_post_anonymous_redirects_to_login(self):
+        """Anonymous users posting should be redirected to login page."""
+        response = self.client.post(reverse("billing_subscription_cancel"))
+        # LoginRequiredMixin should redirect to login page
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+
 class BillingIndexFreeTestCase(TestCase):
     """Test billing index works for free user."""
 
