@@ -460,6 +460,10 @@ class BillingCancel(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
     def dispatch(self, request, *args, **kwargs):
+        # ensure user is authenticated before accessing user attributes
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
+        
         # redirect grandfathered users to dashboard
         if request.user.is_grandfathered:
             return redirect("dashboard")
@@ -500,6 +504,10 @@ class BillingResume(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
     def dispatch(self, request, *args, **kwargs):
+        # ensure user is authenticated before accessing user attributes
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
+        
         # redirect grandfathered users to dashboard
         if request.user.is_grandfathered:
             return redirect("dashboard")
@@ -615,6 +623,10 @@ class BillingResubscribe(LoginRequiredMixin, View):
         return redirect(self.success_url)
 
     def dispatch(self, request, *args, **kwargs):
+        # ensure user is authenticated before accessing user attributes
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
+        
         # redirect grandfathered users
         if request.user.is_grandfathered:
             return redirect("billing_overview")
