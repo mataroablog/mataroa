@@ -460,6 +460,10 @@ class BillingCancel(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
     def dispatch(self, request, *args, **kwargs):
+        # redirect unauthenticated users to login
+        if not request.user.is_authenticated:
+            return redirect("login")
+
         # redirect grandfathered users to dashboard
         if request.user.is_grandfathered:
             return redirect("dashboard")
