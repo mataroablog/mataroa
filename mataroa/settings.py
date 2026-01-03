@@ -212,14 +212,6 @@ STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 
-# Translate
-
-TRANSLATE_API_URL = os.getenv(
-    "TRANSLATE_API_URL", "https://translate.mataroa.blog/api/generate"
-)
-TRANSLATE_API_TOKEN = os.getenv("TRANSLATE_API_TOKEN", "")
-
-
 # Logging
 # https://docs.djangoproject.com/en/4.1/ref/logging/#default-logging-configuration
 

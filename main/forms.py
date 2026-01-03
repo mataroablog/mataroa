@@ -7,11 +7,9 @@ from main import models
 
 
 class OnboardForm(forms.ModelForm):
-    sunflower = forms.BooleanField(required=False)
-
     class Meta:
         model = models.Onboard
-        fields = ["problems", "quality", "seo"]
+        fields = []
 
 
 class UserCreationForm(DjUserCreationForm):

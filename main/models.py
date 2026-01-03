@@ -456,10 +456,7 @@ class Snapshot(models.Model):
 class Onboard(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     code = models.UUIDField(default=uuid.uuid4, unique=True)
-    problems = models.CharField(max_length=300, null=True, blank=True)
-    quality = models.CharField(max_length=300, null=True, blank=True)
-    seo = models.CharField(max_length=300, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Prb: {self.problems} / Qlt: {self.quality}"
+        return f"Code: {self.code} - {self.user.username}"

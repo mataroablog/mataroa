@@ -7,7 +7,6 @@
     <h1>Moderation Users</h1>
 </main>
 <section class="moderation-content">
-
     <div class="filterbar" style="margin: 0 0 12px 0; display: flex; gap: 12px; align-items: center;">
         <strong>filters:</strong>
         {% for f in filters %}
@@ -72,16 +71,6 @@
             <span>
                 {{ user.username }}
             </span>
-
-            {% if user.onboard_set.first is not None %}
-            <div>
-                <ul>
-                    <li title="{{ user.onboard_set.first.problems }}">{{ user.onboard_set.first.problems }}</li>
-                    <li title="{{ user.onboard_set.first.quality }}">{{ user.onboard_set.first.quality }}</li>
-                    <li title="{{ user.onboard_set.first.seo }}">{{ user.onboard_set.first.seo }}</li>
-                </ul>
-            </div>
-            {% endif %}
         </div>
         <div class="moderation-content-row-actions" id="actions-{{ user.id }}">
             [
@@ -105,11 +94,7 @@
             <ul>
                 {% for post in user.post_set.all %}
                 <li>
-                    <a href="{{ post.get_absolute_url }}" target="_blank" rel="noopener">
-                        {{ post.title }}</a>
-                    <small>
-                        <button onclick="translatePost(event)">translate</button>
-                    </small>
+                    <a href="{{ post.get_absolute_url }}" target="_blank" rel="noopener">{{ post.title }}</a>
                 </li>
                 {% endfor %}
             </ul>
@@ -177,78 +162,6 @@
         })
             .then(() => {
                 document.getElementById(`actions-${userID}`).innerHTML = '[ unapproved ]';
-            });
-    }
-
-    function translatePost(evt) {
-        // prepare request options
-        const isDebug = '{{ DEBUG }}' === 'true';
-        const text = evt.target.parentElement.parentElement.querySelector('a').text.trim();
-        const encodedCredentials = btoa('admin' + ':' + '{{ TRANSLATE_API_TOKEN }}');
-        const headers = new Headers({
-            'Authorization': 'Basic ' + encodedCredentials,
-        });
-        const body = {
-            'model': 'mistral',
-            'prompt': `[INST] ${text} - Translate and summarise the above to English. Do not include translator's notes. Do not be verbose. Use up to 10 words. [/INST]`,
-            'stream': true,
-            'raw': true,
-        };
-
-        // setup fetch
-        const controller = new AbortController();
-        const signal = controller.signal;
-        const options = {
-            method: 'POST',
-            body: JSON.stringify(body),
-            signal: controller.signal,
-        };
-        if (!isDebug) {
-            options.headers = headers;
-            options.credentials = 'include';
-        }
-
-        // indicate request is loading
-        evt.target.textContent = '...';
-
-        // make request
-        fetch('{{ TRANSLATE_API_URL }}', options)
-            .then(response => {
-
-                // handle streaming request
-                if (response.body.getReader) {
-                    const reader = response.body.getReader();
-                    const textDecoder = new TextDecoder();
-                    evt.target.parentElement.parentElement.querySelector('a').text = '';
-                    evt.target.parentElement.parentElement.querySelector('a').style.color = 'green';
-                    function handleChunk(result) {
-                        if (result.done) {
-                            // stream done, cleanup
-                            controller.abort();
-                            return;
-                        }
-
-                        // get chunk, process it, then get next chunk
-                        let chunk = textDecoder.decode(result.value);
-                        const chunkContent = JSON.parse(chunk).response;
-                        evt.target.parentElement.parentElement.querySelector('a').text += chunkContent;
-                        return reader.read().then(handleChunk);
-                    }
-
-                    // start reading stream
-                    return reader.read().then(handleChunk);
-                } else {
-                    // handle non-streaming request
-                    if (!response.ok) {
-                        throw new Error('translate request failed: ' + response.statusText);
-                    }
-                    const data = response.json();
-                    evt.target.parentElement.parentElement.querySelector('a').text = data.response;
-                    evt.target.parentElement.parentElement.querySelector('a').style.color = 'green';
-                }
-            })
-            .then(data => {
-                evt.target.remove();
             });
     }
 </script>

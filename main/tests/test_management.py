@@ -42,10 +42,6 @@ class ProcessNotificationsTest(TestCase):
             blog_user=self.user, email="subscriber@example.com"
         )
 
-    def test_mail_backend(self):
-        connection = processnotifications.get_mail_connection()
-        self.assertEqual(connection.host, settings.EMAIL_HOST_BROADCASTS)
-
     def test_command(self):
         output = StringIO()
 

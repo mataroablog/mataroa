@@ -26,11 +26,7 @@ class UserCreateDisabledTestCase(TestCase):
 
 class UserCreateTestCase(TestCase):
     def setUp(self):
-        data = {
-            "problems": "sure",
-            "quality": "nope",
-        }
-        self.onboard = models.Onboard.objects.create(**data)
+        self.onboard = models.Onboard.objects.create()
 
     def test_user_creation(self):
         data = {
@@ -74,11 +70,7 @@ class UserCreateTestCase(TestCase):
 
 class UserCreateDisallowedTestCase(TestCase):
     def setUp(self):
-        data = {
-            "problems": "sure",
-            "quality": "nope",
-        }
-        self.onboard = models.Onboard.objects.create(**data)
+        self.onboard = models.Onboard.objects.create()
 
     def test_user_creation(self):
         data = {
@@ -95,11 +87,7 @@ class UserCreateDisallowedTestCase(TestCase):
 
 class UserCreateInvalidTestCase(TestCase):
     def setUp(self):
-        data = {
-            "problems": "sure",
-            "quality": "nope",
-        }
-        self.onboard = models.Onboard.objects.create(**data)
+        self.onboard = models.Onboard.objects.create()
 
     def test_user_creation_dollar(self):
         data = {

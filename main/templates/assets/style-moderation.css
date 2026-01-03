@@ -182,28 +182,6 @@ button {
     text-overflow: ellipsis;
 }
 
-.moderation-content-cards {
-    display: flex;
-}
-
-.moderation-content-cards-col1 {
-    width: 20vw;
-}
-
-.moderation-content-cards-col2 {
-    width: 20vw;
-}
-
-.moderation-content-cards-col3 {
-    width: 30vw;
-    padding: 0 4px;
-}
-
-.moderation-content-cards-col4 {
-    width: 30vw;
-    padding: 0 4px;
-}
-
 /* pagination */
 .pagination {
     display: flex;

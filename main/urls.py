@@ -49,7 +49,6 @@ urlpatterns += [
 # moderation
 urlpatterns += [
     path("moderation/index/", moderation.index, name="moderation_index"),
-    path("moderation/cards/", moderation.user_cards, name="moderation_user_cards"),
     path("moderation/users/", moderation.user_list, name="moderation_user_list"),
     path("moderation/images/", moderation.images_leaderboard, name="moderation_images"),
     path("moderation/posts/", moderation.posts_leaderboard, name="moderation_posts"),

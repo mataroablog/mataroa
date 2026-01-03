@@ -209,6 +209,7 @@ class OnboardAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "user",
+        "code",
         "created_at",
     )
     ordering = ["-id"]
