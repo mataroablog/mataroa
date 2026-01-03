@@ -70,6 +70,11 @@ urlpatterns += [
         name="moderation_top_blogs",
     ),
     path(
+        "moderation/top-pages/",
+        moderation.top_pages_alltime,
+        name="moderation_top_pages",
+    ),
+    path(
         "moderation/summary/<slug:date_str>/",
         moderation.summary,
         name="moderation_summary",

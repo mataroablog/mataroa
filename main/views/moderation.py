@@ -851,3 +851,54 @@ def top_blogs_alltime(request):
     }
 
     return render(request, "main/moderation_top_blogs.html", context)
+
+
+def top_pages_alltime(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        raise Http404()
+
+    if hasattr(request, "subdomain"):
+        return redirect(f"//{settings.CANONICAL_HOST}{request.path}")
+
+    # limit (configurable via ?limit=)
+    default_limit = 100
+    try:
+        top_limit = int(request.GET.get("limit", default_limit))
+    except (TypeError, ValueError):
+        top_limit = default_limit
+    if top_limit <= 0:
+        top_limit = default_limit
+
+    # Aggregate from AnalyticPage by user and path
+    visits_by_page = (
+        models.AnalyticPage.objects.values("user_id", "path")
+        .annotate(visit_count=Count("id"))
+        .order_by("-visit_count")[:top_limit]
+    )
+
+    # Build list with user info
+    user_ids = set(row["user_id"] for row in visits_by_page)
+    users = {u.id: u for u in models.User.objects.filter(id__in=user_ids)}
+
+    page_list = []
+    for row in visits_by_page:
+        user = users.get(row["user_id"])
+        if user:
+            page_list.append(
+                {
+                    "user": user,
+                    "path": row["path"],
+                    "visit_count": row["visit_count"],
+                }
+            )
+
+    # total page visits count
+    total_visits = models.AnalyticPage.objects.count()
+
+    context = {
+        "page_list": page_list,
+        "top_limit": top_limit,
+        "total_visits": total_visits,
+    }
+
+    return render(request, "main/moderation_top_pages.html", context)

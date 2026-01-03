@@ -1,0 +1,43 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — Top Pages{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Top Pages of All Time</h1>
+
+    <div class="filterbar">
+        <form method="get" class="filterbar-form">
+            <label>limit
+                <input type="number" name="limit" min="10" max="5000" value="{{ top_limit }}" />
+            </label>
+            <button type="submit">update</button>
+        </form>
+    </div>
+
+    <p>Top {{ page_list|length }} pages by visits. Total page visits tracked: {{ total_visits|intcomma }}.</p>
+
+    {% if page_list %}
+        <div style="display: grid; grid-template-columns: 60px 1fr 160px 100px; gap: 8px; align-items: center;">
+            <div><strong>#</strong></div>
+            <div style="text-align: right;"><strong>Blog</strong></div>
+            <div><strong>Page</strong></div>
+            <div style="text-align: right;"><strong>Visits</strong></div>
+
+            {% for p in page_list %}
+                <div>{{ forloop.counter }}</div>
+                <div style="text-align: right;">
+                    <a href="{{ p.user.blog_url }}" target="_blank" rel="noopener">{{ p.user.username }}</a> /
+                </div>
+                <div>
+                    <a href="{{ p.user.blog_url }}{{ p.path }}" target="_blank" rel="noopener">{{ p.path }}</a>
+                </div>
+                <div style="text-align: right;">{{ p.visit_count|intcomma }}</div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No pages with visits tracked yet.</p>
+    {% endif %}
+</section>
+{% endblock content %}

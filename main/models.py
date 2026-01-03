@@ -330,10 +330,13 @@ class Page(models.Model):
 class AnalyticPage(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     path = models.CharField(max_length=300)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "path"]),
+        ]
 
     def __str__(self):
         return self.created_at.strftime("%c") + ": " + self.user.username
