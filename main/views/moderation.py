@@ -745,3 +745,109 @@ def summary(request, date_str: str):
     }
 
     return render(request, "main/moderation_summary.html", context)
+
+
+def top_posts_alltime(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        raise Http404()
+
+    if hasattr(request, "subdomain"):
+        return redirect(f"//{settings.CANONICAL_HOST}{request.path}")
+
+    # limit (configurable via ?limit=)
+    default_limit = 100
+    try:
+        top_limit = int(request.GET.get("limit", default_limit))
+    except (TypeError, ValueError):
+        top_limit = default_limit
+    if top_limit <= 0:
+        top_limit = default_limit
+
+    # Aggregate from AnalyticPost directly - faster than annotating all Posts
+    visits_by_post = (
+        models.AnalyticPost.objects.values("post_id")
+        .annotate(visit_count=Count("id"))
+        .order_by("-visit_count")[:top_limit]
+    )
+
+    # Build lookup of post_id -> visit_count
+    post_ids = []
+    visit_counts = {}
+    for row in visits_by_post:
+        post_id = row["post_id"]
+        post_ids.append(post_id)
+        visit_counts[post_id] = row["visit_count"]
+
+    # Fetch posts with owners
+    posts = models.Post.objects.filter(id__in=post_ids).select_related("owner")
+
+    # Attach visit counts and sort by visits desc
+    post_list = []
+    for p in posts:
+        p.visit_count = visit_counts.get(p.id, 0)
+        post_list.append(p)
+    post_list.sort(key=lambda x: (-x.visit_count, -x.id))
+
+    # total visits count
+    total_visits = models.AnalyticPost.objects.count()
+
+    context = {
+        "post_list": post_list,
+        "top_limit": top_limit,
+        "total_visits": total_visits,
+    }
+
+    return render(request, "main/moderation_top_posts.html", context)
+
+
+def top_blogs_alltime(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        raise Http404()
+
+    if hasattr(request, "subdomain"):
+        return redirect(f"//{settings.CANONICAL_HOST}{request.path}")
+
+    # limit (configurable via ?limit=)
+    default_limit = 100
+    try:
+        top_limit = int(request.GET.get("limit", default_limit))
+    except (TypeError, ValueError):
+        top_limit = default_limit
+    if top_limit <= 0:
+        top_limit = default_limit
+
+    # Aggregate from AnalyticPost directly - much faster than joining through User
+    visits_by_owner = (
+        models.AnalyticPost.objects.values("post__owner_id")
+        .annotate(visit_count=Count("id"))
+        .order_by("-visit_count")[:top_limit]
+    )
+
+    # Build lookup of owner_id -> visit_count
+    owner_ids = []
+    visit_counts = {}
+    for row in visits_by_owner:
+        owner_id = row["post__owner_id"]
+        owner_ids.append(owner_id)
+        visit_counts[owner_id] = row["visit_count"]
+
+    # Fetch users
+    users = models.User.objects.filter(id__in=owner_ids)
+
+    # Attach visit counts and sort by visits desc
+    user_list = []
+    for u in users:
+        u.visit_count = visit_counts.get(u.id, 0)
+        user_list.append(u)
+    user_list.sort(key=lambda x: (-x.visit_count, -x.id))
+
+    # total visits count
+    total_visits = models.AnalyticPost.objects.count()
+
+    context = {
+        "user_list": user_list,
+        "top_limit": top_limit,
+        "total_visits": total_visits,
+    }
+
+    return render(request, "main/moderation_top_blogs.html", context)

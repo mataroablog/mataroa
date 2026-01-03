@@ -1,0 +1,47 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — Top Posts{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Top Posts of All Time</h1>
+</main>
+
+<section class="moderation-content" style="max-width: 900px;">
+    <div class="filterbar">
+        <form method="get" class="filterbar-form">
+            <label>limit
+                <input type="number" name="limit" min="10" max="5000" value="{{ top_limit }}" />
+            </label>
+            <button type="submit">update</button>
+        </form>
+    </div>
+
+    <p>Top {{ post_list|length }} posts by visits. Total visits tracked: {{ total_visits|intcomma }}.</p>
+
+    {% if post_list %}
+        <div style="display: grid; grid-template-columns: 60px 1fr 100px 160px 120px; gap: 8px; align-items: center;">
+            <div><strong>#</strong></div>
+            <div><strong>Post</strong></div>
+            <div style="text-align: right;"><strong>Visits</strong></div>
+            <div style="text-align: right;"><strong>Author</strong></div>
+            <div style="text-align: right;"><strong>Published</strong></div>
+
+            {% for p in post_list %}
+                <div>{{ forloop.counter }}</div>
+                <div>
+                    <a href="{{ p.get_proper_url }}" target="_blank" rel="noopener">{{ p.title }}</a>
+                </div>
+                <div style="text-align: right;">{{ p.visit_count|intcomma }}</div>
+                <div style="text-align: right;">
+                    <a href="{{ p.owner.blog_url }}" target="_blank" rel="noopener">{{ p.owner.username }}</a>
+                </div>
+                <div style="text-align: right;">{{ p.published_at|date:'Y-m-d' }}</div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No posts with visits tracked yet.</p>
+    {% endif %}
+</section>
+{% endblock content %}

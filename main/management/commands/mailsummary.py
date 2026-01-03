@@ -43,9 +43,12 @@ def build_summary_text(target_date: datetime.date) -> str:
     )
 
     lines: list[str] = []
-    lines.append(f"Moderation — Summary {target_date.strftime('%Y-%m-%d')}")
+    lines.append(f"# Mataroa Summary {target_date.strftime('%Y-%m-%d')}")
+    lines.append(
+        f"https://{settings.CANONICAL_HOST}/moderation/summary/{target_date.strftime('%Y-%m-%d')}"
+    )
     lines.append("")
-    lines.append("Counts")
+    lines.append("## Counts")
     lines.append(f"- New users: {new_users_qs.count()}")
     lines.append(f"- New posts: {new_posts_qs.count()}")
     lines.append(f"- New pages: {new_pages_qs.count()}")
@@ -53,55 +56,50 @@ def build_summary_text(target_date: datetime.date) -> str:
     lines.append(f"- Post visits: {post_visits_count}")
     lines.append("")
 
-    lines.append("Top Posts by Visits")
+    lines.append("## Top Posts by Visits")
     if top_posts_by_visits_qs.exists():
         for post in top_posts_by_visits_qs[:20]:
             lines.append(
-                f"- {post.title} — {post.visit_count} — {post.owner.username} — {scheme.get_protocol()}{post.get_proper_url()}"
+                f"* {post.title} [{post.visit_count}] {scheme.get_protocol()}{post.get_proper_url()}"
             )
     else:
         lines.append("- None.")
     lines.append("")
 
-    lines.append("New Posts")
+    lines.append("## New Posts")
     if new_posts_qs.exists():
         for p in new_posts_qs:
-            lines.append(
-                f"- {p.title} by {p.owner.username} ({p.created_at.strftime('%H:%M')}) — {scheme.get_protocol()}{p.get_proper_url()}"
-            )
+            lines.append(f"* {p.title} {scheme.get_protocol()}{p.get_proper_url()}")
     else:
         lines.append("- None.")
     lines.append("")
 
-    lines.append("New Users")
+    lines.append("## New Users")
     if new_users_qs.exists():
         for u in new_users_qs:
-            lines.append(
-                f"- {u.username} ({u.date_joined.strftime('%H:%M')}) — {u.blog_url}"
-            )
+            lines.append(f"* {u.username}: {u.blog_url}")
     else:
         lines.append("- None.")
     lines.append("")
 
-    lines.append("New Pages")
+    lines.append("## New Pages")
     if new_pages_qs.exists():
         for pg in new_pages_qs:
-            lines.append(
-                f"- {pg.title} by {pg.owner.username} ({pg.created_at.strftime('%H:%M')}) — {scheme.get_protocol()}{pg.get_absolute_url()}"
-            )
+            lines.append(f"* {pg.title} {scheme.get_protocol()}{pg.get_absolute_url()}")
     else:
         lines.append("- None.")
     lines.append("")
 
-    lines.append("New Comments")
+    lines.append("## New Comments")
     if new_comments_qs.exists():
         for c in new_comments_qs:
             pending_note = " pending" if not c.is_approved else ""
             lines.append(
-                f"- on {c.post.title} by {c.post.owner.username} ({c.created_at.strftime('%H:%M')}){pending_note} — {scheme.get_protocol()}{c.post.get_proper_url()}#comment-{c.id}"
+                f"* on {c.post.title} [{pending_note}] {scheme.get_protocol()}{c.post.get_proper_url()}#comment-{c.id}"
             )
     else:
         lines.append("- None.")
+    lines.append("")
 
     return "\n".join(lines)
 

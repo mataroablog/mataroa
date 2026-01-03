@@ -341,7 +341,7 @@ class AnalyticPage(models.Model):
 
 class AnalyticPost(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]

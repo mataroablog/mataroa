@@ -60,6 +60,16 @@ urlpatterns += [
     ),
     path("moderation/cohorts/", moderation.cohorts, name="moderation_cohorts"),
     path(
+        "moderation/top-posts/",
+        moderation.top_posts_alltime,
+        name="moderation_top_posts",
+    ),
+    path(
+        "moderation/top-blogs/",
+        moderation.top_blogs_alltime,
+        name="moderation_top_blogs",
+    ),
+    path(
         "moderation/summary/<slug:date_str>/",
         moderation.summary,
         name="moderation_summary",

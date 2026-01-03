@@ -1,0 +1,41 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — Top Blogs{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Top Blogs of All Time</h1>
+
+    <div class="filterbar">
+        <form method="get" class="filterbar-form">
+            <label>limit
+                <input type="number" name="limit" min="10" max="5000" value="{{ top_limit }}" />
+            </label>
+            <button type="submit">update</button>
+        </form>
+    </div>
+
+    <p>Top {{ user_list|length }} blogs by total visits. Total visits tracked: {{ total_visits|intcomma }}.</p>
+
+    {% if user_list %}
+        <div style="display: grid; grid-template-columns: 60px 1fr 100px 100px; gap: 8px; align-items: center;">
+            <div><strong>#</strong></div>
+            <div><strong>Blog</strong></div>
+            <div style="text-align: right;"><strong>Visits</strong></div>
+            <div style="text-align: right;"><strong>Posts</strong></div>
+
+            {% for u in user_list %}
+                <div>{{ forloop.counter }}</div>
+                <div>
+                    <a href="{{ u.blog_url }}" target="_blank" rel="noopener">{{ u.username }}</a>
+                </div>
+                <div style="text-align: right;">{{ u.visit_count|intcomma }}</div>
+                <div style="text-align: right;">{{ u.post_count }}</div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No blogs with visits tracked yet.</p>
+    {% endif %}
+</section>
+{% endblock content %}

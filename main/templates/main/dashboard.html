@@ -63,8 +63,8 @@
     {% if request.user.is_superuser %}
     <strong>Administration</strong>
     <div class="dashboard-list">
-        <a href="{% url 'admin:index' %}">Django Admin</a>
-        <br><a href="{% url 'moderation_index' %}">Moderation</a>
+        <a href="{% url 'moderation_index' %}">Moderation</a>
+        <br><a href="{% url 'admin:index' %}">Django Admin</a>
     </div>
     {% endif %}
 </main>
