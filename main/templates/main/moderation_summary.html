@@ -6,13 +6,13 @@
 {% block content %}
 <main>
     <h1>Summary for {{ target_date|date:'Y-m-d' }}</h1>
+</main>
 
+<section class="moderation-content" style="max-width: 800px;">
     <div class="filterbar" style="display:flex; justify-content: space-between; gap: 12px; margin: 8px 0 16px 0;">
         <a href="{% url 'moderation_summary' date_str=prev_date|date:'Y-m-d' %}">&larr; Previous day</a>
         <a href="{% url 'moderation_summary' date_str=next_date|date:'Y-m-d' %}">Next day &rarr;</a>
     </div>
-
-    <section class="moderation-content" style="max-width: 900px;">
         <h2>Counts</h2>
         <ul>
             <li>New users: {{ counts.users }}</li>
@@ -102,6 +102,5 @@
         {% else %}
             <p>None.</p>
         {% endif %}
-    </section>
-</main>
+</section>
 {% endblock content %}
