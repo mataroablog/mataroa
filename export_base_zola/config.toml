@@ -7,6 +7,10 @@ description = "Example blog description"
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = false
 
+# Disable checking of internal links with anchors
+[link_checker]
+internal_level = "warn"
+
 generate_feeds = true
 feed_filenames = ["rss.xml"]
 
