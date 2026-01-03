@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('main', '0109_remove_onboard_problems_remove_onboard_quality_and_more'),
+        ("main", "0109_remove_onboard_problems_remove_onboard_quality_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='analyticpost',
-            name='created_at',
+            model_name="analyticpost",
+            name="created_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
     ]

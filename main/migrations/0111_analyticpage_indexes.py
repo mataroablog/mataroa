@@ -4,19 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('main', '0110_analyticpost_created_at_index'),
+        ("main", "0110_analyticpost_created_at_index"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='analyticpage',
-            name='created_at',
+            model_name="analyticpage",
+            name="created_at",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AddIndex(
-            model_name='analyticpage',
-            index=models.Index(fields=['user', 'path'], name='main_analyt_user_id_9d4eb4_idx'),
+            model_name="analyticpage",
+            index=models.Index(
+                fields=["user", "path"], name="main_analyt_user_id_9d4eb4_idx"
+            ),
         ),
     ]

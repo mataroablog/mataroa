@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Bugfixes
 
 * Add check for max character count for redirections
+* Change zola's internal link check to warning instead of error
 
 ## [1.4.0](https://github.com/mataroablog/mataroa/compare/v1.3...v1.4) - 2025-11-23
 
