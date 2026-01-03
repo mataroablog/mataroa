@@ -38,7 +38,7 @@
                 {% if user.is_premium %}<span title="premium">★</span>{% endif %}
             </div>
             <div style="text-align: right;">{{ user.image_count }}</div>
-            <div style="text-align: right;">{{ user.image_megabytes }}</div>
+            <div style="text-align: right;">{{ user.image_megabytes|floatformat:2 }}</div>
             <div style="text-align: right;">{{ user.date_joined|date:'Y-m-d' }}</div>
         {% endfor %}
     </div>
