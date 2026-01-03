@@ -469,7 +469,7 @@ We follow some simple non-austere git commit message guidelines.
 This document provides a comprehensive checklist for releasing a new version of Mataroa.
 
 1. Finish with all commits, push to main
-1. Verify `CHANGELOG.md` is up-to-date
+1. Verify `CHANGELOG.md` is up-to-date and add release date
 1. Verify CI is green
 1. Bump in in `pyproject.toml` with `git commit -m "release v1.x"`
 1. Run `uv lock`

@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.0](https://github.com/mataroablog/mataroa/compare/v1.4...v1.5)
+## [1.6.0](https://github.com/mataroablog/mataroa/compare/v1.5...v1.6)
+
+### Important changes
+
+## [1.5.0](https://github.com/mataroablog/mataroa/compare/v1.4...v1.5) - 2026-01-03
 
 ### Important changes
 
