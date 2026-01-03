@@ -35,7 +35,6 @@ class User(AbstractUser):
         help_text="Optional, but also the only way to recover password if forgotten.",
     )
     api_key = models.CharField(max_length=32, default=_generate_key, unique=True)
-    about = models.TextField(blank=True, null=True)
     blog_title = models.CharField(max_length=500, blank=True, null=True)
     blog_byline = models.TextField(
         blank=True,

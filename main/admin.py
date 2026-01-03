@@ -46,7 +46,6 @@ class UserAdmin(DjUserAdmin):
             "Blog options",
             {
                 "fields": (
-                    "about",
                     "blog_title",
                     "blog_byline",
                     "footer_note",
