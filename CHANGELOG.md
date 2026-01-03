@@ -9,14 +9,16 @@ All notable changes to this project will be documented in this file.
 * Change newsletter emails to HTML format with inline image support
 * Add /p/ as an alternative blog post path option
 * Add renewal email notifications for premium subscribers
-* Remove support for LaTeX-style mathematical markup (due to a small number of existing blog posts of which rendering was breaking)
+* Remove support for LaTeX-style mathematical markup
+    * Due to a small number of existing blog posts of which rendering was breaking
+    * https://github.com/mataroablog/mataroa/commit/7e3d397eb6110c8a67def6b718f5f7feb778edba
 * Upgrade to Django 6.0
 
 ### Bugfixes
 
 * Add check for max character count for redirections
 
-## [1.4.0](https://github.com/mataroablog/mataroa/compare/v1.3...v1.4)
+## [1.4.0](https://github.com/mataroablog/mataroa/compare/v1.3...v1.4) - 2025-11-23
 
 ### Important changes
 

@@ -194,15 +194,6 @@ wheels = [
 ]
 
 [[package]]
-name = "latex2mathml"
-version = "3.78.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1a/26/57b1034c08922d0aefea79430a5e0006ffaee4f0ec59d566613f667ab2f7/latex2mathml-3.78.1.tar.gz", hash = "sha256:f941db80bf41db33f31df87b304e8b588f8166b813b0257c11c98f7a9d0aac71", size = 74030, upload-time = "2025-08-29T23:34:23.178Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/76/d661ea2e529c3d464f9efd73f9ac31626b45279eb4306e684054ea20e3d4/latex2mathml-3.78.1-py3-none-any.whl", hash = "sha256:f089b6d75e85b937f99693c93e8c16c0804008672c3dd2a3d25affd36f238100", size = 73892, upload-time = "2025-08-29T23:34:21.98Z" },
-]
-
-[[package]]
 name = "markdown"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -219,7 +210,6 @@ dependencies = [
     { name = "bleach", extra = ["css"] },
     { name = "django" },
     { name = "gunicorn" },
-    { name = "latex2mathml" },
     { name = "markdown" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pygments" },
@@ -238,7 +228,6 @@ requires-dist = [
     { name = "bleach", extras = ["css"], specifier = ">=6.2.0" },
     { name = "django", specifier = ">=6.0" },
     { name = "gunicorn", specifier = ">=23.0" },
-    { name = "latex2mathml", specifier = ">=3.78" },
     { name = "markdown", specifier = ">=3.9" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pygments", specifier = ">=2.19" },
