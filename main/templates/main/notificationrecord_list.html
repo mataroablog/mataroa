@@ -7,19 +7,18 @@
     <h1>Newsletter</h1>
 
     <p>
-        <strong>Who:</strong>
-        For the current list of registered emails, see
-        <a href="{% url 'notification_list' %}">Subscribers</a>.
+        <strong>What:</strong>
+        The Newsletter feature emails newly published blog posts to subscribers.
     </p>
     <p>
         <strong>When:</strong>
-        Every day at 10:00 UTC all posts published the day before are emailed to
-        subscribers.
+        Every day at 10:00 UTC all posts that were <strong>published the day before</strong>
+        are emailed to subscribers.
     </p>
     <p>
-        <strong>What:</strong>
-        Newsletter emails are delivered in raw plain text (markdown source) as seen in
-        the editor. Images are included as links only.
+        <strong>Who:</strong>
+        For the current list of registered emails, see
+        <a href="{% url 'notification_list' %}">Subscribers</a>.
     </p>
 
     <p>

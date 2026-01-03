@@ -3,13 +3,14 @@ from datetime import timedelta
 from django.conf import settings
 from django.core import mail
 from django.core.management.base import BaseCommand
+from django.template.loader import render_to_string
 from django.utils import timezone
 
-from main import models, scheme
+from main import models, scheme, text_processing
 
 
 def get_mail_connection():
-    if settings.DEBUG:
+    if settings.LOCALDEV:
         return mail.get_connection("django.core.mail.backends.console.EmailBackend")
 
     # SMPT EmailBackend instantiated with the broadcast-specific email host
@@ -19,8 +20,8 @@ def get_mail_connection():
     )
 
 
-def get_email_body(post, notification):
-    """Returns the email body (which contains the post body) along with titles and links."""
+def get_email_body_txt(post, notification):
+    """Returns the plain text email body as fallback for text-only clients."""
     post_url = scheme.get_protocol() + post.get_proper_url()
     unsubscribe_url = scheme.get_protocol() + notification.get_unsubscribe_url()
     blog_title = post.owner.blog_title or post.owner.username
@@ -46,8 +47,32 @@ Unsubscribe:
     return body
 
 
+def get_email_body_html(post, notification):
+    """Returns the HTML email body with styled content and inline images."""
+    post_url = scheme.get_protocol() + post.get_proper_url()
+    unsubscribe_url = scheme.get_protocol() + notification.get_unsubscribe_url()
+    blog_title = post.owner.blog_title or post.owner.username
+    post_body_html = text_processing.md_to_html(post.body)
+
+    published_date = ""
+    if post.published_at:
+        published_date = post.published_at.strftime("%B %-d, %Y")
+
+    return render_to_string(
+        "main/notification_email.html",
+        {
+            "blog_title": blog_title,
+            "post_title": post.title,
+            "post_body_html": post_body_html,
+            "post_url": post_url,
+            "unsubscribe_url": unsubscribe_url,
+            "published_date": published_date,
+        },
+    )
+
+
 def get_email(post, notification):
-    """Returns the email object, containing all info needed to be sent."""
+    """Returns the email object with both HTML and plain text versions."""
 
     blog_title = post.owner.username
     # email sender name cannot contain commas
@@ -55,11 +80,16 @@ def get_email(post, notification):
         blog_title = post.owner.blog_title
 
     unsubscribe_url = scheme.get_protocol() + notification.get_unsubscribe_url()
-    body = get_email_body(post, notification)
-    email = mail.EmailMessage(
+    plain_text_body = get_email_body_txt(post, notification)
+    html_body = get_email_body_html(post, notification)
+
+    from_email = f"{post.owner.username}@{settings.EMAIL_FROM_HOST}>"
+    from_name = blog_title.replace(".", " ").strip()
+    from_phrase = f"{from_name} <{from_email}"
+    email = mail.EmailMultiAlternatives(
         subject=post.title,
-        body=body,
-        from_email=f"{blog_title} <{post.owner.username}@{settings.EMAIL_FROM_HOST}>",
+        body=plain_text_body,
+        from_email=from_phrase,
         to=[notification.email],
         headers={
             "X-PM-Message-Stream": "newsletters",
@@ -67,6 +97,7 @@ def get_email(post, notification):
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         },
     )
+    email.attach_alternative(html_body, "text/html")
     return email
 
 
