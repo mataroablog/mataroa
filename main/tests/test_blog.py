@@ -258,7 +258,6 @@ class BlogExportEpubTestCase(TestCase):
         self.assertEqual(response["Content-Type"], "application/epub")
         self.assertContains(response, b"OEBPS/titlepage.xhtml")
         self.assertContains(response, b"OEBPS/toc.xhtml")
-        self.assertContains(response, b"OEBPS/author.xhtml")
 
 
 class BlogNotificationListTestCase(TestCase):

@@ -242,21 +242,6 @@ def export_print(request):
     )
 
 
-def _get_epub_author(blog_user):
-    return f"""<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html>
-<html xml:lang="en" lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head>
-    <title>{blog_user.username}</title>
-</head>
-<body>
-<h1>About the Author</h1>
-<p>{blog_user.about_as_html}</p>
-</body>
-</html>
-"""
-
-
 def _get_epub_titlepage(blog_user):
     return f"""<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html>
@@ -266,7 +251,7 @@ def _get_epub_titlepage(blog_user):
 </head>
 <body>
 <h1>{blog_user.blog_title}</h1>
-<p>{blog_user.blog_byline}</p>
+<p>{blog_user.blog_byline or ""}</p>
 <br/>
 <p>~{blog_user.username}</p>
 </body>
@@ -446,12 +431,6 @@ def export_epub(request):
             chapter_link=chapter["link"],
         )
         toc_ncx_body += new_item + "\n"
-    toc_ncx_body += toc_ncx_html_item.substitute(
-        chapter_id="author",
-        chapter_playorder=len(content_chapters) + 3,
-        chapter_title="About the Author",
-        chapter_link="author.xhtml",
-    )
     with open("./export_base_epub/toc.ncx") as toc_ncx_file:
         toc_ncx_content = toc_ncx_file.read()
 
@@ -486,11 +465,10 @@ def export_epub(request):
         for img in models.Image.objects.filter(owner=request.user):
             export_archive.writestr(f"OEBPS/images/{img.filename}", img.data)
 
-        # write title and author page
+        # write title page
         export_archive.writestr(
             "OEBPS/titlepage.xhtml", _get_epub_titlepage(request.user)
         )
-        export_archive.writestr("OEBPS/author.xhtml", _get_epub_author(request.user))
 
     response = HttpResponse(zip_buffer.getvalue(), content_type="application/epub")
     response["Content-Disposition"] = f"attachment; filename={export_name}.epub"

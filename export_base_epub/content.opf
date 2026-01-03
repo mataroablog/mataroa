@@ -12,18 +12,15 @@
     <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
     <item id="toc" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>
 <!-- manifest items -->
-    <item id="author" href="author.xhtml" media-type="application/xhtml+xml"/>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
   </manifest>
   <spine toc="ncx">
     <itemref idref="titlepage"/>
     <itemref idref="toc"/>
 <!-- spine items -->
-    <itemref idref="author"/>
   </spine>
   <guide>
     <reference type="titlepage" title="Title page" href="titlepage.xhtml"/>
     <reference type="toc" title="Table of Contents" href="toc.xhtml"/>
-    <reference type="author" title="About the Author" href="author.xhtml"/>
   </guide>
 </package>

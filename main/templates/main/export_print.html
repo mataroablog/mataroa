@@ -40,14 +40,6 @@
     </article>
     <br>
     {% endfor %}
-
-    <article>
-        <h1>About the Author</h1>
-        <p>
-            {{ request.user.about_as_html|safe }}
-        </p>
-        <br>
-    </article>
 </main>
 
 {% endblock content %}
