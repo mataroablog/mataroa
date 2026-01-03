@@ -1,0 +1,8 @@
+[Unit]
+Description=Run mataroa-renewal every day at 08:00 UTC
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+
+[Install]
+WantedBy=timers.target

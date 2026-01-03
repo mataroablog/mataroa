@@ -1,0 +1,12 @@
+[Unit]
+Description=Send mataroa premium renewal reminders
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/var/www/mataroa
+EnvironmentFile=/etc/systemd/system/mataroa.env
+ExecStart=/home/deploy/.local/bin/uv run manage.py mailrenewal --no-dryrun
+
+[Install]
+WantedBy=multi-user.target

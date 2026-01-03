@@ -67,6 +67,8 @@ TEMPLATE_FILES=(
     "mataroa-backup.service"
     "mataroa-dailysummary.timer"
     "mataroa-dailysummary.service"
+    "mataroa-renewal.timer"
+    "mataroa-renewal.service"
 )
 
 # Process each template file
