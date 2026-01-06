@@ -11,27 +11,30 @@ class RSSBlogFeed(Feed):
     title = ""
     link = ""
     description = ""
-    subdomain = ""
+    user = None
 
     def __call__(self, request, *args, **kwargs):
         if not hasattr(request, "subdomain"):
             raise Http404()
-        user = models.User.objects.get(username=request.subdomain)
-        self.title = user.blog_title
-        self.description = user.blog_byline_as_text
-        self.subdomain = request.subdomain
-        self.link = user.blog_url
+        self.user = models.User.objects.get(username=request.subdomain)
+        self.title = self.user.blog_title
+        self.description = self.user.blog_byline_as_text
+        self.link = self.user.blog_url
 
-        models.AnalyticPage.objects.create(user=user, path="rss")
+        models.AnalyticPage.objects.create(user=self.user, path="rss")
 
         return super().__call__(request, *args, **kwargs)
 
     def items(self):
-        return models.Post.objects.filter(
-            owner__username=self.subdomain,
-            published_at__isnull=False,
-            published_at__lte=timezone.now().date(),
-        ).order_by("-published_at")[:20]
+        return (
+            models.Post.objects.filter(
+                owner=self.user,
+                published_at__isnull=False,
+                published_at__lte=timezone.now().date(),
+            )
+            .select_related("owner")
+            .order_by("-published_at")[:100]
+        )
 
     def item_title(self, item):
         return item.title

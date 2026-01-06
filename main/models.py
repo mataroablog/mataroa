@@ -205,6 +205,9 @@ class Post(models.Model):
     class Meta:
         ordering = ["-published_at", "-created_at"]
         unique_together = [["slug", "owner"]]
+        indexes = [
+            models.Index(fields=["owner", "-published_at"]),
+        ]
 
     @property
     def body_as_html(self):
