@@ -515,9 +515,8 @@ When a new Django version is out it’s a good idea to upgrade everything.
 
 Steps:
 
-1. Update the lockfile: `uv lock --upgrade`
-1. Review changes: `git diff uv.lock` and spot non-patch level version bumps.
-1. Examine release notes of each one.
+1. Update the lockfile: `uv lock --upgrade` and review output changes.
+1. Spot non-patch level version bumps and examine release notes.
 1. Install updated deps: `uv sync`
 1. Unless something comes up, make sure tests and smoke tests pass.
 1. Deploy new dependency versions.
