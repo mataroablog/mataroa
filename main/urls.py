@@ -108,6 +108,8 @@ urlpatterns += [
         name="snapshot_detail",
     ),
     path("new/post/", general.PostCreate.as_view(), name="post_create"),
+    path("blog/<slug:slug>.md", general.post_raw, name="post_raw"),
+    path("p/<slug:slug>.md", general.post_raw, name="post_raw_p"),
     path("blog/<slug:slug>/", general.PostDetail.as_view(), name="post_detail"),
     path("p/<slug:slug>/", general.PostDetail.as_view(), name="post_detail_p"),
     path("posts/<slug:slug>/", general.post_detail_redir, name="post_detail_redir_a"),

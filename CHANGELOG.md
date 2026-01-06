@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Important changes
 
+* Add plain text version of blog post on <post url>.md
+
 ## [1.5.0](https://github.com/mataroablog/mataroa/compare/v1.4...v1.5) - 2026-01-03
 
 ### Important changes

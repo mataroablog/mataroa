@@ -147,6 +147,82 @@ class PostDetailTestCase(TestCase):
         self.assertEqual(response.url, reverse("post_detail", args=(self.post.slug,)))
 
 
+class PostRawTestCase(TestCase):
+    """Test raw markdown endpoint (.md suffix)."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.data = {
+            "title": "New post",
+            "slug": "new-post",
+            "body": "# Markdown content\n\nWith **bold** text.",
+        }
+        self.post = models.Post.objects.create(owner=self.user, **self.data)
+
+    def test_post_raw_published(self):
+        """Test published post returns raw markdown."""
+        response = self.client.get(
+            reverse("post_raw", args=(self.post.slug,)),
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        published_date = self.post.published_at.strftime("%B %d, %Y")
+        expected = f"# {self.data['title']}\n\nPublished on {published_date}\n\n{self.data['body']}"
+        self.assertEqual(response.content.decode(), expected)
+
+    def test_post_raw_p_path(self):
+        """Test /p/ path also works for raw markdown."""
+        response = self.client.get(
+            reverse("post_raw_p", args=(self.post.slug,)),
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        published_date = self.post.published_at.strftime("%B %d, %Y")
+        expected = f"# {self.data['title']}\n\nPublished on {published_date}\n\n{self.data['body']}"
+        self.assertEqual(response.content.decode(), expected)
+
+    def test_post_raw_draft_non_owner(self):
+        """Test draft post returns 404 for non-owner."""
+        self.post.published_at = None
+        self.post.save()
+        response = self.client.get(
+            reverse("post_raw", args=(self.post.slug,)),
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_post_raw_draft_owner(self):
+        """Test draft post returns markdown for owner."""
+        self.post.published_at = None
+        self.post.save()
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("post_raw", args=(self.post.slug,)),
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 200)
+        expected = f"# {self.data['title']}\n\n{self.data['body']}"
+        self.assertEqual(response.content.decode(), expected)
+
+    def test_post_raw_nonexistent(self):
+        """Test non-existent post returns 404."""
+        response = self.client.get(
+            reverse("post_raw", args=("nonexistent-slug",)),
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_post_raw_no_subdomain(self):
+        """Test request without subdomain returns 404."""
+        response = self.client.get(
+            reverse("post_raw", args=(self.post.slug,)),
+            HTTP_HOST=settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 404)
+
+
 class PostSanitizeHTMLTestCase(TestCase):
     """Test is bleach is sanitizing illegal tags."""
 

@@ -291,6 +291,26 @@ def post_detail_redir(request, slug):
     return redirect("post_detail", slug=slug, permanent=True)
 
 
+def post_raw(request, slug):
+    """Return raw markdown source of a post as plain text."""
+    if not hasattr(request, "subdomain"):
+        raise Http404()
+
+    post = get_object_or_404(models.Post, slug=slug, owner=request.blog_user)
+
+    # Check if post is published or if requester is the owner
+    if not post.is_published and (
+        not request.user.is_authenticated or request.user != post.owner
+    ):
+        raise Http404()
+
+    published_line = ""
+    if post.published_at:
+        published_line = f"\n\nPublished on {post.published_at.strftime('%B %d, %Y')}\n"
+    content = f"# {post.title}{published_line}\n{post.body or ''}"
+    return HttpResponse(content, content_type="text/plain; charset=utf-8")
+
+
 class PostDetail(DetailView):
     model = models.Post
 
