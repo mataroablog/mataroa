@@ -304,10 +304,11 @@ def post_raw(request, slug):
     ):
         raise Http404()
 
-    published_line = ""
     if post.published_at:
-        published_line = f"\n\nPublished on {post.published_at.strftime('%B %d, %Y')}\n"
-    content = f"# {post.title}{published_line}\n{post.body or ''}"
+        published_line = f"\nPublished on {post.published_at.strftime('%B %d, %Y')}\n"
+    else:
+        published_line = ""
+    content = f"# {post.title}\n{published_line}\n{post.body or ''}"
     return HttpResponse(content, content_type="text/plain; charset=utf-8")
 
 
