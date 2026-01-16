@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core import mail
+from django.core.mail import mail_admins
 from django.core.management.base import BaseCommand
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -75,9 +76,30 @@ def get_email(post, notification):
     """Returns the email object with both HTML and plain text versions."""
 
     blog_title = post.owner.username
-    # email sender name cannot contain commas
-    if post.owner.blog_title and "," not in post.owner.blog_title:
-        blog_title = post.owner.blog_title
+    # email sender name cannot contain RFC 5322 special characters
+    # these cause parsing errors in email headers
+    if post.owner.blog_title:
+        sanitized_title = post.owner.blog_title
+        for char in [
+            '"',
+            "'",
+            ":",
+            ",",
+            ";",
+            "<",
+            ">",
+            "(",
+            ")",
+            "[",
+            "]",
+            "\\",
+            "@",
+            "\n",
+            "\r",
+        ]:
+            sanitized_title = sanitized_title.replace(char, "")
+        if sanitized_title.strip():
+            blog_title = sanitized_title
 
     unsubscribe_url = scheme.get_protocol() + notification.get_unsubscribe_url()
     plain_text_body = get_email_body_txt(post, notification)
@@ -169,7 +191,25 @@ class Command(BaseCommand):
                         msg = f"Failed to send '{post.title}' to {notification.email}."
                         self.stdout.write(self.style.ERROR(msg))
                         record.delete()
-                        self.stdout.write(self.style.ERROR(ex))
+                        self.stdout.write(self.style.ERROR(str(ex)))
+
+                        # notify admin about the failure
+                        try:
+                            mail_admins(
+                                subject=f"Notification failed: {post.title}",
+                                message=(
+                                    f"Failed to send notification email.\n\n"
+                                    f"Post: {post.title}\n"
+                                    f"Author: {post.owner.username}\n"
+                                    f"Recipient: {notification.email}\n"
+                                    f"Error: {ex}"
+                                ),
+                            )
+                        except Exception:
+                            self.stdout.write(
+                                self.style.ERROR("Failed to send admin notification.")
+                            )
+                        continue
 
                     msg = f"Email sent for '{post.title}' to '{notification.email}'."
                     self.stdout.write(self.style.SUCCESS(msg))
