@@ -714,20 +714,24 @@ def billing_stripe_webhook(request):
     Handle Stripe webhooks.
     See: https://stripe.com/docs/webhooks
     """
+    logger.warning("Webhook received")
 
     # ensure only POST requests are allowed
     if request.method != "POST":
+        logger.warning("Webhook rejected: not POST")
         return HttpResponse(status=405)
 
     # get Stripe settings
     stripe.api_key = settings.STRIPE_API_KEY
     webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
+    logger.warning(f"Webhook secret configured: {bool(webhook_secret)}")
 
     try:
         # parse event from Stripe
         if webhook_secret:
             # verify webhook signature
             sig_header = request.headers.get("Stripe-Signature", "")
+            logger.warning(f"Webhook sig_header present: {bool(sig_header)}")
             event = stripe.Webhook.construct_event(
                 payload=request.body,
                 sig_header=sig_header,
@@ -735,8 +739,11 @@ def billing_stripe_webhook(request):
             )
         else:
             # Development mode: skip signature verification
+            logger.warning("Webhook: no secret, skipping signature verification")
             data = json.loads(request.body.decode("utf-8"))
             event = stripe.Event.construct_from(data, stripe.api_key)
+
+        logger.warning(f"Webhook event parsed: {event.type}")
 
     except (ValueError, stripe.SignatureVerificationError) as ex:
         # invalid payload or signature
