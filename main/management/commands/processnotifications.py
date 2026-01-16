@@ -151,47 +151,62 @@ class Command(BaseCommand):
 
         # for all posts that were published yesterday
         for post in post_list:
-            # assume no notification will fail
-            no_send_failures = True
+            try:
+                # assume no notification will fail
+                no_send_failures = True
 
-            notification_list = models.Notification.objects.filter(
-                blog_user=post.owner,
-                is_active=True,
-            )
-            msg = (
-                f"Subscriber count for: '{post.title}' (author: {post.owner.username})"
-                f" is {len(notification_list)}."
-            )
-            self.stdout.write(self.style.NOTICE(msg))
-            # for every email address subcribed to the post's blog owner
-            for notification in notification_list:
-                # don't send if dry run mode
-                if options["dryrun"]:
-                    msg = f"Would otherwise sent: '{post.title}' for '{notification.email}'."
-                    self.stdout.write(self.style.NOTICE(msg))
-                    continue
-
-                # log record
-                record, created = models.NotificationRecord.objects.get_or_create(
-                    notification=notification,
-                    post=post,
+                notification_list = models.Notification.objects.filter(
+                    blog_user=post.owner,
+                    is_active=True,
                 )
-                # check if this post id has already been sent to this email
-                # could be because the published_at date has been changed
-                if created:
-                    # keep count of all emails of this run
-                    count_sent += 1
-
-                    # sent out email
-                    email = get_email(post, notification)
+                msg = (
+                    f"Subscriber count for: '{post.title}' (author: {post.owner.username})"
+                    f" is {len(notification_list)}."
+                )
+                self.stdout.write(self.style.NOTICE(msg))
+                # for every email address subcribed to the post's blog owner
+                for notification in notification_list:
                     try:
-                        connection.send_messages([email])
+                        # don't send if dry run mode
+                        if options["dryrun"]:
+                            msg = f"Would otherwise sent: '{post.title}' for '{notification.email}'."
+                            self.stdout.write(self.style.NOTICE(msg))
+                            continue
+
+                        # log record
+                        record, created = (
+                            models.NotificationRecord.objects.get_or_create(
+                                notification=notification,
+                                post=post,
+                            )
+                        )
+                        # check if this post id has already been sent to this email
+                        # could be because the published_at date has been changed
+                        if created:
+                            # keep count of all emails of this run
+                            count_sent += 1
+
+                            # send out email
+                            email = get_email(post, notification)
+                            connection.send_messages([email])
+
+                            msg = f"Email sent for '{post.title}' to '{notification.email}'."
+                            self.stdout.write(self.style.SUCCESS(msg))
+                        else:
+                            msg = (
+                                f"No email sent for '{post.title}' to '{notification.email}'. "
+                                f"Email was sent {record.sent_at}"
+                            )
+                            self.stdout.write(self.style.NOTICE(msg))
                     except Exception as ex:
                         no_send_failures = False
                         msg = f"Failed to send '{post.title}' to {notification.email}."
                         self.stdout.write(self.style.ERROR(msg))
-                        record.delete()
                         self.stdout.write(self.style.ERROR(str(ex)))
+
+                        # delete record if it was created so it can be retried
+                        if "record" in locals() and created:
+                            record.delete()
 
                         # notify admin about the failure
                         try:
@@ -209,21 +224,31 @@ class Command(BaseCommand):
                             self.stdout.write(
                                 self.style.ERROR("Failed to send admin notification.")
                             )
-                        continue
 
-                    msg = f"Email sent for '{post.title}' to '{notification.email}'."
-                    self.stdout.write(self.style.SUCCESS(msg))
-                else:
-                    msg = (
-                        f"No email sent for '{post.title}' to '{notification.email}'. "
-                        f"Email was sent {record.sent_at}"
+                # broadcast for this post done
+                if not options["dryrun"] and no_send_failures:
+                    post.broadcasted_at = timezone.now()
+                    post.save()
+
+            except Exception as ex:
+                # catch any unexpected error at the post level
+                msg = f"Failed to process post '{post.title}' (author: {post.owner.username})."
+                self.stdout.write(self.style.ERROR(msg))
+                self.stdout.write(self.style.ERROR(str(ex)))
+                try:
+                    mail_admins(
+                        subject=f"Post processing failed: {post.title}",
+                        message=(
+                            f"Failed to process post for notifications.\n\n"
+                            f"Post: {post.title}\n"
+                            f"Author: {post.owner.username}\n"
+                            f"Error: {ex}"
+                        ),
                     )
-                    self.stdout.write(self.style.NOTICE(msg))
-
-            # broadcast for this post done
-            if not options["dryrun"] and no_send_failures:
-                post.broadcasted_at = timezone.now()
-                post.save()
+                except Exception:
+                    self.stdout.write(
+                        self.style.ERROR("Failed to send admin notification.")
+                    )
 
         # broadcast for all posts done
         connection.close()
