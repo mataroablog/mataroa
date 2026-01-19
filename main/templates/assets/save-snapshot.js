@@ -1,58 +1,56 @@
 // keep timeout ids in an array so we reset them
-var TIMEOUT_IDS = [];
+let timeoutIds = [];
 
 // save post title and body as a Snapshot connected to current user
-function saveLogEntry() {
-    console.log("saving...");
-    var title = document.getElementById('id_title').value;
-    if (!title) {
-        title = "Untitled"
+const saveLogEntry = async () => {
+  console.log("saving...");
+  let title = document.getElementById("id_title").value;
+  if (!title) {
+    title = "Untitled";
+  }
+  const body = document.getElementById("id_body").value;
+
+  // prepare form data
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("body", body);
+
+  try {
+    const response = await fetch("/post-backups/create/", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: formData,
+    });
+
+    if (response.ok) {
+      console.log("success");
+      // success, show feedback
+    } else {
+      console.log("failure");
+      // failure, show feedback
     }
-    var body = document.getElementById('id_body').value;
-
-    // prepare form data
-    var formData = new FormData();
-    formData.append("title", title);
-    formData.append("body", body);
-
-    // upload request
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function alertContents() {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
-                console.log("success");
-                // success, show feedback
-            } else {
-                console.log("failure");
-                // failure, show feedback
-            }
-        } else {
-            // this branch runs first
-            // uplading, show feedback
-            console.log("uplading...");
-        }
-    };
-
-    xhr.open('POST', '/post-backups/create/');
-    xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
-    xhr.send(formData);
-}
+  } catch (error) {
+    console.log("failure", error);
+  }
+};
 
 // clear timeout ids from given array
-function clearTimeoutList(timeoutList) {
-    timeoutList.forEach(function (timeoutId) {
-        clearTimeout(timeoutId);
-    });
-}
+const clearTimeoutList = (timeoutList) => {
+  timeoutList.forEach((timeoutId) => {
+    clearTimeout(timeoutId);
+  });
+};
 
 // listen for body textarea changes
-function initAutoSave() {
-    document.getElementById('id_body').addEventListener('keyup', function () {
-        clearTimeoutList(TIMEOUT_IDS);
-        var timeoutId = setTimeout(saveLogEntry, 2500);
-        TIMEOUT_IDS.push(timeoutId);
-    });
-}
+const initAutoSave = () => {
+  document.getElementById("id_body").addEventListener("keyup", () => {
+    clearTimeoutList(timeoutIds);
+    const timeoutId = setTimeout(saveLogEntry, 2500);
+    timeoutIds.push(timeoutId);
+  });
+};
 
 // init
 initAutoSave();

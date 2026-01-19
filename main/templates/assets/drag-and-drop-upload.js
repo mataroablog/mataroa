@@ -3,32 +3,24 @@ document.getElementById("js-show").style.display = "inline";
 document.getElementById("js-status").style.color = "#f00";
 
 // get body element, used for drag and drop onto it
-var bodyElem = document.querySelector('textarea[name="body"]');
+const bodyElem = document.querySelector('textarea[name="body"]');
 
 // prevent default drag and drop behaviours
-[
-  "drag",
-  "dragstart",
-  "dragend",
-  "dragover",
-  "dragenter",
-  "dragleave",
-  "drop",
-].forEach(function (event) {
-  bodyElem.addEventListener(event, function (e) {
+["drag", "dragstart", "dragend", "dragover", "dragenter", "dragleave", "drop"].forEach((event) => {
+  bodyElem.addEventListener(event, (e) => {
     e.preventDefault();
     e.stopPropagation();
   });
 });
 
-function injectImageMarkdown(textInputElem, imageName, imageURL) {
+const injectImageMarkdown = (textInputElem, imageName, imageURL) => {
   // build markdown image code
-  var markdownImageCode = "![" + imageName + "](" + imageURL + ")";
+  const markdownImageCode = `![${imageName}](${imageURL})`;
 
   // inject markdown image code in cursor position
-  if (textInputElem.selectionStart || textInputElem.selectionStart == "0") {
-    var startPos = textInputElem.selectionStart;
-    var endPos = textInputElem.selectionEnd;
+  if (textInputElem.selectionStart || textInputElem.selectionStart === 0) {
+    const startPos = textInputElem.selectionStart;
+    const endPos = textInputElem.selectionEnd;
     textInputElem.value =
       textInputElem.value.substring(0, startPos) +
       markdownImageCode +
@@ -41,59 +33,60 @@ function injectImageMarkdown(textInputElem, imageName, imageURL) {
     // there is no cursor, just append
     textInputElem.value += markdownImageCode;
   }
-}
+};
 
-function uploadFile(file) {
+const uploadFile = async (file) => {
   // prepare form data
-  var formData = new FormData();
-  var name = file.name;
+  const formData = new FormData();
+  const name = file.name;
   formData.append("file", file);
 
-  // upload request
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function alertContents() {
-    if (xhr.readyState === XMLHttpRequest.DONE) {
-      if (xhr.status === 200) {
-        // success, inject markdown snippet
-        injectImageMarkdown(bodyElem, name, xhr.responseURL);
-      } else {
-        alert("Image could not be uploaded. " + xhr.responseText);
-      }
+  // disable textarea and show status message
+  bodyElem.disabled = true;
+  document.getElementById("js-status").innerText = "UPLOADING...";
 
-      // re-enable textarea
-      bodyElem.disabled = false;
+  try {
+    const response = await fetch("/images/?raw=true", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: formData,
+    });
 
-      // update status message
-      document.getElementById("js-status").innerText = "";
+    if (response.ok) {
+      // success, inject markdown snippet
+      injectImageMarkdown(bodyElem, name, response.url);
     } else {
-      // this branch runs first
-      // uplading, so disable textarea and show status message
-      bodyElem.disabled = true;
-      document.getElementById("js-status").innerText = "UPLOADING...";
+      const errorText = await response.text();
+      alert(`Image could not be uploaded. ${errorText}`);
     }
-  };
+  } catch (error) {
+    alert(`Image could not be uploaded. ${error.message}`);
+  } finally {
+    // re-enable textarea
+    bodyElem.disabled = false;
+    // update status message
+    document.getElementById("js-status").innerText = "";
+  }
+};
 
-  xhr.open("POST", "/images/?raw=true");
-  xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
-  xhr.send(formData);
-}
-
-bodyElem.addEventListener("drop", function (e) {
+bodyElem.addEventListener("drop", (e) => {
   // only upload one file at a time
   if (e.dataTransfer.files.length === 1) {
     uploadFile(e.dataTransfer.files[0]);
   }
 });
 
-bodyElem.addEventListener("paste", function (event) {
+bodyElem.addEventListener("paste", (event) => {
   // use event.originalEvent.clipboard for newer chrome versions
-  var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+  const items = (event.clipboardData || event.originalEvent.clipboardData).items;
 
   // find pasted image among pasted items
-  var blob = null;
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].type.indexOf("image") === 0) {
-      blob = items[i].getAsFile();
+  let blob = null;
+  for (const item of items) {
+    if (item.type.indexOf("image") === 0) {
+      blob = item.getAsFile();
     }
   }
 
