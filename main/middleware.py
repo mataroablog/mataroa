@@ -87,6 +87,17 @@ def host_middleware(get_response):
                 raise Http404()
         elif models.User.objects.filter(custom_domain=host).exists():
             # custom domain case
+
+            # redirect auth URLs to canonical domain
+            if request.path.startswith("/accounts/"):
+                canonical_url = (
+                    scheme.get_protocol()
+                    + "//"
+                    + settings.CANONICAL_HOST
+                    + request.get_full_path()
+                )
+                return redirect(canonical_url)
+
             request.blog_user = models.User.objects.get(custom_domain=host)
             request.subdomain = request.blog_user.username
             request.theme_zialucia = request.blog_user.theme_zialucia

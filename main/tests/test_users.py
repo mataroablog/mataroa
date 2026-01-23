@@ -2,7 +2,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
-from main import models
+from main import models, scheme
 
 
 class IndexTestCase(TestCase):
@@ -296,3 +296,62 @@ class UserDomainCheckTestCase(TestCase):
             reverse("domain_check") + f"?domain=bob.{settings.CANONICAL_HOST}"
         )
         self.assertEqual(response.status_code, 403)
+
+
+class CustomDomainAuthRedirectTestCase(TestCase):
+    """Test that auth URLs on custom domains redirect to canonical domain."""
+
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice", custom_domain="example.com"
+        )
+
+    def test_login_redirect_to_canonical(self):
+        """Test /accounts/login/ on custom domain redirects to canonical domain."""
+        response = self.client.get(
+            reverse("login"),
+            HTTP_HOST="example.com",
+        )
+        self.assertEqual(response.status_code, 302)
+        expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/login/"
+        self.assertEqual(response.url, expected_url)
+
+    def test_login_redirect_preserves_next(self):
+        """Test redirect preserves the next query parameter."""
+        response = self.client.get(
+            reverse("login") + "?next=/dashboard/",
+            HTTP_HOST="example.com",
+        )
+        self.assertEqual(response.status_code, 302)
+        expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/login/?next=/dashboard/"
+        self.assertEqual(response.url, expected_url)
+
+    def test_password_reset_redirect_to_canonical(self):
+        """Test /accounts/password_reset/ on custom domain redirects to canonical domain."""
+        response = self.client.get(
+            reverse("password_reset"),
+            HTTP_HOST="example.com",
+        )
+        self.assertEqual(response.status_code, 302)
+        expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/password_reset/"
+        self.assertEqual(response.url, expected_url)
+
+    def test_password_reset_done_redirect_to_canonical(self):
+        """Test /accounts/password_reset/done/ on custom domain redirects to canonical domain."""
+        response = self.client.get(
+            reverse("password_reset_done"),
+            HTTP_HOST="example.com",
+        )
+        self.assertEqual(response.status_code, 302)
+        expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/password_reset/done/"
+        self.assertEqual(response.url, expected_url)
+
+    def test_password_change_redirect_to_canonical(self):
+        """Test /accounts/password_change/ on custom domain redirects to canonical domain."""
+        response = self.client.get(
+            reverse("password_change"),
+            HTTP_HOST="example.com",
+        )
+        self.assertEqual(response.status_code, 302)
+        expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/password_change/"
+        self.assertEqual(response.url, expected_url)
