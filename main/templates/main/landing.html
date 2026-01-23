@@ -374,6 +374,64 @@
             </p>
         </div>
     </details>
+
+    <details>
+        <summary>Can I block AI scrapers from accessing my mataroa blog?</summary>
+        <div>
+            <p>
+                This is not something we currently offer but may add in the future. The problem
+                is that it’s hard to do this in a reliable way we'd rather not add something that
+                works only half of the time.
+            </p>
+            <p>
+                We classify blocking AI scrapers into three main categories.
+            </p>
+            <ol>
+                <li>
+                    <a href="https://www.robotstxt.org/">
+                        robots.txt
+                    </a> (check Cloudflare's <a href="https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/">AI-related</a> docs)
+                <li>
+                    JavaScript proof-of-work + heuristics
+                    (<a href="https://xeiaso.net/blog/2025/anubis/">Anubis</a>,
+                    <a href="https://git.gammaspectra.live/git/go-away">go-away</a>,
+                    and <a href="https://git.gammaspectra.live/git/go-away#other-similar-projects">descendants</a>)
+                </li>
+                <li>
+                    <a href="https://www.cloudflare.com/ai-crawl-control/">Cloudflare AI Crawl Control</a>
+                </li>
+            </ol>
+
+            <p>
+                robots.txt doesn’t block AI scrapers by itself. Companies have to intentionally read
+                it and follow its rules. Reputable companies that are scrutinized by everyone adhere
+                to these rules; new companies might not. More importantly, we can’t know if
+                they follow a website’s robots.txt rules.
+            </p>
+            <p>
+                The second category of tools works by assuming that an AI scraper will not spend
+                a lot of computation power per website crawl. So, these tools
+                add a JavaScript-based computational challenge, which adds an almost negligible couple of seconds of
+                waiting time for a normal human user, which is an amount of time prohibitive for a robot
+                that plans to crawl million of websites.
+            </p>
+            <p>
+                The third category is by Cloudflare, a company through which ~20% of all web
+                traffic passes through. It’s probably the most effective solution
+                yet
+                <a href="https://blog.cloudflare.com/perplexity-is-using-stealth-undeclared-crawlers-to-evade-website-no-crawl-directives/">
+                    they too report
+                </a>
+                observing AI companies to attempt (and succeed) at circumventing their checks.
+            </p>
+
+            <p>
+                At the end of the day, the feat itself (blocking some requests but not others)
+                is incompatible with how the internet and the web were designed, and thus cannot
+                be done 100% effectively.
+            </p>
+        </div>
+    </details>
 </main>
 
 {% include 'partials/footer.html' %}
