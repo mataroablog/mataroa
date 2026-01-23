@@ -313,7 +313,9 @@ class CustomDomainAuthRedirectTestCase(TestCase):
             HTTP_HOST="example.com",
         )
         self.assertEqual(response.status_code, 302)
-        expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/login/"
+        expected_url = (
+            f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/login/"
+        )
         self.assertEqual(response.url, expected_url)
 
     def test_login_redirect_preserves_next(self):
