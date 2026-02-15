@@ -251,13 +251,28 @@
     </details>
 
     <details>
-        <summary>What about pagination?</summary>
+        <summary>What about pagination? What if one writes a heap of entries?</summary>
         <div>
             <p>
-                Pagination can be annoying as it breaks the browser search across all post titles.
-                Additionally, because of how fast and simple mataroa is, speed is not an issue
-                even with thousands of posts.
+                If one writes even thousands of blog posts, they will still appear on one singular
+                page. There is no plan to have something like "older posts" or a "most recent"
+                section. This is something that was intentionally designed as such from the
+                beginning. The reason is simplicity and has multiple facets:
             </p>
+            <ol>
+                <li>
+                    By only displaying the article titles in the main blog page, readers can scan and choose what to read with ease.
+                </li>
+                <li>
+                    A single page allows users to search using the native browser search functionality, which is both flexible and extremely fast. 
+                </li>
+                <li>
+                    By displaying the whole list of articles in the main blog page, users can gauge the whole extent and size of a blog, along with when these articles were written and published.
+                </li>
+                <li>
+                    There are no issues with speed, everything remains fast, even in blogs with a few thousand posts (we have some of those) as mataroa is optimised for such cases.
+                </li>
+            </ol>
         </div>
     </details>
 
@@ -429,6 +444,90 @@
                 At the end of the day, the feat itself (blocking some requests but not others)
                 is incompatible with how the internet and the web were designed, and thus cannot
                 be done 100% effectively.
+            </p>
+        </div>
+    </details>
+
+    <details>
+        <summary>Do you support comments?</summary>
+        <div>
+            <p>
+                Mataroa has support for simple comments per blog post. The comment form
+                is designed to be flexible to the comment author, however, due to the
+                the principled lack of external dependencies in mataroa, there support
+                for preventing spam comments is limited. This means that for every
+                comment posted, we allow the blog author to accept (allow it show) or
+                reject (delete) it.
+            </p>
+        </div>
+    </details>
+
+    <details>
+        <summary>When to choose Substack over Mataroa?</summary>
+        <div>
+            <p>
+                Substack is an amazing platform in which a lot of independent writers
+                have found freedom through the reader subscription model.
+            </p>
+            <p>
+                If you publish a few articles per week, consider Substack for both its
+                discoverability features and capability to get paid by your readers.
+            </p>
+        </div>
+    </details>
+
+    <details>
+        <summary>Why is Mataroa like this?</summary>
+        <div>
+            <p>
+                We want to nurture a text-heavy corner in the web in which pictures that
+                don't add real value to the words are omitted. We strive for
+                industry-leading UX with interface speed as its most important
+                component.
+            </p>
+        </div>
+    </details>
+
+    <details>
+        <summary>How sustainable is Mataroa, really?</summary>
+        <div>
+            <p>
+                There is strong motivation to build a sustainable setup and future for Mataroa.
+                In a software business, this is both about the health and quality of the code and
+                also about the sustainability of the business.
+            </p>
+            <p>
+                In terms of the technical side: most of the features were developed in 2020 and the
+                project has been actively maintained ever since. This includes updating libraries,
+                integrating potential improvements, and, of course, security bugfixes.
+            </p>
+            <p>
+                In terms of business sustainability side: we currently have 200+ premium paying users
+                which brings us to >$100 monthly revenue. This is more than our monthly costs, which
+                are around €40. Learn more on our business transparency page: 
+                <a href="https://mataroa.blog/about/transparency/">mataroa.blog/about/transparency/</a>
+            </p>
+            <p>
+                The plan is to keep hosting and maintaining Mataroa for the long term, however it
+                should be noted that the Mataroa team is currently one person. There are some backup
+                people for emergencies, however it is one person with the understanding of the whole
+                system and access to everything. This sets the bus factor to 1, which is not good.
+                Death or severe illness are possible, at which point Mataroa will keep running, maybe
+                indefinitely, as long as monthly payments continue from the business bank account,
+                however at such a moment its outlook will be severely limited.
+            </p>
+            <p>
+                As of now, there is no solution to this as of, however there is a plan to find a
+                person or people who can continue maintaining Mataroa for the longer term. The
+                goal is to make this happen by Mataroa's 10th anniversary, which is in 2030. Assuming
+                this will happen successfully, guarantees about Mataroa beyond such a point cannot be
+                given. This is also the case for possibilities such as internet collapse or other
+                major world event that will affect societies at a large scale.
+            </p>
+            <p>
+                Finally, it should be clearly noted that major blog platform companies such as
+                WordPress and Substack have more chances of being alive in 10 years than Mataroa purely
+                because of being more popular and profitable, both great properties for sustainability.
             </p>
         </div>
     </details>
