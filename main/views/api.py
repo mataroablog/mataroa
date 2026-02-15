@@ -183,7 +183,7 @@ def api_posts(request):
     # POST case - validate input data
     try:
         data = json.loads(request.body.decode("utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"ok": False, "message": "Input data invalid."}, status=400)
     form = forms.APIPost(data)
     if not form.is_valid():
@@ -225,7 +225,7 @@ def api_post(request, slug):
     if request.method == "PATCH":
         try:
             data = json.loads(request.body.decode("utf-8"))
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return JsonResponse(
                 {"ok": False, "message": "Input data invalid."}, status=400
             )
@@ -317,7 +317,7 @@ def api_pages(request):
     # POST case - validate input data
     try:
         data = json.loads(request.body.decode("utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"ok": False, "message": "Input data invalid."}, status=400)
     form = forms.APIPage(data)
     if not form.is_valid():
@@ -369,7 +369,7 @@ def api_page(request, slug):
     if request.method == "PATCH":
         try:
             data = json.loads(request.body.decode("utf-8"))
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return JsonResponse(
                 {"ok": False, "message": "Input data invalid."}, status=400
             )

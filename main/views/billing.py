@@ -745,7 +745,7 @@ def billing_stripe_webhook(request):
 
         logger.warning(f"Webhook event parsed: {event.type}")
 
-    except (ValueError, stripe.SignatureVerificationError) as ex:
+    except (ValueError, stripe.SignatureVerificationError, UnicodeDecodeError) as ex:
         # invalid payload or signature
         logger.error(f"Webhook validation failed: {type(ex).__name__}: {str(ex)}")
         return HttpResponse(status=400)

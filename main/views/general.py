@@ -14,7 +14,7 @@ from django.contrib.auth.views import LogoutView as DjLogoutView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sitemaps.views import sitemap as DjSitemapView
 from django.core import mail
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, TooManyFilesSent
 from django.db.models import Count, Sum
 from django.db.models.functions import Length, TruncDay
 from django.http import (
@@ -696,7 +696,11 @@ class BlogImport(LoginRequiredMixin, FormView):
 
     def post(self, request, *args, **kwargs):
         form_class = self.get_form_class()
-        form = self.get_form(form_class)
+        try:
+            form = self.get_form(form_class)
+        except TooManyFilesSent:
+            messages.error(request, "Too many files uploaded at once.")
+            return self.render_to_response(self.get_context_data())
         if form.is_valid():
             return self.form_valid(form)
         else:
@@ -748,8 +752,12 @@ class ImageList(LoginRequiredMixin, FormView):
 
     def post(self, request, *args, **kwargs):
         form_class = self.get_form_class()
-        form = self.get_form(form_class)
-        files = request.FILES.getlist("file")
+        try:
+            form = self.get_form(form_class)
+            files = request.FILES.getlist("file")
+        except TooManyFilesSent:
+            messages.error(request, "Too many files uploaded at once.")
+            return self.render_to_response(self.get_context_data())
         if form.is_valid():
             # calculate current total storage used by user
             user_total_bytes = (
