@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('main', '0114_blueskyoauthrequest_blueskyoauthsession'),
+        ("main", "0114_blueskyoauthrequest_blueskyoauthsession"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='blueskyoauthsession',
-            name='publication_uri',
-            field=models.CharField(blank=True, default='', max_length=500),
+            model_name="blueskyoauthsession",
+            name="publication_uri",
+            field=models.CharField(blank=True, default="", max_length=500),
         ),
     ]
