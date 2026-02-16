@@ -553,6 +553,29 @@ def _update_document_with_bsky_post_ref(
         )
 
 
+def list_documents_public(pds_url, did):
+    """List site.standard.document records from a PDS using unauthenticated public read.
+
+    Returns (records_list, error_msg). On failure returns ([], error_string).
+    """
+    url = (
+        f"{pds_url}/xrpc/com.atproto.repo.listRecords"
+        f"?repo={did}&collection=site.standard.document"
+    )
+    try:
+        resp = requests.get(url, timeout=15)
+    except requests.RequestException as e:
+        logger.error("Public list documents request failed: %s", e)
+        return [], f"Request failed: {e}"
+
+    if resp.status_code != 200:
+        logger.error("Public list documents failed: %s %s", resp.status_code, resp.text)
+        return [], f"Failed to list documents: {resp.status_code}"
+
+    records = resp.json().get("records", [])
+    return records, None
+
+
 def list_documents(session):
     """List site.standard.document records from the user's PDS.
 

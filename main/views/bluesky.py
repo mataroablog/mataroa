@@ -135,6 +135,62 @@ def bluesky_document_detail(request, rkey):
     )
 
 
+def bluesky_discover_new(request):
+    """Public discover page showing all site.standard.document records."""
+    sessions = models.BlueskyOAuthSession.objects.all()
+    all_documents = []
+
+    for session in sessions:
+        records, error_msg = atproto_oauth.list_documents_public(
+            session.pds_url, session.did
+        )
+        if error_msg:
+            logger.warning(
+                "Failed to list documents for %s: %s", session.handle, error_msg
+            )
+            continue
+
+        for record in records:
+            value = record.get("value", {})
+
+            # Build bsky.app URL from bskyPostRef if present
+            bsky_ref = value.get("bskyPostRef")
+            if bsky_ref and bsky_ref.get("uri"):
+                parts = bsky_ref["uri"].split("/")
+                if len(parts) >= 5:
+                    record["bsky_url"] = (
+                        f"https://bsky.app/profile/{parts[2]}/post/{parts[4]}"
+                    )
+
+            # Extract rkey from at://did/collection/rkey
+            record_uri = record.get("uri", "")
+            record["rkey"] = record_uri.rsplit("/", 1)[-1] if record_uri else ""
+
+            # Parse publishedAt into a datetime
+            if value.get("publishedAt"):
+                value["published_at"] = datetime.fromisoformat(
+                    value["publishedAt"].replace("Z", "+00:00")
+                )
+
+            # Attach author info
+            record["author_handle"] = session.handle
+            record["author_did"] = session.did
+
+            all_documents.append(record)
+
+    # Sort by publishedAt descending
+    all_documents.sort(
+        key=lambda r: r.get("value", {}).get("published_at") or datetime.min,
+        reverse=True,
+    )
+
+    return render(
+        request,
+        "main/bluesky_discover_new.html",
+        {"documents": all_documents},
+    )
+
+
 def _initiate_oauth(request, handle):
     """Start the OAuth flow: resolve handle, do PAR, redirect to auth page."""
     # Resolve handle → DID → PDS → Authorization Server

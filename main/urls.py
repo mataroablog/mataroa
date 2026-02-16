@@ -320,6 +320,11 @@ urlpatterns += [
         bluesky.bluesky_document_detail,
         name="bluesky_document_detail",
     ),
+    path(
+        "bluesky/discover/new/",
+        bluesky.bluesky_discover_new,
+        name="bluesky_discover_new",
+    ),
     path("bluesky/disconnect/", bluesky.bluesky_disconnect, name="bluesky_disconnect"),
     path(
         "bluesky/oauth/callback/",

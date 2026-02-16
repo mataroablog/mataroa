@@ -1,0 +1,26 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Bluesky Discover{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Bluesky Discover</h1>
+
+    {% if documents %}
+    <ul>
+        {% for record in documents %}
+        <li>
+            <strong>{{ record.value.title }}</strong>
+            {% if record.value.published_at %} — {{ record.value.published_at|date:"N j, Y" }}{% endif %}
+            — by @{{ record.author_handle }}
+            {% if record.bsky_url %}
+                — <a href="{{ record.bsky_url }}" target="_blank">view on Bluesky</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No documents found.</p>
+    {% endif %}
+</main>
+{% endblock content %}
