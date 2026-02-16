@@ -201,6 +201,7 @@ class Post(models.Model):
         help_text="Leave blank to keep as draft/unpublished. Use a future date for auto-posting.",
     )
     broadcasted_at = models.DateTimeField(blank=True, null=True, default=None)
+    bluesky_document_rkey = models.CharField(max_length=500, null=True, blank=True)
 
     class Meta:
         ordering = ["-published_at", "-created_at"]

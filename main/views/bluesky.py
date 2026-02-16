@@ -307,17 +307,21 @@ def bluesky_share(request, slug):
         post_url = f"{blog_url}{post.url_path}"
 
     try:
-        success, new_pds_nonce, error_msg = atproto_oauth.share_to_bluesky(
-            session,
-            post.title,
-            post_url,
-            post.url_path,
-            post.published_at,
-            post.body_as_text,
-            blog_url,
-            request.user.blog_title,
+        success, new_pds_nonce, error_msg, document_rkey = (
+            atproto_oauth.share_to_bluesky(
+                session,
+                post.title,
+                post_url,
+                post.url_path,
+                post.published_at,
+                post.body_as_text,
+                blog_url,
+                request.user.blog_title,
+            )
         )
         if success:
+            post.bluesky_document_rkey = document_rkey
+            post.save()
             messages.success(request, "post shared to Bluesky")
         else:
             messages.error(request, f"could not share to Bluesky: {error_msg}")

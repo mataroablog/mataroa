@@ -663,7 +663,7 @@ def share_to_bluesky(
             session.dpop_authserver_nonce,
         )
     except ATProtoOAuthError as e:
-        return False, session.dpop_pds_nonce, str(e)
+        return False, session.dpop_pds_nonce, str(e), None
 
     session.access_token = token_data["access_token"]
     session.refresh_token = token_data.get("refresh_token", session.refresh_token)
@@ -676,7 +676,7 @@ def share_to_bluesky(
             session, dpop_private_jwk, blog_url, blog_title
         )
     except ATProtoOAuthError as e:
-        return False, session.dpop_pds_nonce, str(e)
+        return False, session.dpop_pds_nonce, str(e), None
 
     # Step 2: Create document record
     try:
@@ -690,7 +690,7 @@ def share_to_bluesky(
             text_content,
         )
     except ATProtoOAuthError as e:
-        return False, session.dpop_pds_nonce, str(e)
+        return False, session.dpop_pds_nonce, str(e), None
 
     # Step 3: Create the bsky post (same as before)
     post_text = f"{title}\n{url}"
@@ -738,7 +738,7 @@ def share_to_bluesky(
 
     if resp.status_code != 200:
         logger.error("Bluesky post creation failed: %s %s", resp.status_code, resp.text)
-        return False, new_pds_nonce, f"Post creation failed: {resp.status_code}"
+        return False, new_pds_nonce, f"Post creation failed: {resp.status_code}", None
 
     # Step 4: Update document with bskyPostRef
     bsky_result = resp.json()
@@ -750,4 +750,4 @@ def share_to_bluesky(
         )
         session.save()
 
-    return True, new_pds_nonce, None
+    return True, new_pds_nonce, None, rkey

@@ -24,12 +24,15 @@
             {% if request.user.is_authenticated and request.subdomain == request.user.username %}
             | <a href="{% url 'post_update' post.slug %}">Edit post</a>
             | <a href="{% url 'post_delete' post.slug %}">Del</a>
-            {% if bluesky_connected %}
+            {% if bluesky_connected and not bluesky_document_rkey %}
             |
             <form method="post" action="{% url 'bluesky_share' post.slug %}" class="form-inline">
                 {% csrf_token %}
                 <input type="submit" value="Share to Bluesky">
             </form>
+            {% endif %}
+            {% if bluesky_document_rkey %}
+            <br>Bluesky: <a href="{% url 'bluesky_document_detail' bluesky_document_rkey %}">{{ bluesky_did }} / {{ bluesky_document_rkey }}</a>
             {% endif %}
             {% endif %}
 

@@ -341,6 +341,13 @@ class PostDetail(DetailView):
             context["bluesky_connected"] = models.BlueskyOAuthSession.objects.filter(
                 owner=self.request.user
             ).exists()
+            if self.object.bluesky_document_rkey:
+                context["bluesky_document_rkey"] = self.object.bluesky_document_rkey
+                bluesky_session = models.BlueskyOAuthSession.objects.filter(
+                    owner=self.request.user
+                ).first()
+                if bluesky_session:
+                    context["bluesky_did"] = bluesky_session.did
             return context
         models.AnalyticPost.objects.create(post=self.object)
 
