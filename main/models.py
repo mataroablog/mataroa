@@ -486,6 +486,7 @@ class BlueskyOAuthSession(models.Model):
     dpop_authserver_nonce = models.CharField(max_length=500, blank=True, default="")
     dpop_pds_nonce = models.CharField(max_length=500, blank=True, default="")
     dpop_private_jwk = models.TextField()
+    publication_uri = models.CharField(max_length=500, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

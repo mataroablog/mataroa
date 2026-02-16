@@ -416,8 +416,147 @@ def pds_request(
     return resp, new_dpop_nonce
 
 
-def create_bluesky_post(session, title, url):
-    """Create a post on Bluesky with the given title and URL.
+def _ensure_publication(session, dpop_private_jwk, blog_url, blog_title):
+    """Ensure a site.standard.publication record exists for this user's blog.
+
+    Creates one if session.publication_uri is empty. Returns the publication
+    AT URI, or raises ATProtoOAuthError on failure.
+    """
+    if session.publication_uri:
+        return session.publication_uri
+
+    record = {
+        "repo": session.did,
+        "collection": "site.standard.publication",
+        "record": {
+            "$type": "site.standard.publication",
+            "url": blog_url,
+            "name": blog_title or "Blog",
+        },
+    }
+
+    pds_endpoint = f"{session.pds_url}/xrpc/com.atproto.repo.createRecord"
+    resp, new_pds_nonce = pds_request(
+        "POST",
+        pds_endpoint,
+        session.access_token,
+        dpop_private_jwk,
+        session.dpop_pds_nonce,
+        json_data=record,
+    )
+    session.dpop_pds_nonce = new_pds_nonce
+
+    if resp.status_code != 200:
+        logger.error(
+            "Publication record creation failed: %s %s", resp.status_code, resp.text
+        )
+        raise ATProtoOAuthError(
+            f"Publication record creation failed: {resp.status_code}"
+        )
+
+    publication_uri = resp.json().get("uri", "")
+    session.publication_uri = publication_uri
+    session.save()
+    return publication_uri
+
+
+def _create_document(
+    session,
+    dpop_private_jwk,
+    publication_uri,
+    title,
+    path,
+    published_at,
+    text_content,
+):
+    """Create a site.standard.document record for a blog post.
+
+    Returns (rkey, document_uri, document_cid).
+    """
+    description = (
+        (text_content[:300] + "...") if len(text_content) > 300 else text_content
+    )
+
+    doc_record = {
+        "$type": "site.standard.document",
+        "site": publication_uri,
+        "title": title,
+        "path": path,
+        "publishedAt": published_at.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "textContent": text_content,
+        "description": description,
+    }
+
+    record = {
+        "repo": session.did,
+        "collection": "site.standard.document",
+        "record": doc_record,
+    }
+
+    pds_endpoint = f"{session.pds_url}/xrpc/com.atproto.repo.createRecord"
+    resp, new_pds_nonce = pds_request(
+        "POST",
+        pds_endpoint,
+        session.access_token,
+        dpop_private_jwk,
+        session.dpop_pds_nonce,
+        json_data=record,
+    )
+    session.dpop_pds_nonce = new_pds_nonce
+
+    if resp.status_code != 200:
+        logger.error(
+            "Document record creation failed: %s %s", resp.status_code, resp.text
+        )
+        raise ATProtoOAuthError(f"Document record creation failed: {resp.status_code}")
+
+    result = resp.json()
+    doc_uri = result.get("uri", "")
+    doc_cid = result.get("cid", "")
+    # Extract rkey from at://did/collection/rkey
+    rkey = doc_uri.rsplit("/", 1)[-1] if doc_uri else ""
+    return rkey, doc_uri, doc_cid, doc_record
+
+
+def _update_document_with_bsky_post_ref(
+    session, dpop_private_jwk, rkey, doc_record, bsky_post_uri, bsky_post_cid
+):
+    """Update a site.standard.document record with bskyPostRef."""
+    doc_record["bskyPostRef"] = {
+        "uri": bsky_post_uri,
+        "cid": bsky_post_cid,
+    }
+
+    record = {
+        "repo": session.did,
+        "collection": "site.standard.document",
+        "rkey": rkey,
+        "record": doc_record,
+    }
+
+    pds_endpoint = f"{session.pds_url}/xrpc/com.atproto.repo.putRecord"
+    resp, new_pds_nonce = pds_request(
+        "POST",
+        pds_endpoint,
+        session.access_token,
+        dpop_private_jwk,
+        session.dpop_pds_nonce,
+        json_data=record,
+    )
+    session.dpop_pds_nonce = new_pds_nonce
+
+    if resp.status_code != 200:
+        logger.error(
+            "Document update with bskyPostRef failed: %s %s",
+            resp.status_code,
+            resp.text,
+        )
+
+
+def share_to_bluesky(
+    session, title, url, path, published_at, text_content, blog_url, blog_title
+):
+    """Share a blog post to Bluesky and create standard.site lexicon records.
 
     Returns (success: bool, new_dpop_pds_nonce: str, error_msg: str|None).
     """
@@ -440,7 +579,29 @@ def create_bluesky_post(session, title, url):
     session.dpop_authserver_nonce = new_as_nonce
     session.save()
 
-    # Build the post record
+    # Step 1: Ensure publication record exists
+    try:
+        publication_uri = _ensure_publication(
+            session, dpop_private_jwk, blog_url, blog_title
+        )
+    except ATProtoOAuthError as e:
+        return False, session.dpop_pds_nonce, str(e)
+
+    # Step 2: Create document record
+    try:
+        rkey, doc_uri, doc_cid, doc_record = _create_document(
+            session,
+            dpop_private_jwk,
+            publication_uri,
+            title,
+            path,
+            published_at,
+            text_content,
+        )
+    except ATProtoOAuthError as e:
+        return False, session.dpop_pds_nonce, str(e)
+
+    # Step 3: Create the bsky post (same as before)
     post_text = f"{title}\n{url}"
 
     # Create facet for the URL link
@@ -487,5 +648,15 @@ def create_bluesky_post(session, title, url):
     if resp.status_code != 200:
         logger.error("Bluesky post creation failed: %s %s", resp.status_code, resp.text)
         return False, new_pds_nonce, f"Post creation failed: {resp.status_code}"
+
+    # Step 4: Update document with bskyPostRef
+    bsky_result = resp.json()
+    bsky_post_uri = bsky_result.get("uri", "")
+    bsky_post_cid = bsky_result.get("cid", "")
+    if bsky_post_uri and bsky_post_cid:
+        _update_document_with_bsky_post_ref(
+            session, dpop_private_jwk, rkey, doc_record, bsky_post_uri, bsky_post_cid
+        )
+        session.save()
 
     return True, new_pds_nonce, None

@@ -216,16 +216,25 @@ def bluesky_share(request, slug):
         messages.error(request, "please connect your Bluesky account first")
         return redirect("post_detail", slug=slug)
 
-    # Build the post URL
+    # Build the post URL and blog URL
     protocol = scheme.get_protocol()
     if request.user.custom_domain:
-        post_url = f"{protocol}//{request.user.custom_domain}{post.url_path}"
+        blog_url = f"{protocol}//{request.user.custom_domain}"
+        post_url = f"{blog_url}{post.url_path}"
     else:
-        post_url = f"{protocol}//{request.user.username}.{settings.CANONICAL_HOST}{post.url_path}"
+        blog_url = f"{protocol}//{request.user.username}.{settings.CANONICAL_HOST}"
+        post_url = f"{blog_url}{post.url_path}"
 
     try:
-        success, new_pds_nonce, error_msg = atproto_oauth.create_bluesky_post(
-            session, post.title, post_url
+        success, new_pds_nonce, error_msg = atproto_oauth.share_to_bluesky(
+            session,
+            post.title,
+            post_url,
+            post.url_path,
+            post.published_at,
+            post.body_as_text,
+            blog_url,
+            request.user.blog_title,
         )
         if success:
             messages.success(request, "post shared to Bluesky")
