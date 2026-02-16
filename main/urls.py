@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 
 from main import feeds
-from main.views import api, billing, export, general, moderation
+from main.views import api, billing, bluesky, export, general, moderation
 
 admin.site.site_header = "mataroa admin"
 
@@ -304,6 +304,24 @@ urlpatterns += [
     path("api/posts/<slug:slug>/", api.api_post, name="api_post"),
     path("api/pages/", api.api_pages, name="api_pages"),
     path("api/pages/<slug:slug>/", api.api_page, name="api_page"),
+]
+
+# bluesky
+urlpatterns += [
+    path(
+        "oauth-client-metadata.json",
+        bluesky.oauth_client_metadata,
+        name="oauth_client_metadata",
+    ),
+    path("oauth/jwks.json", bluesky.oauth_jwks, name="oauth_jwks"),
+    path("bluesky/", bluesky.bluesky_dashboard, name="bluesky_dashboard"),
+    path("bluesky/disconnect/", bluesky.bluesky_disconnect, name="bluesky_disconnect"),
+    path(
+        "bluesky/oauth/callback/",
+        bluesky.bluesky_oauth_callback,
+        name="bluesky_oauth_callback",
+    ),
+    path("bluesky/share/<slug:slug>/", bluesky.bluesky_share, name="bluesky_share"),
 ]
 
 # pages - needs to be last due to <slug>

@@ -1,0 +1,14 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Disconnect Bluesky — {{ request.user.username }}{% endblock %}
+
+{% block content %}
+<main class="delete">
+    <h1>Disconnect Bluesky account @{{ bluesky_session.handle }}?</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Yes, disconnect Bluesky" class="type-danger">
+    </form>
+</main>
+{% endblock content %}

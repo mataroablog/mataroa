@@ -454,6 +454,45 @@ class Snapshot(models.Model):
         return self.title
 
 
+class BlueskyOAuthRequest(models.Model):
+    """Temporary state during Bluesky OAuth flow."""
+
+    state = models.CharField(max_length=128, primary_key=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    authserver_iss = models.URLField()
+    did = models.CharField(max_length=500, blank=True, null=True)
+    handle = models.CharField(max_length=500, blank=True, null=True)
+    pds_url = models.URLField(blank=True, null=True)
+    pkce_verifier = models.CharField(max_length=128)
+    scope = models.CharField(max_length=500)
+    dpop_authserver_nonce = models.CharField(max_length=500, blank=True, default="")
+    dpop_private_jwk = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"BlueskyOAuthRequest {self.state} for {self.owner}"
+
+
+class BlueskyOAuthSession(models.Model):
+    """Persistent Bluesky session per user."""
+
+    owner = models.OneToOneField(User, on_delete=models.CASCADE)
+    did = models.CharField(max_length=500)
+    handle = models.CharField(max_length=500)
+    pds_url = models.URLField()
+    authserver_iss = models.URLField()
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    dpop_authserver_nonce = models.CharField(max_length=500, blank=True, default="")
+    dpop_pds_nonce = models.CharField(max_length=500, blank=True, default="")
+    dpop_private_jwk = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"BlueskyOAuthSession for {self.owner} ({self.handle})"
+
+
 class Onboard(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     code = models.UUIDField(default=uuid.uuid4, unique=True)

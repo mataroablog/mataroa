@@ -24,6 +24,13 @@
             {% if request.user.is_authenticated and request.subdomain == request.user.username %}
             | <a href="{% url 'post_update' post.slug %}">Edit post</a>
             | <a href="{% url 'post_delete' post.slug %}">Del</a>
+            {% if bluesky_connected %}
+            |
+            <form method="post" action="{% url 'bluesky_share' post.slug %}" class="form-inline">
+                {% csrf_token %}
+                <input type="submit" value="Share to Bluesky">
+            </form>
+            {% endif %}
             {% endif %}
 
             {% if post.is_draft %}

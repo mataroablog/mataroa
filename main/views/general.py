@@ -338,6 +338,9 @@ class PostDetail(DetailView):
             self.request.user.is_authenticated
             and self.request.user == self.object.owner
         ):
+            context["bluesky_connected"] = models.BlueskyOAuthSession.objects.filter(
+                owner=self.request.user
+            ).exists()
             return context
         models.AnalyticPost.objects.create(post=self.object)
 

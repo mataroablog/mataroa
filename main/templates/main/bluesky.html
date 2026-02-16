@@ -1,0 +1,40 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Bluesky — {{ request.user.username }}{% endblock %}
+
+{% block content %}
+<main>
+    <h1>Bluesky</h1>
+
+    {% if messages %}
+    {% for message in messages %}
+    <p class="{% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+
+    {% if bluesky_session %}
+    <p>
+        Connected as <strong>@{{ bluesky_session.handle }}</strong>
+    </p>
+    <p>
+        You can now share your blog posts to Bluesky using the
+        "Share to Bluesky" link on each post.
+    </p>
+    <p style="margin-top: 32px;">
+        <a href="{% url 'bluesky_disconnect' %}" class="type-delete">Disconnect Bluesky</a>
+    </p>
+    {% else %}
+    <p>
+        Connect your Bluesky account to share blog posts directly to Bluesky.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <label for="id_handle">Bluesky handle:</label>
+            <input type="text" name="handle" id="id_handle" placeholder="alice.bsky.social" maxlength="500">
+        </p>
+        <input type="submit" value="Connect to Bluesky">
+    </form>
+    {% endif %}
+</main>
+{% endblock content %}
