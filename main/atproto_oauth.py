@@ -599,6 +599,51 @@ def list_documents(session):
     return records, None
 
 
+def get_document(session, rkey):
+    """Get a single site.standard.document record from the user's PDS.
+
+    Returns (record_dict, error_msg). On failure returns (None, error_string).
+    """
+    dpop_private_jwk = json.loads(session.dpop_private_jwk)
+
+    # Refresh the token first
+    authserver_meta = get_authserver_metadata(session.pds_url)
+    try:
+        token_data, new_as_nonce = refresh_access_token(
+            authserver_meta,
+            session.refresh_token,
+            dpop_private_jwk,
+            session.dpop_authserver_nonce,
+        )
+    except ATProtoOAuthError as e:
+        return None, str(e)
+
+    session.access_token = token_data["access_token"]
+    session.refresh_token = token_data.get("refresh_token", session.refresh_token)
+    session.dpop_authserver_nonce = new_as_nonce
+    session.save()
+
+    url = (
+        f"{session.pds_url}/xrpc/com.atproto.repo.getRecord"
+        f"?repo={session.did}&collection=site.standard.document&rkey={rkey}"
+    )
+    resp, new_pds_nonce = pds_request(
+        "GET",
+        url,
+        session.access_token,
+        dpop_private_jwk,
+        session.dpop_pds_nonce,
+    )
+    session.dpop_pds_nonce = new_pds_nonce
+    session.save()
+
+    if resp.status_code != 200:
+        logger.error("Get document failed: %s %s", resp.status_code, resp.text)
+        return None, f"Failed to get document: {resp.status_code}"
+
+    return resp.json(), None
+
+
 def share_to_bluesky(
     session, title, url, path, published_at, text_content, blog_url, blog_title
 ):

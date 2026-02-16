@@ -25,8 +25,8 @@
     <ul>
         {% for record in shared_posts %}
         <li>
-            <strong>{{ record.value.title }}</strong>
-            {% if record.value.publishedAt %} — {{ record.value.publishedAt|truncatechars:10 }}{% endif %}
+            <strong><a href="{% url 'bluesky_document_detail' rkey=record.rkey %}">{{ record.value.title }}</a></strong>
+            {% if record.value.published_at %} — {{ record.value.published_at|date:"N j, Y" }}{% endif %}
             {% if record.bsky_url %}
                 — <a href="{{ record.bsky_url }}" target="_blank">view on Bluesky</a>
             {% endif %}

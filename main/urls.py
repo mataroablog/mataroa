@@ -315,6 +315,11 @@ urlpatterns += [
     ),
     path("oauth/jwks.json", bluesky.oauth_jwks, name="oauth_jwks"),
     path("bluesky/", bluesky.bluesky_dashboard, name="bluesky_dashboard"),
+    path(
+        "bluesky/document/<str:rkey>/",
+        bluesky.bluesky_document_detail,
+        name="bluesky_document_detail",
+    ),
     path("bluesky/disconnect/", bluesky.bluesky_disconnect, name="bluesky_disconnect"),
     path(
         "bluesky/oauth/callback/",

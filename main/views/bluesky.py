@@ -1,12 +1,13 @@
 import json
 import logging
 import secrets
+from datetime import datetime
 from urllib.parse import quote, urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -70,6 +71,14 @@ def bluesky_dashboard(request):
                             record["bsky_url"] = (
                                 f"https://bsky.app/profile/{did}/post/{rkey}"
                             )
+                    # Extract rkey from at://did/collection/rkey
+                    record_uri = record.get("uri", "")
+                    record["rkey"] = record_uri.rsplit("/", 1)[-1] if record_uri else ""
+                    # Parse publishedAt into a datetime
+                    if value.get("publishedAt"):
+                        value["published_at"] = datetime.fromisoformat(
+                            value["publishedAt"].replace("Z", "+00:00")
+                        )
                     shared_posts.append(record)
         except Exception as e:
             logger.error("Error listing Bluesky documents: %s", str(e))
@@ -78,6 +87,51 @@ def bluesky_dashboard(request):
         request,
         "main/bluesky.html",
         {"bluesky_session": session, "shared_posts": shared_posts},
+    )
+
+
+@login_required
+def bluesky_document_detail(request, rkey):
+    """Detail page for a single site.standard.document record."""
+    session = models.BlueskyOAuthSession.objects.filter(owner=request.user).first()
+    if not session:
+        return redirect("bluesky_dashboard")
+
+    try:
+        record, error_msg = atproto_oauth.get_document(session, rkey)
+    except Exception as e:
+        logger.error("Error fetching Bluesky document: %s", str(e))
+        raise Http404 from e
+
+    if record is None:
+        raise Http404
+
+    value = record.get("value", {})
+
+    # Build bsky.app URL from bskyPostRef if present
+    bsky_url = None
+    bsky_ref = value.get("bskyPostRef")
+    if bsky_ref and bsky_ref.get("uri"):
+        parts = bsky_ref["uri"].split("/")
+        if len(parts) >= 5:
+            bsky_url = f"https://bsky.app/profile/{parts[2]}/post/{parts[4]}"
+
+    # Parse publishedAt ISO string into a datetime for Django's date filter
+    published_at = None
+    if value.get("publishedAt"):
+        published_at = datetime.fromisoformat(
+            value["publishedAt"].replace("Z", "+00:00")
+        )
+
+    return render(
+        request,
+        "main/bluesky_document.html",
+        {
+            "record": record,
+            "value": value,
+            "bsky_url": bsky_url,
+            "published_at": published_at,
+        },
     )
 
 
