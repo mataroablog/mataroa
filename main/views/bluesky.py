@@ -47,10 +47,37 @@ def bluesky_dashboard(request):
             messages.error(request, f"could not connect to Bluesky: {e}")
             return redirect("bluesky_dashboard")
 
+    shared_posts = []
+    if session:
+        try:
+            records, error_msg = atproto_oauth.list_documents(session)
+            if error_msg:
+                logger.warning("Failed to list Bluesky documents: %s", error_msg)
+            else:
+                pub_uri = session.publication_uri
+                for record in records:
+                    value = record.get("value", {})
+                    # Only include documents belonging to this blog's publication
+                    if pub_uri and value.get("site") != pub_uri:
+                        continue
+                    bsky_ref = value.get("bskyPostRef")
+                    if bsky_ref and bsky_ref.get("uri"):
+                        # at://did/app.bsky.feed.post/rkey -> bsky.app URL
+                        parts = bsky_ref["uri"].split("/")
+                        if len(parts) >= 5:
+                            did = parts[2]
+                            rkey = parts[4]
+                            record["bsky_url"] = (
+                                f"https://bsky.app/profile/{did}/post/{rkey}"
+                            )
+                    shared_posts.append(record)
+        except Exception as e:
+            logger.error("Error listing Bluesky documents: %s", str(e))
+
     return render(
         request,
         "main/bluesky.html",
-        {"bluesky_session": session},
+        {"bluesky_session": session, "shared_posts": shared_posts},
     )
 
 

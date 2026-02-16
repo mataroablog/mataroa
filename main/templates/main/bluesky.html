@@ -20,6 +20,23 @@
         You can now share your blog posts to Bluesky using the
         "Share to Bluesky" link on each post.
     </p>
+    <h2>Shared posts</h2>
+    {% if shared_posts %}
+    <ul>
+        {% for record in shared_posts %}
+        <li>
+            <strong>{{ record.value.title }}</strong>
+            {% if record.value.publishedAt %} — {{ record.value.publishedAt|truncatechars:10 }}{% endif %}
+            {% if record.bsky_url %}
+                — <a href="{{ record.bsky_url }}" target="_blank">view on Bluesky</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No posts shared yet.</p>
+    {% endif %}
+
     <p style="margin-top: 32px;">
         <a href="{% url 'bluesky_disconnect' %}" class="type-delete">Disconnect Bluesky</a>
     </p>

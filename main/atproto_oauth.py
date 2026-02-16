@@ -553,6 +553,52 @@ def _update_document_with_bsky_post_ref(
         )
 
 
+def list_documents(session):
+    """List site.standard.document records from the user's PDS.
+
+    Returns (records_list, error_msg). On failure returns ([], error_string).
+    """
+    dpop_private_jwk = json.loads(session.dpop_private_jwk)
+
+    # Refresh the token first
+    authserver_meta = get_authserver_metadata(session.pds_url)
+    try:
+        token_data, new_as_nonce = refresh_access_token(
+            authserver_meta,
+            session.refresh_token,
+            dpop_private_jwk,
+            session.dpop_authserver_nonce,
+        )
+    except ATProtoOAuthError as e:
+        return [], str(e)
+
+    session.access_token = token_data["access_token"]
+    session.refresh_token = token_data.get("refresh_token", session.refresh_token)
+    session.dpop_authserver_nonce = new_as_nonce
+    session.save()
+
+    url = (
+        f"{session.pds_url}/xrpc/com.atproto.repo.listRecords"
+        f"?repo={session.did}&collection=site.standard.document"
+    )
+    resp, new_pds_nonce = pds_request(
+        "GET",
+        url,
+        session.access_token,
+        dpop_private_jwk,
+        session.dpop_pds_nonce,
+    )
+    session.dpop_pds_nonce = new_pds_nonce
+    session.save()
+
+    if resp.status_code != 200:
+        logger.error("List documents failed: %s %s", resp.status_code, resp.text)
+        return [], f"Failed to list documents: {resp.status_code}"
+
+    records = resp.json().get("records", [])
+    return records, None
+
+
 def share_to_bluesky(
     session, title, url, path, published_at, text_content, blog_url, blog_title
 ):
