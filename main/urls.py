@@ -332,6 +332,7 @@ urlpatterns += [
         name="bluesky_oauth_callback",
     ),
     path("bluesky/share/<slug:slug>/", bluesky.bluesky_share, name="bluesky_share"),
+    path("bluesky/follow/", bluesky.bluesky_follow, name="bluesky_follow"),
 ]
 
 # pages - needs to be last due to <slug>

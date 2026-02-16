@@ -553,6 +553,83 @@ def _update_document_with_bsky_post_ref(
         )
 
 
+def list_subscriptions_public(pds_url, did):
+    """List site.standard.graph.subscription records using unauthenticated public read.
+
+    Returns (records_list, error_msg). On failure returns ([], error_string).
+    """
+    url = (
+        f"{pds_url}/xrpc/com.atproto.repo.listRecords"
+        f"?repo={did}&collection=site.standard.graph.subscription"
+    )
+    try:
+        resp = requests.get(url, timeout=15)
+    except requests.RequestException as e:
+        logger.error("Public list subscriptions request failed: %s", e)
+        return [], f"Request failed: {e}"
+
+    if resp.status_code != 200:
+        logger.error(
+            "Public list subscriptions failed: %s %s", resp.status_code, resp.text
+        )
+        return [], f"Failed to list subscriptions: {resp.status_code}"
+
+    records = resp.json().get("records", [])
+    return records, None
+
+
+def create_subscription(session, publication_uri):
+    """Create a site.standard.graph.subscription record for a publication.
+
+    Returns (success, error_msg).
+    """
+    dpop_private_jwk = json.loads(session.dpop_private_jwk)
+
+    # Refresh the token first
+    authserver_meta = get_authserver_metadata(session.pds_url)
+    try:
+        token_data, new_as_nonce = refresh_access_token(
+            authserver_meta,
+            session.refresh_token,
+            dpop_private_jwk,
+            session.dpop_authserver_nonce,
+        )
+    except ATProtoOAuthError as e:
+        return False, str(e)
+
+    session.access_token = token_data["access_token"]
+    session.refresh_token = token_data.get("refresh_token", session.refresh_token)
+    session.dpop_authserver_nonce = new_as_nonce
+    session.save()
+
+    record = {
+        "repo": session.did,
+        "collection": "site.standard.graph.subscription",
+        "record": {
+            "$type": "site.standard.graph.subscription",
+            "publication": publication_uri,
+        },
+    }
+
+    pds_endpoint = f"{session.pds_url}/xrpc/com.atproto.repo.createRecord"
+    resp, new_pds_nonce = pds_request(
+        "POST",
+        pds_endpoint,
+        session.access_token,
+        dpop_private_jwk,
+        session.dpop_pds_nonce,
+        json_data=record,
+    )
+    session.dpop_pds_nonce = new_pds_nonce
+    session.save()
+
+    if resp.status_code != 200:
+        logger.error("Subscription creation failed: %s %s", resp.status_code, resp.text)
+        return False, f"Subscription creation failed: {resp.status_code}"
+
+    return True, None
+
+
 def list_documents_public(pds_url, did):
     """List site.standard.document records from a PDS using unauthenticated public read.
 

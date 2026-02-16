@@ -140,6 +140,67 @@ def bluesky_discover_new(request):
     sessions = models.BlueskyOAuthSession.objects.all()
     all_documents = []
 
+    # Check if the logged-in user has a Bluesky session and get their subscriptions
+    has_bluesky_session = False
+    followed_publication_uris = set()
+    own_did = None
+    own_publication_uri = None
+    if request.user.is_authenticated:
+        user_session = models.BlueskyOAuthSession.objects.filter(
+            owner=request.user
+        ).first()
+        if user_session:
+            has_bluesky_session = True
+            own_did = user_session.did
+            own_publication_uri = user_session.publication_uri
+            sub_records, sub_error = atproto_oauth.list_subscriptions_public(
+                user_session.pds_url, user_session.did
+            )
+            if not sub_error:
+                for sub in sub_records:
+                    pub_uri = sub.get("value", {}).get("publication", "")
+                    if pub_uri:
+                        followed_publication_uris.add(pub_uri)
+
+    # Build a map of DID -> handle and publication_uri -> handle from all sessions
+    did_to_handle = {}
+    pub_uri_to_handle = {}
+    for session in sessions:
+        did_to_handle[session.did] = session.handle
+        if session.publication_uri:
+            pub_uri_to_handle[session.publication_uri] = session.handle
+
+    # Build "following" list: resolve followed publication URIs to handles
+    following_list = []
+    for pub_uri in followed_publication_uris:
+        handle = pub_uri_to_handle.get(pub_uri)
+        if not handle:
+            # Extract DID from at://did/collection/rkey
+            parts = pub_uri.split("/")
+            if len(parts) >= 3:
+                handle = did_to_handle.get(parts[2])
+        if handle:
+            following_list.append(handle)
+    following_list.sort()
+
+    # Build "followers" list: check other users' subscriptions for my publication
+    followers_list = []
+    if own_publication_uri:
+        for session in sessions:
+            if session.did == own_did:
+                continue
+            their_subs, their_error = atproto_oauth.list_subscriptions_public(
+                session.pds_url, session.did
+            )
+            if their_error:
+                continue
+            for sub in their_subs:
+                sub_pub_uri = sub.get("value", {}).get("publication", "")
+                if sub_pub_uri == own_publication_uri:
+                    followers_list.append(session.handle)
+                    break
+    followers_list.sort()
+
     for session in sessions:
         records, error_msg = atproto_oauth.list_documents_public(
             session.pds_url, session.did
@@ -176,6 +237,12 @@ def bluesky_discover_new(request):
             record["author_handle"] = session.handle
             record["author_did"] = session.did
 
+            # Attach publication URI and following state
+            publication_uri = value.get("site", "")
+            record["publication_uri"] = publication_uri
+            record["is_following"] = publication_uri in followed_publication_uris
+            record["is_own"] = own_did is not None and session.did == own_did
+
             all_documents.append(record)
 
     # Sort by publishedAt descending
@@ -187,8 +254,45 @@ def bluesky_discover_new(request):
     return render(
         request,
         "main/bluesky_discover_new.html",
-        {"documents": all_documents},
+        {
+            "documents": all_documents,
+            "has_bluesky_session": has_bluesky_session,
+            "following_list": following_list,
+            "followers_list": followers_list,
+        },
     )
+
+
+@require_POST
+@login_required
+def bluesky_follow(request):
+    """Create a subscription to a publication on Bluesky."""
+    publication_uri = request.POST.get("publication_uri", "").strip()
+    if not publication_uri:
+        messages.error(request, "missing publication URI")
+        return redirect("bluesky_discover_new")
+
+    session = models.BlueskyOAuthSession.objects.filter(owner=request.user).first()
+    if not session:
+        messages.error(request, "please connect your Bluesky account first")
+        return redirect("bluesky_dashboard")
+
+    # Prevent following your own publication
+    if session.publication_uri and publication_uri == session.publication_uri:
+        messages.error(request, "you cannot follow your own publication")
+        return redirect("bluesky_discover_new")
+
+    try:
+        success, error_msg = atproto_oauth.create_subscription(session, publication_uri)
+        if success:
+            messages.success(request, "followed successfully")
+        else:
+            messages.error(request, f"could not follow: {error_msg}")
+    except Exception as e:
+        logger.error("Bluesky follow failed: %s", str(e))
+        messages.error(request, "could not follow; please try again")
+
+    return redirect("bluesky_discover_new")
 
 
 def _initiate_oauth(request, handle):

@@ -6,6 +6,31 @@
 <main>
     <h1>Bluesky Discover</h1>
 
+    {% if has_bluesky_session %}
+    <h2>Following</h2>
+    {% if following_list %}
+    <ul>
+        {% for handle in following_list %}
+        <li>@{{ handle }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>You are not following anyone yet.</p>
+    {% endif %}
+
+    <h2>Followers</h2>
+    {% if followers_list %}
+    <ul>
+        {% for handle in followers_list %}
+        <li>@{{ handle }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No one is following you yet.</p>
+    {% endif %}
+    {% endif %}
+
+    <h2>Documents</h2>
     {% if documents %}
     <ul>
         {% for record in documents %}
@@ -13,6 +38,17 @@
             <strong>{{ record.value.title }}</strong>
             {% if record.value.published_at %} — {{ record.value.published_at|date:"N j, Y" }}{% endif %}
             — by @{{ record.author_handle }}
+            {% if has_bluesky_session and not record.is_own %}
+                {% if record.is_following %}
+                    — <em>following</em>
+                {% else %}
+                    — <form method="post" action="{% url 'bluesky_follow' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="publication_uri" value="{{ record.publication_uri }}">
+                        <button type="submit">follow</button>
+                    </form>
+                {% endif %}
+            {% endif %}
             {% if record.bsky_url %}
                 — <a href="{{ record.bsky_url }}" target="_blank">view on Bluesky</a>
             {% endif %}
