@@ -1,0 +1,39 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}{{ value.title }} — Bluesky{% endblock %}
+
+{% block content %}
+<main>
+    <h1>{{ value.title }}</h1>
+
+    <p><strong>Path:</strong> {{ value.path }}</p>
+
+    {% if published_at %}
+    <p><strong>Published at:</strong> {{ published_at|date:"N j, Y" }}</p>
+    {% endif %}
+
+    {% if value.site %}
+    <p><strong>Publication:</strong> {{ value.site }}</p>
+    {% endif %}
+
+    {% if value.description %}
+    <p><strong>Description:</strong> {{ value.description }}</p>
+    {% endif %}
+
+    {% if value.textContent %}
+    <h2>Text content</h2>
+    <p>{{ value.textContent|linebreaksbr }}</p>
+    {% endif %}
+
+    <h2>Bluesky post</h2>
+    {% if bsky_url %}
+    <p><a href="{{ bsky_url }}" target="_blank">View on Bluesky</a></p>
+    {% else %}
+    <p>No Bluesky post linked.</p>
+    {% endif %}
+
+    <p style="margin-top: 32px;">
+        <a href="{% url 'bluesky_dashboard' %}">&larr; Back to Bluesky</a>
+    </p>
+</main>
+{% endblock content %}

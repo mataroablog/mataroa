@@ -16,10 +16,11 @@ def host_middleware(get_response):
         if not host:
             return get_response(request)
 
-        # allow localhost for webhooks and Caddy on-demand TLS validation
+        # allow localhost for webhooks, Caddy on-demand TLS validation, and OAuth
         if (host.startswith("localhost:") or host.startswith("127.0.0.1:")) and (
             request.path.startswith("/webhook/")
             or request.path.startswith("/accounts/domain/")
+            or request.path.startswith("/bluesky/oauth/callback/")
         ):
             return get_response(request)
 

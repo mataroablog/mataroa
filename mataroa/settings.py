@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
+import json
 import os
 from pathlib import Path
 from urllib import parse
@@ -210,6 +211,13 @@ STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", "")
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY", "")
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+
+# Bluesky AT Protocol OAuth
+# https://atproto.com/specs/oauth
+
+_bluesky_jwk_raw = os.getenv("BLUESKY_CLIENT_SECRET_JWK", "")
+BLUESKY_CLIENT_SECRET_JWK = json.loads(_bluesky_jwk_raw) if _bluesky_jwk_raw else None
 
 
 # Logging
