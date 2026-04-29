@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_email_body(renewal_date):
-    billing_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/billing/"
+    billing_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/billing/overview/"
     formatted_date = renewal_date.strftime("%B %d, %Y")
 
     body = f"""Hello,
