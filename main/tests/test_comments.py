@@ -1,8 +1,16 @@
+import time
+
 from django.conf import settings
+from django.core import signing
 from django.test import TestCase
 from django.urls import reverse
 
 from main import models
+
+
+def _signed_ts(seconds_ago=10):
+    """Signed timestamp matching what PostDetail renders into the comment form."""
+    return signing.dumps(int(time.time()) - seconds_ago)
 
 
 class CommentCreateAuthorTestCase(TestCase):
@@ -54,6 +62,7 @@ class CommentCreateTestCase(TestCase):
             "name": "Jon",
             "email": "jon@wick.com",
             "body": "Content sentence.",
+            "ts": _signed_ts(),
         }
         response = self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -141,6 +150,7 @@ class CommentNameCreateTestCase(TestCase):
         data = {
             "name": "Jon",
             "body": "Content sentence.",
+            "ts": _signed_ts(),
         }
         response = self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -167,6 +177,7 @@ class CommentEmailCreateTestCase(TestCase):
         data = {
             "email": "jon@wick.com",
             "body": "Content sentence.",
+            "ts": _signed_ts(),
         }
         response = self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -193,6 +204,7 @@ class CommentNoAuthCreateTestCase(TestCase):
     def test_comment_create(self):
         data = {
             "body": "Content sentence.",
+            "ts": _signed_ts(),
         }
         response = self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -226,6 +238,60 @@ class CommentNoBodyCreateTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(models.Comment.objects.all().count(), 0)
+
+
+class CommentSpamFilterTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice", comments_on=True)
+        self.post = models.Post.objects.create(
+            title="Hello world",
+            slug="hello-world",
+            owner=self.user,
+        )
+
+    def _post(self, **extra):
+        data = {"body": "Content sentence.", "ts": _signed_ts(), **extra}
+        return self.client.post(
+            reverse("comment_create", args=(self.post.slug,)),
+            HTTP_HOST="alice." + settings.CANONICAL_HOST,
+            data=data,
+        )
+
+    def test_honeypot_filled_is_dropped(self):
+        response = self._post(url="http://spam.example/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(models.Comment.objects.count(), 0)
+
+    def test_missing_ts_is_dropped(self):
+        response = self._post(ts="")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(models.Comment.objects.count(), 0)
+
+    def test_invalid_ts_is_dropped(self):
+        response = self._post(ts="not-a-valid-signed-value")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(models.Comment.objects.count(), 0)
+
+    def test_ts_too_recent_is_dropped(self):
+        response = self._post(ts=_signed_ts(seconds_ago=0))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(models.Comment.objects.count(), 0)
+
+    def test_valid_ts_and_empty_honeypot_is_saved(self):
+        response = self._post(url="")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(models.Comment.objects.count(), 1)
+
+    def test_form_rerender_after_validation_error_keeps_ts(self):
+        # Empty body -> form re-renders. The re-rendered page must include
+        # a fresh signed ts so the user's next submission isn't dropped.
+        response = self.client.post(
+            reverse("comment_create", args=(self.post.slug,)),
+            HTTP_HOST="alice." + settings.CANONICAL_HOST,
+            data={"body": "", "ts": _signed_ts()},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="ts" value=""')
 
 
 class CommentDisallowedCreateTestCase(TestCase):
@@ -338,6 +404,7 @@ class CommentsApproveTestCase(TestCase):
         )
         data = {
             "body": "Hey, I am a comment.",
+            "ts": _signed_ts(),
         }
         self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -380,6 +447,7 @@ class CommentsApproveNoAuthTestCase(TestCase):
         )
         data = {
             "body": "Hey, I am a comment.",
+            "ts": _signed_ts(),
         }
         self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -421,6 +489,7 @@ class CommentsApproveNonOwnerTestCase(TestCase):
         )
         data = {
             "body": "Hey, I am a comment.",
+            "ts": _signed_ts(),
         }
         self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -464,6 +533,7 @@ class CommentsDeleteTestCase(TestCase):
         )
         data = {
             "body": "Hey, I am a comment.",
+            "ts": _signed_ts(),
         }
         self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -501,6 +571,7 @@ class CommentsDeleteNoAuthTestCase(TestCase):
         )
         data = {
             "body": "Hey, I am a comment.",
+            "ts": _signed_ts(),
         }
         self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
@@ -537,6 +608,7 @@ class CommentsDeleteNonOwnerTestCase(TestCase):
         )
         data = {
             "body": "Hey, I am a comment.",
+            "ts": _signed_ts(),
         }
         self.client.post(
             reverse("comment_create", args=(self.post.slug,)),
