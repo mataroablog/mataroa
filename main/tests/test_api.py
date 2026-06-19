@@ -1074,6 +1074,24 @@ class APIPagesListPostTestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(models.Page.objects.all().count(), 1)
 
+    def test_pages_post_disallowed_slug(self):
+        data = {
+            "title": "Disallowed",
+            "slug": "p",
+            "body": "This should not be allowed.",
+        }
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(models.Page.objects.all().count(), 0)
+        self.assertEqual(
+            response.json()["message"], "This slug is not allowed as a page slug."
+        )
+
     def test_pages_post(self):
         data = {
             "title": "About",
@@ -1205,6 +1223,25 @@ class APIPagePatchTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(models.Page.objects.all().count(), 2)
+
+    def test_page_patch_disallowed_slug(self):
+        page = models.Page.objects.create(
+            owner=self.user, title="About", slug="about", body="About me"
+        )
+        response = self.client.patch(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "slug": "p",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(models.Page.objects.all().count(), 1)
+        self.assertEqual(models.Page.objects.all().first().slug, "about")
+        self.assertEqual(
+            response.json()["message"], "This slug is not allowed as a page slug."
+        )
 
     def test_page_patch_other_user_page(self):
         """Test changing another user's page is not allowed."""

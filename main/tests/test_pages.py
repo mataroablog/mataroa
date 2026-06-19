@@ -38,6 +38,17 @@ class PageCreateTestCase(TestCase):
         self.assertContains(response, "slug is not allowed")
         self.assertFalse(models.Page.objects.filter(title=data["title"]).exists())
 
+    def test_page_invalid_slug_p(self):
+        data = {
+            "title": "New page",
+            "slug": "p",
+            "is_hidden": False,
+            "body": "Content sentence.",
+        }
+        response = self.client.post(reverse("page_create"), data)
+        self.assertContains(response, "slug is not allowed")
+        self.assertFalse(models.Page.objects.filter(title=data["title"]).exists())
+
 
 class PageCreateAnonTestCase(TestCase):
     def test_page_create_anon(self):
@@ -155,6 +166,22 @@ class PageUpdateTestCase(TestCase):
         self.assertEqual(page_now.slug, new_data["slug"])
         self.assertEqual(page_now.is_hidden, new_data["is_hidden"])
         self.assertEqual(page_now.body, new_data["body"])
+
+    def test_page_update_invalid_slug(self):
+        new_data = {
+            "title": "Updated page",
+            "slug": "p",
+            "is_hidden": True,
+            "body": "Updated sentence.",
+        }
+        response = self.client.post(
+            reverse("page_update", args=(self.page.slug,)),
+            new_data,
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+        self.assertContains(response, "slug is not allowed")
+        page_now = models.Page.objects.get(id=self.page.id)
+        self.assertEqual(page_now.slug, self.data["slug"])
 
 
 class PageUpdateAnonTestCase(TestCase):

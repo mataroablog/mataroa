@@ -947,6 +947,10 @@ class PageUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         return queryset
 
     def form_valid(self, form):
+        if form.cleaned_data.get("slug") in denylist.DISALLOWED_PAGE_SLUGS:
+            form.add_error("slug", "This slug is not allowed as a page slug.")
+            return self.render_to_response(self.get_context_data(form=form))
+
         if (
             models.Page.objects.filter(
                 owner=self.request.user, slug=form.cleaned_data.get("slug")

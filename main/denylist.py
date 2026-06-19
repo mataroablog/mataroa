@@ -89,6 +89,7 @@ DISALLOWED_PAGE_SLUGS = [
     "import",
     "newsletter",
     "notifications",
+    "p",
     "pages",
     "rss",
     "webring",

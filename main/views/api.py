@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.generic.edit import FormView
 
-from main import forms, models, scheme, text_processing
+from main import denylist, forms, models, scheme, text_processing
 
 
 def api_docs(request):
@@ -331,6 +331,13 @@ def api_pages(request):
             {"ok": False, "message": "Slug field is required."}, status=400
         )
 
+    # POST case - check if slug is disallowed
+    if form.cleaned_data["slug"] in denylist.DISALLOWED_PAGE_SLUGS:
+        return JsonResponse(
+            {"ok": False, "message": "This slug is not allowed as a page slug."},
+            status=400,
+        )
+
     # POST case - check if slug already exists for this user
     if models.Page.objects.filter(slug=form.cleaned_data["slug"], owner=user).exists():
         return JsonResponse(
@@ -414,8 +421,17 @@ def api_page(request, slug):
         if "title" in data:
             page.title = form.cleaned_data["title"]
         if "slug" in data:
-            # Check if new slug already exists for this user (excluding current page)
+            # Check if new slug is disallowed
             new_slug = form.cleaned_data["slug"]
+            if new_slug in denylist.DISALLOWED_PAGE_SLUGS:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "message": "This slug is not allowed as a page slug.",
+                    },
+                    status=400,
+                )
+            # Check if new slug already exists for this user (excluding current page)
             if (
                 new_slug != page.slug
                 and models.Page.objects.filter(slug=new_slug, owner=user).exists()
