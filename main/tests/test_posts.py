@@ -125,6 +125,8 @@ class PostDetailTestCase(TestCase):
             HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
         )
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<title>New post</title>", html=True)
+        self.assertNotContains(response, "— None")
         self.assertContains(response, self.data["title"])
         self.assertContains(response, self.data["body"])
 

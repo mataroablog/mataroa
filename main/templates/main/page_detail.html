@@ -1,6 +1,6 @@
 {% extends 'main/layout.html' %}
 
-{% block title %}{{ page.title }} — {{ blog_user.blog_title }}{% endblock %}
+{% block title %}{{ page.title }}{% if blog_user.blog_title %} — {{ blog_user.blog_title }}{% endif %}{% endblock %}
 
 {% block meta_description %}{{ page.body|truncatewords:16 }}{% endblock %}
 
