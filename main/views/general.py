@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -13,7 +14,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LogoutView as DjLogoutView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sitemaps.views import sitemap as DjSitemapView
-from django.core import mail
+from django.core import mail, signing
 from django.core.exceptions import PermissionDenied, TooManyFilesSent
 from django.db.models import Count, Sum
 from django.db.models.functions import Length, TruncDay
@@ -332,6 +333,8 @@ class PostDetail(DetailView):
             context["comments_pending"] = models.Comment.objects.filter(
                 post=self.object, is_approved=False
             )
+            # Signed timestamp for the anti-spam time trap in CommentCreate.
+            context["comment_ts"] = signing.dumps(int(time.time()))
 
         # do not record analytic if post is authed user's
         if (
@@ -582,6 +585,10 @@ class CommentCreate(SuccessMessageMixin, CreateView):
         context["post"] = models.Post.objects.get(
             owner__username=self.request.subdomain, slug=self.kwargs["slug"]
         )
+        # Signed timestamp for the anti-spam time trap. Must be present on
+        # form re-renders too (e.g. validation errors), or the user's next
+        # submission will be silently dropped as spam.
+        context["comment_ts"] = signing.dumps(int(time.time()))
         return context
 
     def get_success_url(self):
@@ -592,6 +599,16 @@ class CommentCreate(SuccessMessageMixin, CreateView):
         if not models.User.objects.get(username=self.request.subdomain).comments_on:
             form.add_error(None, "No comments allowed on this blog.")
             return self.render_to_response(self.get_context_data(form=form))
+
+        # Anti-spam. Honeypot: the "url" field is hidden from humans, so a
+        # filled value means a bot. Time trap: bots POST directly without
+        # loading the form first (missing/invalid ts) or submit within
+        # milliseconds of loading (humans take longer to write a comment).
+        if self._looks_like_spam():
+            messages.success(self.request, self.success_message)
+            return HttpResponseRedirect(
+                reverse("post_detail", args=(self.kwargs["slug"],))
+            )
 
         # save comment as not approved
         self.object = form.save(commit=False)
@@ -626,6 +643,20 @@ class CommentCreate(SuccessMessageMixin, CreateView):
         )
 
         return super().form_valid(form)
+
+    def _looks_like_spam(self):
+        if self.request.POST.get("url"):
+            logger.info("Comment dropped: honeypot filled")
+            return True
+        try:
+            ts = signing.loads(self.request.POST.get("ts", ""), max_age=86400)
+        except signing.BadSignature:
+            logger.info("Comment dropped: missing or invalid ts")
+            return True
+        if time.time() - ts < 3:
+            logger.info("Comment dropped: submitted too fast")
+            return True
+        return False
 
     def dispatch(self, request, *args, **kwargs):
         if hasattr(request, "subdomain") and request.method == "POST":

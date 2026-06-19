@@ -57,6 +57,12 @@
             <textarea name="body" id="id_body" cols="60" rows="5">{{ form.body.value|default_if_none:'' }}</textarea>
         </p>
 
+        {# Anti-spam honeypot: hidden from humans, filled by bots. #}
+        <p style="position:absolute;left:-9999px" aria-hidden="true">
+            <input type="text" name="url" tabindex="-1" autocomplete="off" value="">
+        </p>
+        <input type="hidden" name="ts" value="{{ comment_ts }}">
+
         {% csrf_token %}
         <input type="submit" value="Publish comment">
     </form>
