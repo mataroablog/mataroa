@@ -1,4 +1,3 @@
-import io
 import uuid
 import zipfile
 from datetime import datetime
@@ -8,7 +7,7 @@ from django.core import mail
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from main import models, scheme
+from main import models, scheme, text_processing
 
 
 def get_mail_connection():
@@ -59,17 +58,7 @@ class Command(BaseCommand):
         for user in users:
             self.stdout.write(self.style.NOTICE(f"Processing user {user.username}."))
 
-            user_posts = models.Post.objects.filter(owner=user)
-            export_posts = []
-            for p in user_posts:
-                pub_date = p.published_at or p.created_at
-                title = p.slug + ".md"
-                body = (
-                    f"# {p.title}\n\n"
-                    f"> Published on {pub_date.strftime('%b %-d, %Y')}\n\n"
-                    f"{p.body}\n"
-                )
-                export_posts.append((title, io.BytesIO(body.encode())))
+            export_files = text_processing.get_markdown_export_files(user)
 
             # write zip archive in /tmp/
             export_name = "export-markdown-" + str(uuid.uuid4())[:8]
@@ -78,7 +67,7 @@ class Command(BaseCommand):
             with zipfile.ZipFile(
                 zip_outfile, "a", zipfile.ZIP_DEFLATED, False
             ) as export_archive:
-                for file_name, data in export_posts:
+                for file_name, data in export_files:
                     export_archive.writestr(
                         export_name + f"/{container_dir}/" + file_name, data.getvalue()
                     )

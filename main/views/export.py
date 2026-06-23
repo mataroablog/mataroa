@@ -43,16 +43,7 @@ def export_index(request):
 @require_POST
 @login_required
 def export_markdown(request):
-    # get all user posts and add them into export_posts encoded
-    posts = models.Post.objects.filter(owner=request.user)
-    export_posts = []
-    for p in posts:
-        pub_date = p.published_at or p.created_at
-        title = p.slug + ".md"
-        body = f"# {p.title}\n\n"
-        body += f"> Published on {pub_date.strftime('%b %-d, %Y')}\n\n"
-        body += f"{p.body}\n"
-        export_posts.append((title, io.BytesIO(body.encode())))
+    export_files = text_processing.get_markdown_export_files(request.user)
 
     # create zip archive in memory
     export_name = "export-markdown-" + str(uuid.uuid4())[:8]
@@ -61,7 +52,7 @@ def export_markdown(request):
     with zipfile.ZipFile(
         zip_buffer, "a", zipfile.ZIP_DEFLATED, False
     ) as export_archive:
-        for file_name, data in export_posts:
+        for file_name, data in export_files:
             export_archive.writestr(
                 export_name + f"/{container_dir}/" + file_name, data.getvalue()
             )

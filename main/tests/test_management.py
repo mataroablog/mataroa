@@ -1,3 +1,5 @@
+import io
+import zipfile
 from datetime import datetime
 from io import StringIO
 from unittest.mock import patch
@@ -131,6 +133,19 @@ class MailExportsTest(TestCase):
             "published_at": timezone.make_aware(datetime(2020, 1, 2)),
         }
         self.post_b = models.Post.objects.create(owner=self.user, **post_data)
+        self.page = models.Page.objects.create(
+            owner=self.user,
+            title="About",
+            slug="about",
+            body="About Alice.",
+        )
+        self.hidden_page = models.Page.objects.create(
+            owner=self.user,
+            title="Secret",
+            slug="secret",
+            body="Hidden page.",
+            is_hidden=True,
+        )
 
     def test_mail_backend(self):
         connection = mailexports.get_mail_connection()
@@ -189,6 +204,22 @@ class MailExportsTest(TestCase):
         self.assertEqual(
             mail.outbox[0].extra_headers["List-Unsubscribe-Post"],
             "List-Unsubscribe=One-Click",
+        )
+
+        attachment_name, attachment_body, attachment_type = mail.outbox[0].attachments[
+            0
+        ]
+        self.assertIn("export-markdown-", attachment_name)
+        self.assertEqual(attachment_type, "application/zip")
+        with zipfile.ZipFile(io.BytesIO(attachment_body)) as export_archive:
+            exported_files = export_archive.namelist()
+
+        self.assertTrue(any(name.endswith("/a-post.md") for name in exported_files))
+        self.assertTrue(
+            any(name.endswith("/pages/about.md") for name in exported_files)
+        )
+        self.assertTrue(
+            any(name.endswith("/pages/secret.md") for name in exported_files)
         )
 
     def tearDown(self):

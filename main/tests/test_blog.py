@@ -1,4 +1,6 @@
+import io
 import json
+import zipfile
 
 from django.conf import settings
 from django.core import mail
@@ -171,6 +173,19 @@ class BlogExportMarkdownTestCase(TestCase):
             "body": "Content sentence.",
         }
         self.post = models.Post.objects.create(owner=self.user, **self.data)
+        self.page = models.Page.objects.create(
+            owner=self.user,
+            title="About",
+            slug="about",
+            body="About Alice.",
+        )
+        self.hidden_page = models.Page.objects.create(
+            owner=self.user,
+            title="Secret",
+            slug="secret",
+            body="Hidden page.",
+            is_hidden=True,
+        )
 
     def test_blog_export(self):
         response = self.client.post(reverse("export_markdown"))
@@ -178,6 +193,19 @@ class BlogExportMarkdownTestCase(TestCase):
         self.assertEqual(response["Content-Type"], "application/zip")
         self.assertContains(response, b"export-markdown")
         self.assertContains(response, self.data["slug"].encode("utf-8"))
+
+        with zipfile.ZipFile(io.BytesIO(response.content)) as export_archive:
+            exported_files = export_archive.namelist()
+
+        self.assertTrue(
+            any(name.endswith("/welcome-post.md") for name in exported_files)
+        )
+        self.assertTrue(
+            any(name.endswith("/pages/about.md") for name in exported_files)
+        )
+        self.assertTrue(
+            any(name.endswith("/pages/secret.md") for name in exported_files)
+        )
 
 
 class BlogExportPrintTestCase(TestCase):

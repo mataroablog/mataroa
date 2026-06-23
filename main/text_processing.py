@@ -156,22 +156,35 @@ def remove_control_chars(text):
     return control_char_re.sub(" ", text)
 
 
+def get_markdown_export_files(user):
+    export_files = []
+
+    posts = models.Post.objects.filter(owner=user)
+    for post in posts:
+        pub_date = post.published_at or post.created_at
+        title = post.slug + ".md"
+        body = f"# {post.title}\n\n"
+        body += f"> Published on {pub_date.strftime('%b %-d, %Y')}\n\n"
+        body += f"{post.body}\n"
+        export_files.append((title, io.BytesIO(body.encode())))
+
+    pages = models.Page.objects.filter(owner=user)
+    for page in pages:
+        title = f"pages/{page.slug}.md"
+        body = f"# {page.title}\n\n"
+        body += f"{page.body}\n"
+        export_files.append((title, io.BytesIO(body.encode())))
+
+    return export_files
+
+
 def generate_markdown_export(user_id):
     """
     Generates a markdown export ZIP file in /tmp/.
     Returns (export name, export filepath).
     """
-    # compile all posts into dictionary
     user = models.User.objects.get(id=user_id)
-    user_posts = models.Post.objects.filter(owner=user)
-    export_posts = []
-    for p in user_posts:
-        pub_date = p.published_at or p.created_at
-        title = p.slug + ".md"
-        body = f"# {p.title}\n\n"
-        body += f"> Published on {pub_date.strftime('%b %-d, %Y')}\n\n"
-        body += f"{p.body}\n"
-        export_posts.append((title, io.BytesIO(body.encode())))
+    export_files = get_markdown_export_files(user)
 
     # write zip archive in /tmp/
     export_name = "export-markdown-" + str(uuid.uuid4())[:8]
@@ -180,7 +193,7 @@ def generate_markdown_export(user_id):
     with zipfile.ZipFile(
         zip_outfile, "a", zipfile.ZIP_DEFLATED, False
     ) as export_archive:
-        for file_name, data in export_posts:
+        for file_name, data in export_files:
             export_archive.writestr(
                 export_name + f"/{container_dir}/" + file_name, data.getvalue()
             )
