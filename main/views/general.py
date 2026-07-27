@@ -4,6 +4,7 @@ import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
+from email.utils import parseaddr
 
 import stripe
 from django.conf import settings
@@ -1299,8 +1300,10 @@ def postmark_webhook(request):
     """
 
     data = json.loads(request.body)
-    from_email = data.get("From")
-    to_email = data.get("To")
+    from_full = data.get("FromFull") or {}
+    from_email = from_full.get("Email") or parseaddr(data.get("From") or "")[1]
+    raw_to_email = data.get("OriginalRecipient") or data.get("To") or ""
+    to_email = parseaddr(raw_to_email)[1] or raw_to_email.strip()
     subject = data.get("Subject")
     text_body = data.get("TextBody")
     header_list = data.get("Headers", [])
@@ -1308,10 +1311,9 @@ def postmark_webhook(request):
     # check spam status
     spam_status = False
     for header in header_list:
-        if (
-            header.get("Name") == "X-Spam-Status"
-            and header.get("Value").lower() == "yes"
-        ):
+        if (header.get("Name") or "").lower() == "x-spam-status" and (
+            header.get("Value") or ""
+        ).lower() == "yes":
             spam_status = True
             break
     if spam_status:
@@ -1320,7 +1322,7 @@ def postmark_webhook(request):
     # get message id from headers
     message_id = None
     for header in header_list:
-        if header.get("Name").lower() == "message-id":
+        if (header.get("Name") or "").lower() == "message-id":
             message_id = header.get("Value")
             break
 
@@ -1355,7 +1357,9 @@ def postmark_webhook(request):
         return HttpResponse(status=200)
 
     # check inbound host
-    to_email_parts = to_email.split("@")
+    to_email_parts = to_email.rsplit("@", 1)
+    if len(to_email_parts) != 2:
+        return HttpResponse(status=200)
     email_prefix = to_email_parts[0]
     if email_prefix not in ("post", "draft"):
         return HttpResponse(status=200)

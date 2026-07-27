@@ -556,6 +556,41 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
         self.assertIn(post.slug, mail.outbox[0].body)
 
+    def test_postmark_webhook_uses_structured_sender_and_original_recipient(self):
+        original_recipient = f"draft@{self.user.username}.{settings.CANONICAL_HOST}"
+        data = {
+            "From": "alice@example.com",
+            "FromName": "Alice",
+            "FromFull": {
+                "Email": "alice@example.com",
+                "Name": "Alice",
+            },
+            "To": f'"Mataroa Blog" <{original_recipient}>',
+            "ToFull": [
+                {
+                    "Email": original_recipient,
+                    "Name": "Mataroa Blog",
+                }
+            ],
+            "OriginalRecipient": original_recipient,
+            "Subject": "Production-shaped Post",
+            "TextBody": "Created from a realistic Postmark payload.",
+            "Headers": [],
+        }
+
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        post = models.Post.objects.get(title="Production-shaped Post")
+        self.assertEqual(post.owner, self.user)
+        self.assertEqual(post.body, "Created from a realistic Postmark payload.")
+        self.assertIsNone(post.published_at)
+        self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
+
     def test_postmark_webhook_cannot_post_to_another_users_blog(self):
         bob = models.User.objects.create(username="bob", email="bob@example.com")
 
