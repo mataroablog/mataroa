@@ -278,6 +278,10 @@ LOGGING = {
             "handlers": ["console", "console_production"],
             "propagate": False,
         },
+        "django.security.RequestDataTooBig": {
+            "handlers": ["console", "console_production"],
+            "propagate": False,
+        },
         "main": {
             "handlers": ["console", "console_production"],
             "level": "INFO",
