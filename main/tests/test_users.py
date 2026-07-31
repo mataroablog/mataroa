@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from main import models, scheme
@@ -11,16 +11,25 @@ class IndexTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+@override_settings(SIGNUPS_ENABLED=False)
 class UserCreateDisabledTestCase(TestCase):
-    def test_user_creation(self):
+    def test_first_step(self):
+        response = self.client.post(reverse("user_create"))
+        self.assertContains(response, "Registrations are closed")
+        self.assertFalse(models.Onboard.objects.exists())
+
+    def test_second_step(self):
+        onboard = models.Onboard.objects.create()
         data = {
             "username": "alice",
             "password1": "abcdef123456",
             "password2": "abcdef123456",
             "blog_title": "New blog",
         }
-        response = self.client.post(reverse("user_create"), data)
-        self.assertEqual(response.status_code, 302)
+        response = self.client.post(
+            reverse("user_create_step_two", args=(onboard.code,)), data
+        )
+        self.assertContains(response, "Registrations are closed")
         self.assertFalse(models.User.objects.filter(username=data["username"]).exists())
 
 

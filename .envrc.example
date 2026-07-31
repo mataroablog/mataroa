@@ -7,6 +7,7 @@ export DEBUG=1
 # 1: stop and off
 # 0: do not stop and on
 export LOCALDEV=1
+export SIGNUPS_ENABLED=1
 
 # Admin email for receiving server errors
 export ADMIN_EMAIL=

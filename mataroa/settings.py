@@ -28,6 +28,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "nonrandom_secret")
 DEBUG = os.getenv("DEBUG") == "1"
 
 LOCALDEV = os.getenv("LOCALDEV") == "1"
+SIGNUPS_ENABLED = os.getenv("SIGNUPS_ENABLED", "1") == "1"
 
 ALLOWED_HOSTS = [
     "127.0.0.1",

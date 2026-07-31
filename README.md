@@ -131,6 +131,9 @@ file one can copy as base:
 cp .envrc.example .envrc
 ```
 
+Set `SIGNUPS_ENABLED=0` to close both signup steps. Signups are enabled by
+default.
+
 When on Docker, to change or populate environment variables, edit the `environment`
 key of the `web` service either directly on `docker-compose.yml` or by overriding it
 using the standard named git-ignored `docker-compose.override.yml`.
