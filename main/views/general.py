@@ -171,6 +171,11 @@ class UserCreateStepOne(CreateView):
     form_class = forms.OnboardForm
     template_name = "main/user_create_step_one.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        if not settings.SIGNUPS_ENABLED:
+            return render(request, "main/user_create_disabled.html")
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         self.object = form.save()
         return redirect("user_create_step_two", onboard_code=self.object.code)
@@ -203,6 +208,8 @@ class UserCreateStepTwo(CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
     def dispatch(self, request, *args, **kwargs):
+        if not settings.SIGNUPS_ENABLED:
+            return render(request, "main/user_create_disabled.html")
         self.onboard = get_object_or_404(
             models.Onboard,
             code=kwargs["onboard_code"],
