@@ -1,4 +1,5 @@
 from timeit import default_timer as timer
+from unicodedata import normalize
 
 from django.conf import settings
 from django.http import Http404, HttpResponseBadRequest
@@ -6,6 +7,33 @@ from django.shortcuts import redirect
 from django.utils.http import MAX_URL_LENGTH
 
 from main import denylist, models, scheme
+
+
+def _redirect_to_domain(domain, path):
+    normalized_path = normalize("NFKC", path)
+    for separator in ("/", "\\"):
+        if normalized_path.count(separator) != path.count(separator):
+            return HttpResponseBadRequest()
+
+    redirect_url = domain + path
+    if "://" not in redirect_url:
+        redirect_url = scheme.get_protocol() + "//" + redirect_url
+
+    if len(redirect_url) > MAX_URL_LENGTH:
+        return HttpResponseBadRequest()
+
+    try:
+        return redirect(redirect_url)
+    except ValueError:
+        return HttpResponseBadRequest()
+
+
+def _retired_blog_path(path):
+    if path in ("/", "/blog"):
+        return ""
+    if path.startswith("/blog/"):
+        return path[5:]
+    return path
 
 
 def host_middleware(get_response):
@@ -64,25 +92,18 @@ def host_middleware(get_response):
                     request.user.is_authenticated
                     and request.user.username != request.subdomain
                 ):
-                    redir_domain = ""
-                    if request.blog_user.custom_domain:  # user has set custom domain
-                        redir_domain = (
-                            request.blog_user.custom_domain + request.path_info
-                        )
-
                     # user has retired their mataroa blog, redirect to new domain
                     if request.blog_user.redirect_domain:
-                        redir_domain = (
-                            request.blog_user.redirect_domain + request.path_info[5:]
+                        return _redirect_to_domain(
+                            request.blog_user.redirect_domain,
+                            _retired_blog_path(request.path_info),
                         )
 
-                    if redir_domain and "://" not in redir_domain:
-                        redir_domain = scheme.get_protocol() + "//" + redir_domain
-
-                    if redir_domain:
-                        if len(redir_domain) > MAX_URL_LENGTH:
-                            return HttpResponseBadRequest()
-                        return redirect(redir_domain)
+                    if request.blog_user.custom_domain:  # user has set custom domain
+                        return _redirect_to_domain(
+                            request.blog_user.custom_domain,
+                            request.path_info,
+                        )
             else:
                 raise Http404()
         elif models.User.objects.filter(custom_domain=host).exists():
@@ -106,14 +127,10 @@ def host_middleware(get_response):
             # if user has retired their mataroa blog (and keeps the custom domain)
             # redirect to new domain
             if request.blog_user.redirect_domain:
-                redir_domain = request.blog_user.redirect_domain + request.path_info[5:]
-
-                if "://" not in redir_domain:
-                    redir_domain = scheme.get_protocol() + "//" + redir_domain
-
-                if len(redir_domain) > MAX_URL_LENGTH:
-                    return HttpResponseBadRequest()
-                return redirect(redir_domain)
+                return _redirect_to_domain(
+                    request.blog_user.redirect_domain,
+                    _retired_blog_path(request.path_info),
+                )
 
         else:
             return HttpResponseBadRequest()

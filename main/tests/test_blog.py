@@ -146,6 +146,38 @@ class BlogRetiredRedirProtocolTestCase(TestCase):
         self.assertEqual(self.user.redirect_domain, response.url)
 
 
+class BlogRetiredCustomDomainRedirectTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice",
+            custom_domain="old.example.com",
+            redirect_domain="new.example.com",
+        )
+
+    def test_blog_path_redirect(self):
+        response = self.client.get(
+            "/blog/welcome-post/",
+            HTTP_HOST=self.user.custom_domain,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            f"{scheme.get_protocol()}//{self.user.redirect_domain}/welcome-post/",
+            response.url,
+        )
+
+    def test_nfkc_path_separators_are_rejected(self):
+        paths = (
+            "/..／..／var/log/secure",
+            "/..／..／var/log/nginx/access.log",
+        )
+
+        for path in paths:
+            with self.subTest(path=path):
+                response = self.client.get(path, HTTP_HOST=self.user.custom_domain)
+                self.assertEqual(response.status_code, 400)
+
+
 class BlogImportTestCase(TestCase):
     def setUp(self):
         self.user = models.User.objects.create(username="alice")
