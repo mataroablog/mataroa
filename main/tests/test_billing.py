@@ -313,6 +313,8 @@ class BillingWebhookTestCase(TestCase):
         )
         with (
             patch.object(stripe.Webhook, "construct_event", return_value=event),
+            patch.object(billing, "get_connection") as mock_get_connection,
+            patch.object(billing, "mail_admins") as mock_mail_admins,
             self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
         ):
             response = self.client.post(
@@ -326,6 +328,12 @@ class BillingWebhookTestCase(TestCase):
         user = models.User.objects.get(id=self.user.id)
         self.assertTrue(user.is_premium)
         self.assertTrue(user.is_approved)
+        mock_mail_admins.assert_called_once_with(
+            "New premium subscriber from webhook: alice",
+            self.user.blog_absolute_url,
+            connection=mock_get_connection.return_value,
+        )
+        mock_get_connection.assert_called_once_with(timeout=5)
 
     def test_customer_subscription_deleted_downgrades_and_clears_subscription(self):
         self.user.is_premium = True
@@ -352,6 +360,55 @@ class BillingWebhookTestCase(TestCase):
         user = models.User.objects.get(id=self.user.id)
         self.assertFalse(user.is_premium)
         self.assertIsNone(user.stripe_subscription_id)
+
+    def test_customer_subscription_deleted_clears_stale_subscription_id(self):
+        self.user.stripe_subscription_id = "sub_123"
+        self.user.save()
+
+        sub_obj = SimpleNamespace(customer="cus_abc123")
+        event = SimpleNamespace(
+            type="customer.subscription.deleted",
+            data=SimpleNamespace(object=sub_obj),
+        )
+        with (
+            patch.object(stripe.Webhook, "construct_event", return_value=event),
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=1,v1=dummy",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        user = models.User.objects.get(id=self.user.id)
+        self.assertFalse(user.is_premium)
+        self.assertIsNone(user.stripe_subscription_id)
+
+    def test_processing_failure_returns_500_for_stripe_retry(self):
+        invoice_obj = SimpleNamespace(customer="cus_abc123")
+        event = SimpleNamespace(
+            type="invoice.payment_succeeded",
+            data=SimpleNamespace(object=invoice_obj),
+        )
+        with (
+            patch.object(stripe.Webhook, "construct_event", return_value=event),
+            patch.object(
+                models.User.objects,
+                "get",
+                side_effect=RuntimeError("database unavailable"),
+            ),
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=1,v1=dummy",
+            )
+
+        self.assertEqual(response.status_code, 500)
 
     def test_signature_verification_failure_returns_400(self):
         def _raise_sig_error(*args, **kwargs):

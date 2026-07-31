@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.mail import mail_admins
+from django.core.mail import get_connection, mail_admins
 from django.http import (
     HttpResponse,
     HttpResponseBadRequest,
@@ -768,7 +768,7 @@ def billing_stripe_webhook(request):
                     if not user.is_premium:
                         user.is_premium = True
                         user.is_approved = True
-                        user.save()
+                        user.save(update_fields=["is_premium", "is_approved"])
                         if user.blog_absolute_url == user.blog_url:
                             blog_info = user.blog_absolute_url
                         else:
@@ -776,6 +776,7 @@ def billing_stripe_webhook(request):
                         mail_admins(
                             f"New premium subscriber from webhook: {user.username}",
                             blog_info,
+                            connection=get_connection(timeout=5),
                         )
                 except models.User.DoesNotExist:
                     logger.warning(
@@ -792,10 +793,16 @@ def billing_stripe_webhook(request):
 
                 try:
                     user = models.User.objects.get(stripe_customer_id=customer_id_str)
-                    if user.is_premium:
+                    if user.is_premium or user.stripe_subscription_id:
                         user.is_premium = False
                         user.stripe_subscription_id = None
-                        user.save()
+                        user.save(
+                            update_fields=["is_premium", "stripe_subscription_id"]
+                        )
+                        logger.info(
+                            "Disabled premium from Stripe webhook for user %s",
+                            user.username,
+                        )
                 except models.User.DoesNotExist:
                     logger.warning(
                         f"Webhook: user not found for customer_id={customer_id_str}"
@@ -828,6 +835,7 @@ def billing_stripe_webhook(request):
                     )
 
     except Exception as ex:
-        logger.error(f"Webhook event processing error: {str(ex)}")
+        logger.exception("Webhook event processing error: %s", str(ex))
+        return HttpResponse(status=500)
 
     return HttpResponse(status=200)
