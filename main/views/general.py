@@ -390,9 +390,7 @@ class PostCreate(LoginRequiredMixin, SuccessMessageMixin, CreateView):
             self.object.title, self.request.user
         )
         self.object.owner = self.request.user
-        self.object.body = text_processing.remove_surrogate_chars(
-            text_processing.remove_control_chars(self.object.body)
-        )
+        self.object.body = text_processing.sanitize_text(self.object.body)
         self.object.save()
         return HttpResponseRedirect(self.get_success_url())
 
@@ -421,9 +419,7 @@ class PostUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
             self.object.slug = text_processing.create_post_slug(
                 self.object.title, self.request.user, post=self.object
             )
-            self.object.body = text_processing.remove_surrogate_chars(
-                text_processing.remove_control_chars(self.object.body)
-            )
+            self.object.body = text_processing.sanitize_text(self.object.body)
             self.object.save()
             return super().form_valid(form)
 
@@ -433,6 +429,7 @@ class PostUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         self.object.slug = text_processing.create_post_slug(
             updated_slug, self.request.user, post=self.object
         )
+        self.object.body = text_processing.sanitize_text(self.object.body)
         self.object.save()
 
         return super().form_valid(form)
@@ -499,9 +496,7 @@ class SnapshotCreate(LoginRequiredMixin, CreateView):
         # save new Snapshot with current user as owner
         self.object = form.save(commit=False)
         self.object.owner = self.request.user
-        self.object.body = text_processing.remove_surrogate_chars(
-            text_processing.remove_control_chars(self.object.body)
-        )
+        self.object.body = text_processing.sanitize_text(self.object.body)
         self.object.save()
         # delete all user Snapshots except the most recent 250
         most_recent = (

@@ -277,6 +277,21 @@ class PostUpdateTestCase(TestCase):
         self.assertEqual(updated_post.slug, new_data["slug"])
         self.assertEqual(updated_post.body, new_data["body"])
 
+    def test_post_update_sanitizes_body(self):
+        new_data = {
+            "title": "Updated post",
+            "slug": "updated-new-post",
+            "body": "before\x01after",
+        }
+        self.client.post(
+            reverse("post_update", args=(self.post.slug,)),
+            data=new_data,
+            HTTP_HOST=self.user.username + "." + settings.CANONICAL_HOST,
+        )
+
+        updated_post = models.Post.objects.get(id=self.post.id)
+        self.assertEqual(updated_post.body, "before after")
+
 
 class PostUpdateSameSlugTestCase(TestCase):
     """Test updating post without changing slug works."""
