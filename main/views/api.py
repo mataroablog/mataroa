@@ -194,15 +194,16 @@ def api_posts(request):
         )
 
     # POST case - create post
-    slug = text_processing.create_post_slug(data["title"], user)
+    title = text_processing.sanitize_text(data["title"])
+    slug = text_processing.create_post_slug(title, user)
     published_at = None
     if "published_at" in data:
         published_at = data["published_at"]
     body = ""
     if "body" in data:
-        body = text_processing.remove_surrogate_chars(data["body"])
+        body = text_processing.sanitize_text(data["body"])
     post = models.Post.objects.create(
-        owner=user, title=data["title"], slug=slug, body=body, published_at=published_at
+        owner=user, title=title, slug=slug, body=body, published_at=published_at
     )
 
     return JsonResponse(
@@ -268,15 +269,13 @@ def api_post(request, slug):
     # update post
     if request.method == "PATCH":
         if "title" in data:
-            post.title = form.cleaned_data["title"]
+            post.title = text_processing.sanitize_text(form.cleaned_data["title"])
         if "slug" in data:
             post.slug = text_processing.create_post_slug(
                 form.cleaned_data["slug"], user, post=post
             )
         if "body" in data:
-            post.body = text_processing.remove_surrogate_chars(
-                text_processing.remove_control_chars(form.cleaned_data["body"])
-            )
+            post.body = text_processing.sanitize_text(form.cleaned_data["body"])
         if "published_at" in data:
             post.published_at = form.cleaned_data["published_at"]
         post.save()
@@ -347,17 +346,16 @@ def api_pages(request):
         )
 
     # POST case - create page
+    title = text_processing.sanitize_text(data["title"])
     slug = form.cleaned_data["slug"]
     body = ""
     if "body" in data:
-        body = text_processing.remove_surrogate_chars(
-            text_processing.remove_control_chars(form.cleaned_data["body"])
-        )
+        body = text_processing.sanitize_text(form.cleaned_data["body"])
     is_hidden = False
     if "is_hidden" in data:
         is_hidden = form.cleaned_data["is_hidden"]
     page = models.Page.objects.create(
-        owner=user, title=data["title"], slug=slug, body=body, is_hidden=is_hidden
+        owner=user, title=title, slug=slug, body=body, is_hidden=is_hidden
     )
 
     return JsonResponse(
@@ -423,7 +421,7 @@ def api_page(request, slug):
     # update page
     if request.method == "PATCH":
         if "title" in data:
-            page.title = form.cleaned_data["title"]
+            page.title = text_processing.sanitize_text(form.cleaned_data["title"])
         if "slug" in data:
             # Check if new slug is disallowed
             new_slug = form.cleaned_data["slug"]
@@ -446,9 +444,7 @@ def api_page(request, slug):
                 )
             page.slug = new_slug
         if "body" in data:
-            page.body = text_processing.remove_surrogate_chars(
-                text_processing.remove_control_chars(form.cleaned_data["body"])
-            )
+            page.body = text_processing.sanitize_text(form.cleaned_data["body"])
         if "is_hidden" in data:
             page.is_hidden = form.cleaned_data["is_hidden"]
         page.save()

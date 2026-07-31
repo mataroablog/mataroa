@@ -203,10 +203,10 @@ class APIListPostTestCase(TestCase):
         self.assertEqual(models.Post.objects.all().first().published_at, None)
         models.Post.objects.all().first().delete()
 
-    def test_posts_post_removes_surrogate_chars(self):
+    def test_posts_post_sanitizes_text(self):
         data = {
-            "title": "First Post",
-            "body": "before\ud835middle\udc00after",
+            "title": "First\ud835 Post",
+            "body": "before\x01control\ud835surrogate",
         }
         response = self.client.post(
             reverse("api_posts"),
@@ -216,7 +216,9 @@ class APIListPostTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(models.Post.objects.get().body, "beforemiddleafter")
+        post = models.Post.objects.get()
+        self.assertEqual(post.title, "First Post")
+        self.assertEqual(post.body, "before controlsurrogate")
 
     def test_posts_post_other_owner(self):
         user_b = models.User.objects.create(username="bob")
@@ -347,6 +349,28 @@ class APIListPatchTestCase(TestCase):
             + models.Post.objects.all().first().get_absolute_url(),
         )
         models.Post.objects.all().first().delete()
+
+    def test_post_patch_sanitizes_text(self):
+        post = models.Post.objects.create(
+            owner=self.user,
+            title="Hello world",
+            slug="hello-world",
+            body="Original body",
+        )
+        response = self.client.patch(
+            reverse("api_post", args=(post.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "New\ud835 title",
+                "body": "before\x01control\udc00surrogate",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        post.refresh_from_db()
+        self.assertEqual(post.title, "New title")
+        self.assertEqual(post.body, "before controlsurrogate")
 
     def test_post_patch_nonexistent_post(self):
         response = self.client.get(
@@ -1136,6 +1160,23 @@ class APIPagesListPostTestCase(TestCase):
             + models.Page.objects.all().first().get_absolute_url(),
         )
 
+    def test_pages_post_sanitizes_text(self):
+        response = self.client.post(
+            reverse("api_pages"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "About\ud835 Me",
+                "slug": "about-me",
+                "body": "before\x01control\udc00surrogate",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        page = models.Page.objects.get()
+        self.assertEqual(page.title, "About Me")
+        self.assertEqual(page.body, "before controlsurrogate")
+
     def test_pages_post_hidden(self):
         data = {
             "title": "Secret",
@@ -1187,6 +1228,28 @@ class APIPagePatchTestCase(TestCase):
         self.assertEqual(models.Page.objects.all().first().body, "New about content")
         self.assertTrue(models.Page.objects.all().first().is_hidden)
         self.assertTrue(response.json()["ok"])
+
+    def test_page_patch_sanitizes_text(self):
+        page = models.Page.objects.create(
+            owner=self.user,
+            title="About",
+            slug="about",
+            body="Original body",
+        )
+        response = self.client.patch(
+            reverse("api_page", args=(page.slug,)),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data={
+                "title": "About\ud835 Me",
+                "body": "before\x01control\udc00surrogate",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        page.refresh_from_db()
+        self.assertEqual(page.title, "About Me")
+        self.assertEqual(page.body, "before controlsurrogate")
 
     def test_page_patch_nonexistent_page(self):
         response = self.client.get(
