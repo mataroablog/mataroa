@@ -22,8 +22,8 @@ docker compose up
 # Run migrations
 uv run python manage.py migrate
 
-# Load development data fixtures
-uv run python manage.py loaddata dev-data
+# Generate development data
+uv run python manage.py devdata
 
 # Create superuser for admin access
 uv run python manage.py createsuperuser
@@ -149,8 +149,8 @@ The `main.middleware.host_middleware` handles subdomain routing to serve user bl
 ### Testing Patterns
 
 - Tests use Django's TestCase and built-in test client
-- Fixtures available in `main/fixtures/dev-data.json`
-- Test data includes user "admin" with password "admin"
+- The `devdata` management command generates sample data
+- Generated data includes user "admin" with password "admin"
 - Tests cover views, models, forms, and management commands
 
 ### Code Style

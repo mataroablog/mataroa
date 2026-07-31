@@ -150,36 +150,40 @@ as it has the default name `docker-compose.override.yml`.
 
 ### Database
 
-This project is using one PostreSQL database for persistence.
+This project uses one PostgreSQL database for persistence.
 
-One can use the provided script to set up a local Postgres database (user `mataroa`,
-passwordless):
-
-```sh
-./setup-database-localdev.sh
-```
-
-And also easily reset it (drop database and user):
+The reset script drops and recreates the local `mataroa` role and database.
+The default role password is `mataroa`, and the role receives the `CREATEDB`
+permission required by Django's test runner:
 
 ```sh
 ./reset-database-localdev.sh
 ```
 
+The defaults match `docker-compose.yml`. They can be overridden with
+`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_ADMIN_USER`,
+`POSTGRES_ADMIN_PASSWORD`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`.
+
 After setting the `DATABASE_URL` ([see above](#environment-variables)), create
 the database schema with:
 
 ```sh
-uv python manage.py migrate
+uv run python manage.py migrate
 ```
 
-Initialising the database with some sample development data is possible with:
+To generate a deterministic development dataset without deleting existing data, run:
 
 ```sh
-uv python manage.py loaddata dev-data
+uv run python manage.py devdata
 ```
 
-* `dev-data` is defined in [`main/fixtures/dev-data.json`](main/fixtures/dev-data.json)
-* Credentials of the fixtured user are `admin` / `admin`.
+This creates 10 users with 25 posts each, plus sample pages, comments, and
+newsletter subscribers. The generated superuser credentials are `admin` /
+`admin`; other generated users have usernames such as `devuser001` and use the
+same password. Counts can be adjusted with `--users`,
+`--posts-per-user`, `--pages-per-user`, `--comments-per-post`, and
+`--subscribers-per-user`. The command is idempotent and only runs when `DEBUG`
+or `LOCALDEV` is enabled.
 
 ### Serve
 
@@ -274,12 +278,11 @@ Condensed and commented sources file tree:
 │   ├── apps.py
 │   ├── denylist.py # list of various keywords allowed and denied
 │   ├── feeds.py # django rss functionality
-│   ├── fixtures/
-│   │   └── dev-data.json # sample development data
 │   ├── forms.py
 │   ├── management/ # commands under `python manage.py`
 │   │   └── commands/
 │   │       ├── checkstripe.py
+│   │       ├── devdata.py
 │   │       ├── mailexports.py
 │   │       ├── mailsummary.py
 │   │       ├── processnotifications.py

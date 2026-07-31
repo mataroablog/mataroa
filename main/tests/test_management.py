@@ -6,12 +6,44 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core import mail
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.utils import timezone
 
 from main import models
 from main.management.commands import mailexports, processnotifications
+
+
+@override_settings(LOCALDEV=True)
+class DevDataTest(TestCase):
+    def test_command_generates_data_and_is_idempotent(self):
+        arguments = (
+            "devdata",
+            "--users=2",
+            "--posts-per-user=3",
+            "--pages-per-user=1",
+            "--comments-per-post=2",
+            "--subscribers-per-user=2",
+        )
+
+        call_command(*arguments, stdout=StringIO())
+        call_command(*arguments, stdout=StringIO())
+
+        self.assertEqual(models.User.objects.count(), 2)
+        self.assertEqual(models.Post.objects.count(), 6)
+        self.assertEqual(models.Page.objects.count(), 2)
+        self.assertEqual(models.Comment.objects.count(), 12)
+        self.assertEqual(models.Notification.objects.count(), 4)
+        admin = models.User.objects.get(username="admin")
+        self.assertTrue(admin.is_superuser)
+        self.assertTrue(admin.check_password("admin"))
+        self.assertTrue(models.User.objects.filter(username="devuser001").exists())
+
+    @override_settings(DEBUG=False, LOCALDEV=False)
+    def test_command_refuses_to_run_outside_development(self):
+        with self.assertRaises(CommandError):
+            call_command("devdata", stdout=StringIO())
 
 
 class ProcessNotificationsTest(TestCase):

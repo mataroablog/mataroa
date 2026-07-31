@@ -18,7 +18,7 @@ export CUSTOM_DOMAIN_IP=95.217.30.133
 export SECRET_KEY=some-secret-key
 
 # Database connection
-export DATABASE_URL=postgres://mataroa:xxx@localhost:5432/mataroa
+export DATABASE_URL=postgres://mataroa:mataroa@localhost:5432/mataroa
 
 # SMTP credentials
 export EMAIL_HOST_USER=
