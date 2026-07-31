@@ -102,6 +102,8 @@ SESSION_COOKIE_DOMAIN = CANONICAL_HOST.split(":")[0]  # session visible in subdo
 DATE_FORMAT = "F j, Y"
 DATETIME_FORMAT = "F j, Y, P"
 
+DATA_UPLOAD_MAX_NUMBER_FILES = 50
+
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
@@ -269,6 +271,10 @@ LOGGING = {
         },
         "django.security.DisallowedHost": {
             "handlers": ["console"],
+            "propagate": False,
+        },
+        "django.security.TooManyFilesSent": {
+            "handlers": ["console", "console_production"],
             "propagate": False,
         },
         "main": {
