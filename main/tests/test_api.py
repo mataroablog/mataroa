@@ -203,6 +203,21 @@ class APIListPostTestCase(TestCase):
         self.assertEqual(models.Post.objects.all().first().published_at, None)
         models.Post.objects.all().first().delete()
 
+    def test_posts_post_removes_surrogate_chars(self):
+        data = {
+            "title": "First Post",
+            "body": "before\ud835middle\udc00after",
+        }
+        response = self.client.post(
+            reverse("api_posts"),
+            HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+            content_type="application/json",
+            data=data,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(models.Post.objects.get().body, "beforemiddleafter")
+
     def test_posts_post_other_owner(self):
         user_b = models.User.objects.create(username="bob")
         data = {

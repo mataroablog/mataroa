@@ -200,7 +200,7 @@ def api_posts(request):
         published_at = data["published_at"]
     body = ""
     if "body" in data:
-        body = data["body"]
+        body = text_processing.remove_surrogate_chars(data["body"])
     post = models.Post.objects.create(
         owner=user, title=data["title"], slug=slug, body=body, published_at=published_at
     )
@@ -274,7 +274,9 @@ def api_post(request, slug):
                 form.cleaned_data["slug"], user, post=post
             )
         if "body" in data:
-            post.body = text_processing.remove_control_chars(form.cleaned_data["body"])
+            post.body = text_processing.remove_surrogate_chars(
+                text_processing.remove_control_chars(form.cleaned_data["body"])
+            )
         if "published_at" in data:
             post.published_at = form.cleaned_data["published_at"]
         post.save()
@@ -348,7 +350,9 @@ def api_pages(request):
     slug = form.cleaned_data["slug"]
     body = ""
     if "body" in data:
-        body = text_processing.remove_control_chars(form.cleaned_data["body"])
+        body = text_processing.remove_surrogate_chars(
+            text_processing.remove_control_chars(form.cleaned_data["body"])
+        )
     is_hidden = False
     if "is_hidden" in data:
         is_hidden = form.cleaned_data["is_hidden"]
@@ -442,7 +446,9 @@ def api_page(request, slug):
                 )
             page.slug = new_slug
         if "body" in data:
-            page.body = text_processing.remove_control_chars(form.cleaned_data["body"])
+            page.body = text_processing.remove_surrogate_chars(
+                text_processing.remove_control_chars(form.cleaned_data["body"])
+            )
         if "is_hidden" in data:
             page.is_hidden = form.cleaned_data["is_hidden"]
         page.save()

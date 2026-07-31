@@ -156,6 +156,11 @@ def remove_control_chars(text):
     return control_char_re.sub(" ", text)
 
 
+def remove_surrogate_chars(text):
+    """Remove UTF-16 surrogate code points from a string."""
+    return "".join(char for char in text if not 0xD800 <= ord(char) <= 0xDFFF)
+
+
 def get_markdown_export_files(user):
     export_files = []
 
