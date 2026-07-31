@@ -3,6 +3,10 @@
 {% block title %}Dashboard — {{ request.user.username }}{% endblock %}
 
 {% block content %}
+{% if request.user.is_delisted %}
+{% include 'partials/delisted.html' with dashboard=True %}
+{% endif %}
+
 <main>
     <h1>Dashboard</h1>
     <p class="dashboard-cta">

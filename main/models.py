@@ -129,6 +129,14 @@ class User(AbstractUser):
 
     # moderation
     is_approved = models.BooleanField(default=False)
+    is_delisted = models.BooleanField(
+        default=False,
+        verbose_name="Search engine delisted",
+        help_text=(
+            "Show a warning that this user's blog has been delisted from search "
+            "engines because of spam."
+        ),
+    )
 
     class Meta:
         ordering = ["-id"]

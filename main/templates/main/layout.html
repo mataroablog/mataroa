@@ -75,6 +75,10 @@
         {% endif %}
         {% endif %}
 
+        {% if blog_user.is_delisted %}
+        {% include 'partials/delisted.html' %}
+        {% endif %}
+
         {% block content %}
         {% endblock content %}
 

@@ -23,12 +23,18 @@ class UserAdmin(DjUserAdmin):
         "mail_export_on",
         "post_count",
         "is_approved",
+        "is_delisted",
         "blog_title",
         "date_joined",
         "last_login",
     )
     list_display_links = ("id", "username")
-    list_filter = ("is_premium", "mail_export_on", "comments_on")
+    list_filter = (
+        "is_premium",
+        "mail_export_on",
+        "comments_on",
+        "is_delisted",
+    )
     search_fields = ("username", "email", "stripe_customer_id", "blog_title")
     actions = [make_approved]
 
@@ -66,6 +72,7 @@ class UserAdmin(DjUserAdmin):
                     "is_premium",
                     "is_grandfathered",
                     "is_approved",
+                    "is_delisted",
                     "api_key",
                 ),
             },

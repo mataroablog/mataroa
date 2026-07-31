@@ -67,6 +67,39 @@ class BlogIndexAnonTestCase(TestCase):
         self.assertContains(response, self.data["title"])
 
 
+class SearchEngineDelistedBlogTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice",
+            blog_title="Blog of Alice",
+            is_delisted=True,
+        )
+        self.post = models.Post.objects.create(
+            owner=self.user,
+            title="Welcome post",
+            slug="welcome-post",
+            body="Content sentence.",
+        )
+        self.host = self.user.username + "." + settings.CANONICAL_HOST
+
+    def test_blog_index_shows_delisting_banner(self):
+        response = self.client.get(reverse("index"), HTTP_HOST=self.host)
+
+        self.assertContains(response, "Search engine delisting")
+        self.assertContains(
+            response,
+            "This blog has been delisted from Google and other search engines",
+        )
+
+    def test_blog_post_shows_delisting_banner(self):
+        response = self.client.get(
+            reverse("post_detail", args=[self.post.slug]),
+            HTTP_HOST=self.host,
+        )
+
+        self.assertContains(response, "Search engine delisting")
+
+
 class BlogIndexRedirTestCase(TestCase):
     """Test logged in user is redirected from canonical to blog index."""
 

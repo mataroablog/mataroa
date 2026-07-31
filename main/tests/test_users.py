@@ -177,6 +177,29 @@ class LoginTestCase(TestCase):
         self.assertFalse(user.is_authenticated)
 
 
+class SearchEngineDelistedDashboardTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.client.force_login(self.user)
+
+    def test_dashboard_shows_delisting_banner_when_enabled(self):
+        self.user.is_delisted = True
+        self.user.save(update_fields=["is_delisted"])
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "Search engine delisting")
+        self.assertContains(
+            response,
+            "Your blog has been delisted from Google and other search engines",
+        )
+
+    def test_dashboard_hides_delisting_banner_by_default(self):
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertNotContains(response, "Search engine delisting")
+
+
 class LogoutTestCase(TestCase):
     def setUp(self):
         user = models.User.objects.create(username="alice")
