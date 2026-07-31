@@ -161,6 +161,11 @@ def remove_surrogate_chars(text):
     return "".join(char for char in text if not 0xD800 <= ord(char) <= 0xDFFF)
 
 
+def sanitize_text(text):
+    """Remove characters that should not be persisted as user-provided text."""
+    return remove_surrogate_chars(remove_control_chars(text))
+
+
 def get_markdown_export_files(user):
     export_files = []
 

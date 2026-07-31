@@ -31,3 +31,13 @@ class RemoveSurrogateCharsTestCase(SimpleTestCase):
         text = "Mathematical A: \U0001d400; emoji: \U0001f600"
 
         self.assertEqual(text_processing.remove_surrogate_chars(text), text)
+
+
+class SanitizeTextTestCase(SimpleTestCase):
+    def test_sanitizes_control_and_surrogate_chars(self):
+        text = "before\x00control\ud835surrogate"
+
+        self.assertEqual(
+            text_processing.sanitize_text(text),
+            "before controlsurrogate",
+        )
