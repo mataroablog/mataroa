@@ -30,6 +30,9 @@ export POSTGRES_PASSWORD=xxx
 export EMAIL_HOST_USER=
 export EMAIL_HOST_PASSWORD=
 
+# Postmark inbound webhook HTTP Basic Authentication
+export POSTMARK_WEBHOOK_PASSWORD=
+
 # Custom domain IP
 export CUSTOM_DOMAIN_IP=
 

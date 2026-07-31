@@ -1,10 +1,11 @@
+import base64
 import io
 import json
 import zipfile
 
 from django.conf import settings
 from django.core import mail
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from main import models, scheme
@@ -452,6 +453,51 @@ class BlogNotificationRecordListTestCase(TestCase):
         self.assertContains(response, b"2020-01-01")
 
 
+@override_settings(
+    POSTMARK_WEBHOOK_PASSWORD="webhook-password",
+)
+class PostmarkWebhookAuthenticationTestCase(SimpleTestCase):
+    def setUp(self):
+        credentials = base64.b64encode(b"postmark:webhook-password").decode("ascii")
+        self.client.defaults["HTTP_AUTHORIZATION"] = f"Basic {credentials}"
+
+    def test_postmark_webhook_requires_authentication(self):
+        response = self.client_class().post(
+            reverse("postmark_webhook"),
+            data="not valid JSON",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_postmark_webhook_rejects_invalid_credentials(self):
+        credentials = base64.b64encode(b"postmark:wrong-password").decode("ascii")
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data="not valid JSON",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Basic {credentials}",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_postmark_webhook_fails_closed_without_configured_credentials(self):
+        with self.settings(POSTMARK_WEBHOOK_PASSWORD=""):
+            response = self.client.post(
+                reverse("postmark_webhook"),
+                data="not valid JSON",
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(len(mail.outbox), 0)
+
+
+@override_settings(
+    POSTMARK_WEBHOOK_PASSWORD="webhook-password",
+)
 class PostmarkWebhookTestCase(TestCase):
     """Test the Postmark webhook endpoint for creating posts via email."""
 
@@ -459,6 +505,8 @@ class PostmarkWebhookTestCase(TestCase):
         self.user = models.User.objects.create(
             username="alice", email="alice@example.com", is_premium=True
         )
+        credentials = base64.b64encode(b"postmark:webhook-password").decode("ascii")
+        self.client.defaults["HTTP_AUTHORIZATION"] = f"Basic {credentials}"
 
     def test_postmark_webhook_create_post_success(self):
         data = {

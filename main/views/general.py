@@ -1,3 +1,5 @@
+import base64
+import binascii
 import json
 import logging
 import time
@@ -28,6 +30,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import (
@@ -45,6 +48,8 @@ from main.sitemaps import PageSitemap, PostSitemap, StaticSitemap
 from main.views import billing
 
 logger = logging.getLogger(__name__)
+
+POSTMARK_WEBHOOK_USERNAME = "postmark"
 
 
 @login_required
@@ -1292,6 +1297,34 @@ class NotificationRecordList(LoginRequiredMixin, ListView):
         return context
 
 
+def _authenticate_postmark_webhook(request):
+    """Authenticate a Postmark webhook using HTTP Basic Authentication."""
+
+    expected_password = settings.POSTMARK_WEBHOOK_PASSWORD
+    if not expected_password:
+        return False
+
+    auth_header = request.headers.get("Authorization", "")
+    scheme, separator, encoded_credentials = auth_header.partition(" ")
+    if not separator or scheme.lower() != "basic":
+        return False
+
+    try:
+        credentials = base64.b64decode(encoded_credentials, validate=True).decode(
+            "utf-8"
+        )
+    except (binascii.Error, UnicodeDecodeError):
+        return False
+
+    username, separator, password = credentials.partition(":")
+    if not separator:
+        return False
+
+    username_matches = constant_time_compare(username, POSTMARK_WEBHOOK_USERNAME)
+    password_matches = constant_time_compare(password, expected_password)
+    return username_matches and password_matches
+
+
 @csrf_exempt
 @require_POST
 def postmark_webhook(request):
@@ -1299,6 +1332,9 @@ def postmark_webhook(request):
     Handle Postmark webhooks.
     See: https://postmarkapp.com/developer/webhooks/webhooks-overview
     """
+
+    if not _authenticate_postmark_webhook(request):
+        return HttpResponse(status=403)
 
     data = json.loads(request.body)
     from_full = data.get("FromFull") or {}

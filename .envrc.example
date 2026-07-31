@@ -24,7 +24,11 @@ export DATABASE_URL=postgres://mataroa:xxx@localhost:5432/mataroa
 export EMAIL_HOST_USER=
 export EMAIL_HOST_PASSWORD=
 
+# Postmark inbound webhook HTTP Basic Authentication
+export POSTMARK_WEBHOOK_PASSWORD=
+
 # Stripe payments details
 export STRIPE_API_KEY=
 export STRIPE_PUBLIC_KEY=
+export STRIPE_WEBHOOK_SECRET=
 export STRIPE_PRICE_ID=

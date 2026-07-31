@@ -653,6 +653,26 @@ export STRIPE_WEBHOOK_SECRET="whsec_XXX"
 export STRIPE_PRICE_ID="price_XXX"
 ```
 
+### Post by email
+
+Postmark authenticates requests to the inbound webhook with HTTP Basic
+Authentication. The username is fixed as `postmark`; configure a dedicated
+password in `deploy/.envrc`:
+
+```sh
+export POSTMARK_WEBHOOK_PASSWORD="a-long-random-password"
+```
+
+Then configure the Inbound Message Stream webhook URL in Postmark, using the
+same credentials:
+
+```text
+https://postmark:a-long-random-password@mataroa.blog/webhook/postmark/
+```
+
+The endpoint rejects all requests if the password environment variable is
+missing.
+
 ### Recurring Tasks
 
 We don't use cron but systemd timers for jobs that need to run recurringly.
