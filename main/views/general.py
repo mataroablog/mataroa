@@ -1303,18 +1303,24 @@ def postmark_webhook(request):
     data = json.loads(request.body)
     from_full = data.get("FromFull") or {}
     from_email = from_full.get("Email") or parseaddr(data.get("From") or "")[1]
+    from_email = text_processing.sanitize_text(from_email)
     raw_to_email = data.get("OriginalRecipient") or data.get("To") or ""
     to_email = parseaddr(raw_to_email)[1] or raw_to_email.strip()
+    to_email = text_processing.sanitize_text(to_email)
     subject = data.get("Subject")
+    if subject is not None:
+        subject = text_processing.sanitize_text(subject)
     text_body = data.get("TextBody")
+    if text_body is not None:
+        text_body = text_processing.sanitize_text(text_body)
     header_list = data.get("Headers", [])
 
     # check spam status
     spam_status = False
     for header in header_list:
-        if (header.get("Name") or "").lower() == "x-spam-status" and (
-            header.get("Value") or ""
-        ).lower() == "yes":
+        header_name = text_processing.sanitize_text(header.get("Name") or "")
+        header_value = text_processing.sanitize_text(header.get("Value") or "")
+        if header_name.lower() == "x-spam-status" and header_value.lower() == "yes":
             spam_status = True
             break
     if spam_status:
@@ -1323,8 +1329,9 @@ def postmark_webhook(request):
     # get message id from headers
     message_id = None
     for header in header_list:
-        if (header.get("Name") or "").lower() == "message-id":
-            message_id = header.get("Value")
+        header_name = text_processing.sanitize_text(header.get("Name") or "")
+        if header_name.lower() == "message-id":
+            message_id = text_processing.sanitize_text(header.get("Value") or "")
             break
 
     # get user if exists

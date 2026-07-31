@@ -488,6 +488,37 @@ class PostmarkWebhookTestCase(TestCase):
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
         self.assertIn(post.slug, mail.outbox[0].body)
 
+    def test_postmark_webhook_sanitizes_text(self):
+        data = {
+            "FromFull": {"Email": "alice\ud835@example.com"},
+            "OriginalRecipient": (
+                f"post\udc00@{self.user.username}.{settings.CANONICAL_HOST}"
+            ),
+            "Subject": "My\ud835 New Post",
+            "TextBody": "before\x00control\udc00surrogate",
+            "Headers": [
+                {
+                    "Name": "message-id\ud835",
+                    "Value": "<message\udc00@example.com>",
+                }
+            ],
+        }
+
+        response = self.client.post(
+            reverse("postmark_webhook"),
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        post = models.Post.objects.get()
+        self.assertEqual(post.title, "My New Post")
+        self.assertEqual(post.body, "before controlsurrogate")
+        self.assertEqual(
+            mail.outbox[0].extra_headers["In-Reply-To"],
+            "<message@example.com>",
+        )
+
     def test_postmark_webhook_nonexistent_user(self):
         data = {
             "From": "nonexistent@example.com",
