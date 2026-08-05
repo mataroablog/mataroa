@@ -10,6 +10,28 @@ from main import models
 from main.views import billing
 
 
+class BillingEnablePremiumTestCase(TestCase):
+    def test_stale_user_instance_does_not_send_duplicate_notification(self):
+        user = models.User.objects.create(username="alice")
+        stale_user = models.User.objects.get(pk=user.pk)
+
+        with patch.object(billing, "mail_admins") as mail_admins:
+            first_enabled = billing._enable_premium(
+                user,
+                "New premium subscriber from webhook: alice",
+            )
+            second_enabled = billing._enable_premium(
+                stale_user,
+                "New premium subscriber from welcome page: alice",
+            )
+
+        self.assertTrue(first_enabled)
+        self.assertFalse(second_enabled)
+        self.assertTrue(stale_user.is_premium)
+        self.assertTrue(stale_user.is_approved)
+        mail_admins.assert_called_once()
+
+
 class BillingCannotChangeIsPremiumTestCase(TestCase):
     """Test user cannot change their is_premium flag without going through billing."""
 

@@ -25,6 +25,32 @@ from main import forms, models, scheme
 logger = logging.getLogger(__name__)
 
 
+def _enable_premium(user, notification_subject, email_timeout=None):
+    """Enable premium once and notify admins only for the winning request."""
+    updated = models.User.objects.filter(pk=user.pk, is_premium=False).update(
+        is_premium=True,
+        is_approved=True,
+    )
+    user.refresh_from_db(fields=["is_premium", "is_approved"])
+
+    if not updated:
+        return False
+
+    if user.blog_absolute_url == user.blog_url:
+        blog_info = user.blog_absolute_url
+    else:
+        blog_info = f"{user.blog_absolute_url}\n\n{user.blog_url}"
+    if email_timeout is None:
+        mail_admins(notification_subject, blog_info)
+    else:
+        mail_admins(
+            notification_subject,
+            blog_info,
+            connection=get_connection(timeout=email_timeout),
+        )
+    return True
+
+
 @login_required
 def billing_overview(request):
     """
@@ -591,18 +617,10 @@ class BillingResubscribe(LoginRequiredMixin, View):
             if latest_invoice:
                 payment_intent = latest_invoice.get("payment_intent")
                 if payment_intent and payment_intent.get("status") == "succeeded":
-                    if not request.user.is_premium:
-                        request.user.is_premium = True
-                        request.user.is_approved = True
-                        request.user.save()
-                        if request.user.blog_absolute_url == request.user.blog_url:
-                            blog_info = request.user.blog_absolute_url
-                        else:
-                            blog_info = f"{request.user.blog_absolute_url}\n\n{request.user.blog_url}"
-                        mail_admins(
-                            f"New premium resubscriber: {request.user.username}",
-                            blog_info,
-                        )
+                    _enable_premium(
+                        request.user,
+                        f"New premium resubscriber: {request.user.username}",
+                    )
                     messages.success(request, self.success_message)
                 else:
                     messages.info(request, "payment is processing")
@@ -658,20 +676,10 @@ def billing_welcome(request):
     if stripe_intent["status"] == "succeeded":
         # charge succeeded during client-side confirmation flow
         # enable premium if not already enabled via webhook
-        if not request.user.is_premium:
-            request.user.is_premium = True
-            request.user.is_approved = True
-            request.user.save()
-            if request.user.blog_absolute_url == request.user.blog_url:
-                blog_info = request.user.blog_absolute_url
-            else:
-                blog_info = (
-                    f"{request.user.blog_absolute_url}\n\n{request.user.blog_url}"
-                )
-            mail_admins(
-                f"New premium subscriber from welcome page: {request.user.username}",
-                blog_info,
-            )
+        _enable_premium(
+            request.user,
+            f"New premium subscriber from welcome page: {request.user.username}",
+        )
         messages.success(request, "premium subscription enabled")
     elif stripe_intent["status"] == "processing":
         messages.info(request, "payment is currently processing")
@@ -765,19 +773,11 @@ def billing_stripe_webhook(request):
 
                 try:
                     user = models.User.objects.get(stripe_customer_id=customer_id_str)
-                    if not user.is_premium:
-                        user.is_premium = True
-                        user.is_approved = True
-                        user.save(update_fields=["is_premium", "is_approved"])
-                        if user.blog_absolute_url == user.blog_url:
-                            blog_info = user.blog_absolute_url
-                        else:
-                            blog_info = f"{user.blog_absolute_url}\n\n{user.blog_url}"
-                        mail_admins(
-                            f"New premium subscriber from webhook: {user.username}",
-                            blog_info,
-                            connection=get_connection(timeout=5),
-                        )
+                    _enable_premium(
+                        user,
+                        f"New premium subscriber from webhook: {user.username}",
+                        email_timeout=5,
+                    )
                 except models.User.DoesNotExist:
                     logger.warning(
                         f"Webhook: user not found for customer_id={customer_id_str}"
