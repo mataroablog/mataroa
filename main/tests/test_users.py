@@ -188,7 +188,6 @@ class SearchEngineDelistedDashboardTestCase(TestCase):
 
         response = self.client.get(reverse("dashboard"))
 
-        self.assertContains(response, "Search engine delisting")
         self.assertContains(
             response,
             "Your blog has been delisted from Google and other search engines",
@@ -197,7 +196,10 @@ class SearchEngineDelistedDashboardTestCase(TestCase):
     def test_dashboard_hides_delisting_banner_by_default(self):
         response = self.client.get(reverse("dashboard"))
 
-        self.assertNotContains(response, "Search engine delisting")
+        self.assertNotContains(
+            response,
+            "Your blog has been delisted from Google and other search engines",
+        )
 
 
 class LogoutTestCase(TestCase):

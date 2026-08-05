@@ -85,7 +85,6 @@ class SearchEngineDelistedBlogTestCase(TestCase):
     def test_blog_index_shows_delisting_banner(self):
         response = self.client.get(reverse("index"), HTTP_HOST=self.host)
 
-        self.assertContains(response, "Search engine delisting")
         self.assertContains(
             response,
             "This blog has been delisted from Google and other search engines",
@@ -97,7 +96,10 @@ class SearchEngineDelistedBlogTestCase(TestCase):
             HTTP_HOST=self.host,
         )
 
-        self.assertContains(response, "Search engine delisting")
+        self.assertContains(
+            response,
+            "This blog has been delisted from Google and other search engines",
+        )
 
 
 class BlogIndexRedirTestCase(TestCase):
