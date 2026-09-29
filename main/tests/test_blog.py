@@ -512,12 +512,47 @@ class BlogNotificationRecordListTestCase(TestCase):
             post=self.post,
             sent_at="2020-01-01",
         )
+        self.second_notification = models.Notification.objects.create(
+            blog_user=self.user,
+            email="another@example.com",
+        )
+        models.NotificationRecord.objects.create(
+            notification=self.second_notification,
+            post=self.post,
+            sent_at="2020-01-01",
+        )
+        pending_notification = models.Notification.objects.create(
+            blog_user=self.user,
+            email="pending@example.com",
+        )
+        models.NotificationRecord.objects.create(
+            notification=pending_notification,
+            post=self.post,
+            sent_at=None,
+        )
+        other_user = models.User.objects.create(username="bob")
+        other_notification = models.Notification.objects.create(
+            blog_user=other_user,
+            email="bob@example.com",
+        )
+        models.NotificationRecord.objects.create(
+            notification=other_notification,
+            post=self.post,
+            sent_at="2021-01-01",
+        )
 
     def test_notificationrecord_list(self):
         response = self.client.get(reverse("notificationrecord_list"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, b"s@example.com")
+        self.assertContains(response, self.post.title)
         self.assertContains(response, b"2020-01-01")
+        self.assertNotContains(response, b"2021-01-01")
+        self.assertContains(response, "2 subscribers")
+        self.assertNotContains(response, self.notification.email)
+        self.assertNotContains(response, self.second_notification.email)
+
+        newsletter = response.context["newsletter_list"][0]
+        self.assertIn("body", newsletter.get_deferred_fields())
 
 
 @override_settings(

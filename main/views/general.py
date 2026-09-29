@@ -19,7 +19,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sitemaps.views import sitemap as DjSitemapView
 from django.core import mail, signing
 from django.core.exceptions import PermissionDenied, TooManyFilesSent
-from django.db.models import Count, Sum
+from django.db.models import Count, Max, Sum
 from django.db.models.functions import Length, TruncDay
 from django.http import (
     Http404,
@@ -1287,21 +1287,24 @@ class NotificationList(LoginRequiredMixin, ListView):
 
 
 class NotificationRecordList(LoginRequiredMixin, ListView):
-    model = models.NotificationRecord
+    model = models.Post
+    context_object_name = "newsletter_list"
+    template_name = "main/notificationrecord_list.html"
 
     def get_queryset(self):
-        return models.NotificationRecord.objects.filter(
-            notification__blog_user=self.request.user
-        ).select_related("post", "notification", "post__owner")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["notificationrecord_list_sent"] = (
-            context["notificationrecord_list"]
-            .filter(sent_at__isnull=False)
-            .filter(post__isnull=False)  # do not show nr for deleted posts
+        return (
+            models.Post.objects.filter(
+                notificationrecord__notification__blog_user=self.request.user,
+                notificationrecord__sent_at__isnull=False,
+            )
+            .annotate(
+                recipient_count=Count("notificationrecord"),
+                sent_at=Max("notificationrecord__sent_at"),
+            )
+            .select_related("owner")
+            .only("id", "title", "slug", "owner__id", "owner__post_altpath_on")
+            .order_by("-sent_at")
         )
-        return context
 
 
 def _authenticate_postmark_webhook(request):

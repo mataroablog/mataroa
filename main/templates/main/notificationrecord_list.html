@@ -25,20 +25,15 @@
         <strong>Past newsletters:</strong>
     </p>
     <ul>
-        {% regroup notificationrecord_list_sent by post as post_list %}
-        {% for post, notificationrecord_list in post_list %}
+        {% for newsletter in newsletter_list %}
         <li>
-            <a href="{{ post.url_path }}">{{ post.title }}</a>
+            <a href="{{ newsletter.url_path }}">{{ newsletter.title }}</a>
 
             sent at
-            <time datetime="{{ notificationrecord_list.0.sent_at|date:'Y-m-d' }}">
-                {{ notificationrecord_list.0.sent_at|date:'Y-m-d' }}
+            <time datetime="{{ newsletter.sent_at|date:'Y-m-d' }}">
+                {{ newsletter.sent_at|date:'Y-m-d' }}
             </time>
-            to these {{ notificationrecord_list|length }} subscribers:
-
-            {% for nr in notificationrecord_list %}
-            <br>{{ nr.notification.email }}
-            {% endfor %}
+            to {{ newsletter.recipient_count }} subscriber{{ newsletter.recipient_count|pluralize }}.
         </li>
         {% empty %}
         <li><i>No records</i></li>
