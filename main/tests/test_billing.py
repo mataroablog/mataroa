@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import stripe
+from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
@@ -129,6 +130,175 @@ class BillingIndexPremiumTestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, b"Premium Plan")
+
+
+class BillingSubscribeTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice",
+            stripe_customer_id="cus_existing",
+            stripe_subscription_id="sub_existing",
+        )
+        self.client.force_login(self.user)
+        self.subscription = stripe.Subscription.construct_from(
+            {
+                "id": "sub_existing",
+                "status": "incomplete",
+                "latest_invoice": {
+                    "id": "in_existing",
+                    "status": "open",
+                    "confirmation_secret": {"client_secret": "pi_existing_secret"},
+                },
+            },
+            "sk_test",
+        )
+        self.new_subscription = stripe.Subscription.construct_from(
+            {
+                "id": "sub_new",
+                "status": "incomplete",
+                "latest_invoice": {
+                    "id": "in_new",
+                    "status": "open",
+                    "confirmation_secret": {"client_secret": "pi_new_secret"},
+                },
+            },
+            "sk_test",
+        )
+        self.retrieve = self.enterContext(
+            patch.object(
+                stripe.Subscription, "retrieve", return_value=self.subscription
+            )
+        )
+        self.create = self.enterContext(
+            patch.object(
+                stripe.Subscription, "create", return_value=self.new_subscription
+            )
+        )
+        self.create_customer = self.enterContext(
+            patch.object(stripe.Customer, "create", return_value={"id": "cus_new"})
+        )
+        self.enterContext(
+            patch.object(
+                stripe.PaymentIntent,
+                "list",
+                side_effect=AssertionError("Checkout must use its own invoice"),
+            )
+        )
+
+    def assert_replacement_checkout(self):
+        response = self.client.get(reverse("billing_subscribe"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["stripe_client_secret"], "pi_new_secret")
+        self.create.assert_called_once()
+        self.assertEqual(self.create.call_args.kwargs["customer"], "cus_existing")
+        self.assertEqual(
+            self.create.call_args.kwargs["expand"],
+            ["latest_invoice.confirmation_secret"],
+        )
+        self.create_customer.assert_not_called()
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.stripe_customer_id, "cus_existing")
+        self.assertEqual(self.user.stripe_subscription_id, "sub_new")
+        self.assertFalse(self.user.is_premium)
+
+    def test_expired_subscription_is_replaced(self):
+        self.subscription.status = "incomplete_expired"
+        self.assert_replacement_checkout()
+
+    def test_canceled_subscription_is_replaced(self):
+        self.subscription.status = "canceled"
+        self.assert_replacement_checkout()
+
+    def test_missing_subscription_is_replaced(self):
+        self.retrieve.side_effect = stripe.InvalidRequestError(
+            "No such subscription", "id", code="resource_missing"
+        )
+        self.assert_replacement_checkout()
+
+    def test_customer_without_subscription_gets_new_checkout(self):
+        self.user.stripe_subscription_id = None
+        self.user.save()
+        self.assert_replacement_checkout()
+        self.retrieve.assert_not_called()
+
+    def test_first_checkout_creates_customer_and_subscription(self):
+        self.user.stripe_customer_id = None
+        self.user.stripe_subscription_id = None
+        self.user.save()
+
+        response = self.client.get(reverse("billing_subscribe"))
+
+        self.assertEqual(response.status_code, 200)
+        self.create_customer.assert_called_once()
+        self.assertEqual(self.create.call_args.kwargs["customer"], "cus_new")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.stripe_customer_id, "cus_new")
+        self.assertEqual(self.user.stripe_subscription_id, "sub_new")
+
+    def test_incomplete_subscription_reuses_its_invoice_secret(self):
+        response = self.client.get(reverse("billing_subscribe"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["stripe_client_secret"], "pi_existing_secret")
+        self.assertContains(response, "pi_existing_secret")
+        self.create.assert_not_called()
+        self.create_customer.assert_not_called()
+        self.retrieve.assert_called_once_with(
+            "sub_existing", expand=["latest_invoice.confirmation_secret"]
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.stripe_subscription_id, "sub_existing")
+
+    def test_active_subscription_redirects_without_another_payment(self):
+        for status in ("active", "trialing"):
+            with self.subTest(status=status):
+                self.subscription.status = status
+                response = self.client.get(reverse("billing_subscribe"))
+                self.assertRedirects(
+                    response, reverse("billing_overview"), fetch_redirect_response=False
+                )
+        self.create.assert_not_called()
+
+    def test_premium_and_grandfathered_users_do_not_start_checkout(self):
+        for field in ("is_premium", "is_grandfathered"):
+            with self.subTest(field=field):
+                setattr(self.user, field, True)
+                self.user.save()
+                response = self.client.get(reverse("billing_subscribe"))
+                self.assertRedirects(
+                    response, reverse("billing_overview"), fetch_redirect_response=False
+                )
+                setattr(self.user, field, False)
+        self.retrieve.assert_not_called()
+        self.create.assert_not_called()
+        self.create_customer.assert_not_called()
+
+    def test_invalid_stripe_request_does_not_create_another_subscription(self):
+        self.retrieve.side_effect = stripe.InvalidRequestError(
+            "Invalid expansion", "expand", code="parameter_unknown"
+        )
+        with self.assertRaisesMessage(
+            Exception, "Failed to get subscription from Stripe"
+        ):
+            self.client.get(reverse("billing_subscribe"))
+        self.create.assert_not_called()
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.stripe_subscription_id, "sub_existing")
+
+    def test_missing_confirmation_secret_does_not_render_broken_form(self):
+        self.subscription.latest_invoice.confirmation_secret = None
+
+        response = self.client.get(reverse("billing_subscribe"))
+
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.assertIn(
+            "payment form unavailable",
+            str(list(get_messages(response.wsgi_request))[0]),
+        )
+        self.create.assert_not_called()
 
 
 class BillingCardAddTestCase(TestCase):
