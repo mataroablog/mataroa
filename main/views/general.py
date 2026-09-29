@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from email.utils import parseaddr
 
 import stripe
@@ -18,8 +18,9 @@ from django.contrib.auth.views import LogoutView as DjLogoutView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sitemaps.views import sitemap as DjSitemapView
 from django.core import mail, signing
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, TooManyFilesSent
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.db.models.functions import Length, TruncDay
 from django.http import (
     Http404,
@@ -50,6 +51,8 @@ from main.views import billing
 logger = logging.getLogger(__name__)
 
 POSTMARK_WEBHOOK_USERNAME = "postmark"
+TRANSPARENCY_STATS_CACHE_KEY = "transparency:stats:v1"
+TRANSPARENCY_STATS_CACHE_TIMEOUT = 15 * 60
 
 
 @login_required
@@ -1457,47 +1460,43 @@ def methodology(request):
     return render(request, "main/methodology.html")
 
 
-def transparency(request):
-    monthly_revenue = models.User.objects.filter(is_premium=True).count() * 9 / 12
-    published_posts = models.Post.objects.filter(published_at__isnull=False).count()
+def _calculate_transparency_stats():
+    user_counts = models.User.objects.aggregate(
+        users=Count("id"),
+        premium_users=Count("id", filter=Q(is_premium=True)),
+    )
+    post_counts = models.Post.objects.aggregate(
+        posts=Count("id"),
+        published_posts=Count("id", filter=Q(published_at__isnull=False)),
+    )
 
-    zero_users = (
-        models.User.objects.annotate(Count("post")).filter(post__count=0).count()
+    post_owner_counts = models.Post.objects.values("owner_id").annotate(
+        post_count=Count("id")
     )
-    one_users = (
-        models.User.objects.annotate(Count("post")).filter(post__count=1).count()
-    )
-    twoplus_users = (
-        models.User.objects.annotate(Count("post")).filter(post__count__gt=1).count()
-    )
+    one_users = post_owner_counts.filter(post_count=1).count()
+    twoplus_users = post_owner_counts.filter(post_count__gt=1).count()
+    zero_users = user_counts["users"] - one_users - twoplus_users
 
     zero_users_percentage = 0
     one_users_percentage = 0
     twoplus_users_percentage = 0
-    if models.User.objects.all().count() > 0:
-        one_users_percentage = round(
-            one_users * 100 / models.User.objects.all().count()
-        )
-        zero_users_percentage = round(
-            zero_users * 100 / models.User.objects.all().count()
-        )
-        twoplus_users_percentage = round(
-            twoplus_users * 100 / models.User.objects.all().count()
-        )
-
-    updated_posts = models.Post.objects.filter(
-        updated_at__gt=datetime.now() - timedelta(days=30)
-    ).select_related("owner")
-    active_users = len({post.owner.id for post in updated_posts})
+    if user_counts["users"] > 0:
+        one_users_percentage = round(one_users * 100 / user_counts["users"])
+        zero_users_percentage = round(zero_users * 100 / user_counts["users"])
+        twoplus_users_percentage = round(twoplus_users * 100 / user_counts["users"])
 
     one_month_ago = timezone.now() - timedelta(days=30)
-    active_nonnew_users = len(
-        {
-            post.owner.id
-            for post in updated_posts
-            if post.owner.date_joined < one_month_ago
-        }
+    active_user_counts = models.Post.objects.filter(
+        updated_at__gt=one_month_ago
+    ).aggregate(
+        active_users=Count("owner_id", distinct=True),
+        active_nonnew_users=Count(
+            "owner_id",
+            filter=Q(owner__date_joined__lt=one_month_ago),
+            distinct=True,
+        ),
     )
+    monthly_revenue = user_counts["premium_users"] * 9 / 12
     revenue_co2 = monthly_revenue * 0.05
 
     # calc new users and chart data
@@ -1528,28 +1527,40 @@ def transparency(request):
         }
         current_x_offset += 20
 
-    return render(
-        request,
-        "main/transparency.html",
-        {
-            "users": models.User.objects.all().count(),
-            "premium_users": models.User.objects.filter(is_premium=True).count(),
-            "posts": models.Post.objects.all().count(),
-            "pages": models.Page.objects.all().count(),
-            "zero_users": zero_users,
-            "one_users": one_users,
-            "twoplus_users": twoplus_users,
-            "zero_users_percentage": zero_users_percentage,
-            "one_users_percentage": one_users_percentage,
-            "twoplus_users_percentage": twoplus_users_percentage,
-            "active_users": active_users,
-            "active_nonnew_users": active_nonnew_users,
-            "published_posts": published_posts,
-            "monthly_revenue": monthly_revenue,
-            "revenue_co2": revenue_co2,
-            "new_users_per_day": new_users_per_day,
-        },
-    )
+    return {
+        "users": user_counts["users"],
+        "premium_users": user_counts["premium_users"],
+        "posts": post_counts["posts"],
+        "pages": models.Page.objects.count(),
+        "zero_users": zero_users,
+        "one_users": one_users,
+        "twoplus_users": twoplus_users,
+        "zero_users_percentage": zero_users_percentage,
+        "one_users_percentage": one_users_percentage,
+        "twoplus_users_percentage": twoplus_users_percentage,
+        "active_users": active_user_counts["active_users"],
+        "active_nonnew_users": active_user_counts["active_nonnew_users"],
+        "published_posts": post_counts["published_posts"],
+        "monthly_revenue": monthly_revenue,
+        "revenue_co2": revenue_co2,
+        "new_users_per_day": new_users_per_day,
+    }
+
+
+def _get_transparency_stats():
+    stats = cache.get(TRANSPARENCY_STATS_CACHE_KEY)
+    if stats is None:
+        stats = _calculate_transparency_stats()
+        cache.set(
+            TRANSPARENCY_STATS_CACHE_KEY,
+            stats,
+            TRANSPARENCY_STATS_CACHE_TIMEOUT,
+        )
+    return stats
+
+
+def transparency(request):
+    return render(request, "main/transparency.html", _get_transparency_stats())
 
 
 def sitemap(request):
