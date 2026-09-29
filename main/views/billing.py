@@ -617,26 +617,22 @@ class BillingResubscribe(LoginRequiredMixin, View):
                 ],
                 payment_behavior="error_if_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
-                expand=["latest_invoice.payment_intent"],
+                expand=["latest_invoice"],
             )
 
             request.user.stripe_subscription_id = stripe_subscription.get("id")
             request.user.save()
 
-            # check if payment succeeded immediately
+            # Invoice status reflects payment across Stripe's invoice payments.
             latest_invoice = stripe_subscription.get("latest_invoice")
-            if latest_invoice:
-                payment_intent = latest_invoice.get("payment_intent")
-                if payment_intent and payment_intent.get("status") == "succeeded":
-                    _enable_premium(
-                        request.user,
-                        f"New premium resubscriber: {request.user.username}",
-                    )
-                    messages.success(request, self.success_message)
-                else:
-                    messages.info(request, "payment is processing")
+            if latest_invoice and latest_invoice.get("status") == "paid":
+                _enable_premium(
+                    request.user,
+                    f"New premium resubscriber: {request.user.username}",
+                )
+                messages.success(request, self.success_message)
             else:
-                messages.info(request, "payment processing")
+                messages.info(request, "payment is processing")
 
         except stripe.StripeError as ex:
             logger.error("Failed to create resubscription: %s", str(ex))

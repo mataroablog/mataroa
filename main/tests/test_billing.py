@@ -456,9 +456,7 @@ class BillingReenableSubscriptionTestCase(TestCase):
         created_subscription = {
             "id": "sub_456abcdefg",
             "latest_invoice": {
-                "payment_intent": {
-                    "client_secret": "seti_123abc",
-                },
+                "status": "open",
             },
         }
         with (
@@ -487,6 +485,53 @@ class BillingReenableSubscriptionTestCase(TestCase):
             self.assertRedirects(response, reverse("billing_overview"))
             # premium should not be enabled immediately; webhook will enable after successful charge
             self.assertFalse(models.User.objects.get(id=self.user.id).is_premium)
+
+    def test_paid_invoice_enables_premium_without_legacy_payment_intent(self):
+        subscription = stripe.Subscription.construct_from(
+            {
+                "id": "sub_new",
+                "status": "active",
+                "latest_invoice": {"id": "in_new", "status": "paid"},
+            },
+            "sk_test",
+        )
+        with (
+            patch.object(
+                stripe.Subscription, "create", return_value=subscription
+            ) as create,
+            patch.object(billing, "_get_payment_methods", return_value={"pm_card": {}}),
+            patch.object(billing, "mail_admins") as mail_admins,
+        ):
+            response = self.client.post(reverse("billing_resubscribe"))
+
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.assertEqual(create.call_args.kwargs["expand"], ["latest_invoice"])
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_premium)
+        self.assertTrue(self.user.is_approved)
+        self.assertEqual(self.user.stripe_subscription_id, "sub_new")
+        mail_admins.assert_called_once()
+
+    def test_missing_invoice_does_not_enable_premium(self):
+        with (
+            patch.object(
+                stripe.Subscription,
+                "create",
+                return_value={"id": "sub_new", "latest_invoice": None},
+            ),
+            patch.object(billing, "_get_payment_methods", return_value={"pm_card": {}}),
+            patch.object(billing, "mail_admins") as mail_admins,
+        ):
+            response = self.client.post(reverse("billing_resubscribe"))
+
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_premium)
+        mail_admins.assert_not_called()
 
 
 class BillingWebhookTestCase(TestCase):
