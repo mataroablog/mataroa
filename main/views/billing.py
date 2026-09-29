@@ -132,7 +132,7 @@ def _get_stripe_subscription(stripe_subscription_id):
     try:
         stripe_subscription = stripe.Subscription.retrieve(
             stripe_subscription_id,
-            expand=["latest_invoice", "latest_invoice.payment_intent"],
+            expand=["latest_invoice.confirmation_secret"],
         )
     except stripe.InvalidRequestError as ex:
         if ex.code == "resource_missing":
@@ -277,12 +277,15 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
         if stripe_subscription.get("status") in {"active", "trialing"}:
             return redirect("billing_overview")
 
-        payment_intents = stripe.PaymentIntent.list(
-            customer=request.user.stripe_customer_id, limit=1
-        )
-        client_secret = None
-        if payment_intents.data:
-            client_secret = payment_intents.data[0].client_secret
+        latest_invoice = stripe_subscription.get("latest_invoice") or {}
+        confirmation_secret = latest_invoice.get("confirmation_secret") or {}
+        client_secret = confirmation_secret.get("client_secret")
+        if not client_secret:
+            messages.error(
+                request,
+                "payment form unavailable; please try again or contact support",
+            )
+            return redirect("billing_overview")
 
         context = self.get_context_data()
         context["stripe_client_secret"] = client_secret
@@ -303,8 +306,7 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
 def _create_stripe_subscription(customer_id):
     stripe.api_key = settings.STRIPE_API_KEY
 
-    # expand subscription's latest invoice and invoice's payment_intent
-    # so we can pass it to the front end to confirm the payment
+    # Use this subscription's invoice secret to confirm payment in the form.
     try:
         stripe_subscription = stripe.Subscription.create(
             customer=customer_id,
@@ -315,6 +317,7 @@ def _create_stripe_subscription(customer_id):
             ],
             payment_behavior="default_incomplete",
             payment_settings={"save_default_payment_method": "on_subscription"},
+            expand=["latest_invoice.confirmation_secret"],
         )
         logger.info(f"Created subscription: {stripe_subscription.get('id')}")
     except stripe.StripeError as ex:
