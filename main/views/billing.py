@@ -135,8 +135,15 @@ def _get_stripe_subscription(stripe_subscription_id):
             expand=["latest_invoice", "latest_invoice.payment_intent"],
         )
     except stripe.InvalidRequestError as ex:
-        logger.warning("Subscription %s not found: %s", stripe_subscription_id, str(ex))
-        return None
+        if ex.code == "resource_missing":
+            logger.warning(
+                "Subscription %s not found: %s", stripe_subscription_id, str(ex)
+            )
+            return None
+        logger.error(
+            "Failed to get subscription %s: %s", stripe_subscription_id, str(ex)
+        )
+        raise Exception("Failed to get subscription from Stripe.") from ex
     except stripe.StripeError as ex:
         logger.error(
             "Failed to get subscription %s from Stripe: %s",
@@ -230,6 +237,9 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
         return context
 
     def get(self, request, *args, **kwargs):
+        if request.user.is_premium or request.user.is_grandfathered:
+            return redirect("billing_overview")
+
         stripe.api_key = settings.STRIPE_API_KEY
 
         # ensure customer exists
@@ -248,26 +258,24 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
         url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}"
         url += reverse_lazy("billing_welcome")
 
+        stripe_subscription = None
         if request.user.stripe_subscription_id:
             stripe_subscription = _get_stripe_subscription(
                 request.user.stripe_subscription_id
             )
-            # create new subscription if:
-            # * subscription is canceled but webhook was not received (yet)
-            # * stripe fails or returns None
-            if (
-                stripe_subscription.get("status") == "canceled"
-                or stripe_subscription is None
-            ):
-                stripe_subscription = _create_stripe_subscription(
-                    request.user.stripe_customer_id
-                )
-        else:
+        # Expired initial payments cannot be retried on the old subscription.
+        if stripe_subscription is None or stripe_subscription.get("status") in {
+            "canceled",
+            "incomplete_expired",
+        }:
             stripe_subscription = _create_stripe_subscription(
                 request.user.stripe_customer_id
             )
         request.user.stripe_subscription_id = stripe_subscription.get("id")
-        request.user.save()
+        request.user.save(update_fields=["stripe_subscription_id"])
+
+        if stripe_subscription.get("status") in {"active", "trialing"}:
+            return redirect("billing_overview")
 
         payment_intents = stripe.PaymentIntent.list(
             customer=request.user.stripe_customer_id, limit=1
