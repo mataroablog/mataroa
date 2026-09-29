@@ -29,6 +29,7 @@
         <div id="error-message" style="margin-top: 16px; color: red;">
             <!-- error message for users here -->
         </div>
+        <a id="checkout-reload" href="{% url 'billing_subscribe' %}" hidden>Reload checkout</a>
     </form>
 
     <p>
@@ -93,27 +94,40 @@
         const messageContainer = document.querySelector('#error-message');
         messageContainer.textContent = '';
 
-        const { error } = await stripe.confirmPayment({
-            elements,
-            confirmParams: {
-                return_url: '{{ stripe_return_url }}',
-            },
-        });
+        try {
+            const { error } = await stripe.confirmPayment({
+                elements,
+                confirmParams: {
+                    return_url: '{{ stripe_return_url }}',
+                },
+            });
 
-        if (error) {
-            // This point will only be reached if there is an immediate error when
-            // confirming the payment. Show error to your customer (for example, payment
-            // details incomplete)
-            messageContainer.textContent = error.message;
+            if (error) {
+                let paymentIntent = error.payment_intent;
+                if (!paymentIntent) {
+                    // Some confirmation errors omit the payment's current status.
+                    try {
+                        const result = await stripe.retrievePaymentIntent(options.clientSecret);
+                        paymentIntent = result.paymentIntent;
+                    } catch {
+                        // Keep the original error if the status lookup is unavailable.
+                    }
+                }
+
+                if (paymentIntent && paymentIntent.status === 'canceled') {
+                    messageContainer.textContent = 'This checkout expired. Reload to try again.';
+                    document.getElementById('checkout-reload').hidden = false;
+                    document.getElementById('submit').disabled = true;
+                } else {
+                    messageContainer.textContent = error.message;
+                }
+            }
+        } catch {
+            messageContainer.textContent = 'Unable to contact the payment processor. Please try again.';
+        } finally {
             loadingContainer.textContent = '';
-        } else {
-            // Your customer will be redirected to your `return_url`. For some payment
-            // methods like iDEAL, your customer will be redirected to an intermediate
-            // site first to authorize the payment, then redirected to the `return_url`.
+            form.removeAttribute('data-submitting');
         }
-
-        // remove [data-submitting] attribute
-        form.removeAttribute('data-submitting');
     });
 </script>
 {% endblock scripts %}
