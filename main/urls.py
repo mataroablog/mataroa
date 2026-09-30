@@ -37,7 +37,7 @@ urlpatterns += [
         name="user_create",
     ),
     path(
-        "accounts/humanity-diagnostics/<uuid:onboard_code>/",
+        "accounts/welcome/<uuid:onboard_code>/",
         general.UserCreateStepTwo.as_view(),
         name="user_create_step_two",
     ),
