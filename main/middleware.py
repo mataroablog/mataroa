@@ -93,7 +93,10 @@ def host_middleware(get_response):
                     and request.user.username != request.subdomain
                 ):
                     # user has retired their mataroa blog, redirect to new domain
-                    if request.blog_user.redirect_domain:
+                    if (
+                        request.blog_user.redirect_domain
+                        and request.blog_user.has_redirect_features
+                    ):
                         return _redirect_to_domain(
                             request.blog_user.redirect_domain,
                             _retired_blog_path(request.path_info),
@@ -126,7 +129,10 @@ def host_middleware(get_response):
 
             # if user has retired their mataroa blog (and keeps the custom domain)
             # redirect to new domain
-            if request.blog_user.redirect_domain:
+            if (
+                request.blog_user.redirect_domain
+                and request.blog_user.has_redirect_features
+            ):
                 return _redirect_to_domain(
                     request.blog_user.redirect_domain,
                     _retired_blog_path(request.path_info),

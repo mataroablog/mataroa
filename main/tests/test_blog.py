@@ -132,7 +132,9 @@ class BlogRetiredRedirTestCase(TestCase):
     """
 
     def setUp(self):
-        self.user = models.User.objects.create(username="alice")
+        self.user = models.User.objects.create(
+            username="alice", is_redirect_grandfathered=True
+        )
         self.user.blog_title = "Blog of Alice"
         self.user.redirect_domain = "example.com"
         self.user.save()
@@ -161,7 +163,9 @@ class BlogRetiredRedirProtocolTestCase(TestCase):
     """
 
     def setUp(self):
-        self.user = models.User.objects.create(username="alice")
+        self.user = models.User.objects.create(
+            username="alice", is_redirect_grandfathered=True
+        )
         self.user.blog_title = "Blog of Alice"
         self.user.redirect_domain = "http://example.com"
         self.user.save()
@@ -187,6 +191,7 @@ class BlogRetiredCustomDomainRedirectTestCase(TestCase):
             username="alice",
             custom_domain="old.example.com",
             redirect_domain="new.example.com",
+            is_redirect_grandfathered=True,
         )
 
     def test_blog_path_redirect(self):
@@ -211,6 +216,71 @@ class BlogRetiredCustomDomainRedirectTestCase(TestCase):
             with self.subTest(path=path):
                 response = self.client.get(path, HTTP_HOST=self.user.custom_domain)
                 self.assertEqual(response.status_code, 400)
+
+
+class BlogRedirectAccessTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice",
+            custom_domain="old.example.com",
+            redirect_domain="new.example.com",
+        )
+        self.hosts = (
+            f"{self.user.username}.{settings.CANONICAL_HOST}",
+            self.user.custom_domain,
+        )
+
+    def test_free_user_saved_redirect_is_not_served(self):
+        response = self.client.get("/", HTTP_HOST=self.hosts[0])
+        # The separate custom-domain redirect still works.
+        self.assertEqual(response.url, f"{scheme.get_protocol()}//old.example.com/")
+        response = self.client.get("/", HTTP_HOST=self.hosts[1])
+        self.assertEqual(response.status_code, 200)
+
+        self.user.custom_domain = None
+        self.user.save()
+        response = self.client.get("/", HTTP_HOST=self.hosts[0])
+        self.assertEqual(response.status_code, 200)
+
+    def test_eligible_blog_redirects_on_both_hosts(self):
+        for eligibility in (
+            "is_premium",
+            "is_grandfathered",
+            "is_redirect_grandfathered",
+        ):
+            models.User.objects.filter(pk=self.user.pk).update(
+                is_premium=eligibility == "is_premium",
+                is_grandfathered=eligibility == "is_grandfathered",
+                is_redirect_grandfathered=eligibility == "is_redirect_grandfathered",
+            )
+            for host in self.hosts:
+                with self.subTest(eligibility=eligibility, host=host):
+                    response = self.client.get("/blog/welcome-post/", HTTP_HOST=host)
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(
+                        response.url,
+                        f"{scheme.get_protocol()}//new.example.com/welcome-post/",
+                    )
+
+    def test_redirect_stops_on_downgrade_and_resumes_on_upgrade(self):
+        for is_premium in (True, False, True):
+            self.user.is_premium = is_premium
+            self.user.save()
+            with self.subTest(is_premium=is_premium):
+                response = self.client.get("/", HTTP_HOST=self.user.custom_domain)
+                self.assertEqual(response.status_code, 302 if is_premium else 200)
+                if is_premium:
+                    self.assertEqual(
+                        response.url, f"{scheme.get_protocol()}//new.example.com"
+                    )
+
+    def test_visitors_premium_status_does_not_enable_blog_redirect(self):
+        visitor = models.User.objects.create(username="bob", is_premium=True)
+        self.client.force_login(visitor)
+
+        response = self.client.get("/", HTTP_HOST=self.user.custom_domain)
+
+        self.assertEqual(response.status_code, 200)
 
 
 class BlogImportTestCase(TestCase):

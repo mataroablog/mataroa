@@ -240,6 +240,93 @@ class UserUpdateTestCase(TestCase):
         self.assertEqual(updated_user.email, data["email"])
 
 
+class UserUpdateRedirectTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.client.force_login(self.user)
+
+    def test_free_user_does_not_see_redirect_field(self):
+        response = self.client.get(reverse("user_update"))
+
+        self.assertNotIn("redirect_domain", response.context["form"].fields)
+        self.assertNotContains(response, "Redirect domain")
+        self.assertNotContains(response, 'name="redirect_domain"')
+
+    def test_free_user_cannot_submit_redirect_or_grandfathering(self):
+        response = self.client.post(
+            reverse("user_update"),
+            {
+                "username": self.user.username,
+                "redirect_domain": "example.com",
+                "is_redirect_grandfathered": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.redirect_domain)
+        self.assertFalse(self.user.is_redirect_grandfathered)
+
+    def test_eligible_users_can_configure_redirects(self):
+        for eligibility in (
+            "is_premium",
+            "is_grandfathered",
+            "is_redirect_grandfathered",
+        ):
+            with self.subTest(eligibility=eligibility):
+                models.User.objects.filter(pk=self.user.pk).update(
+                    is_premium=eligibility == "is_premium",
+                    is_grandfathered=eligibility == "is_grandfathered",
+                    is_redirect_grandfathered=eligibility
+                    == "is_redirect_grandfathered",
+                )
+                response = self.client.get(reverse("user_update"))
+                self.assertContains(response, 'name="redirect_domain"')
+
+                response = self.client.post(
+                    reverse("user_update"),
+                    {"username": self.user.username, "redirect_domain": "example.com"},
+                )
+                self.assertEqual(response.status_code, 302)
+                self.user.refresh_from_db()
+                self.assertEqual(self.user.redirect_domain, "example.com")
+
+                response = self.client.post(
+                    reverse("user_update"),
+                    {"username": self.user.username, "redirect_domain": ""},
+                )
+                self.assertEqual(response.status_code, 302)
+                self.user.refresh_from_db()
+                self.assertFalse(self.user.redirect_domain)
+
+    def test_expired_premium_hides_field_and_preserves_destination(self):
+        self.user.is_premium = True
+        self.user.redirect_domain = "example.com"
+        self.user.save()
+        self.assertContains(
+            self.client.get(reverse("user_update")), 'name="redirect_domain"'
+        )
+
+        self.user.is_premium = False
+        self.user.save()
+        response = self.client.get(reverse("user_update"))
+        self.assertNotContains(response, 'name="redirect_domain"')
+        self.assertNotContains(response, "currently retired and inaccessible")
+
+        response = self.client.post(
+            reverse("user_update"),
+            {
+                "username": self.user.username,
+                "blog_title": "Updated title",
+                "redirect_domain": "other.example.com",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.blog_title, "Updated title")
+        self.assertEqual(self.user.redirect_domain, "example.com")
+
+
 class UserUpdateDisallowedTestCase(TestCase):
     def setUp(self):
         self.user = models.User.objects.create(username="alice")

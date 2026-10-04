@@ -54,7 +54,7 @@
         </nav>
         {% endif %}
 
-        {% if request.user.redirect_domain %}
+        {% if request.user.redirect_domain and request.user.has_redirect_features %}
         <aside class="type-delete">
             <div>
                 Your mataroa blog (<code>{{ request.user.username }}.mataroa.blog</code>) is

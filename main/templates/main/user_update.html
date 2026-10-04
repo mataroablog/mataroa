@@ -147,6 +147,7 @@
             <span class="helptext">{{ form.mail_export_on.help_text }}</span>
         </p>
 
+        {% if form.redirect_domain %}
         <p>
             <label for="id_redirect_domain">Redirect domain</label>
             {% if form.redirect_domain.errors %}
@@ -157,6 +158,7 @@
             <input type="text" name="redirect_domain" id="id_redirect_domain" maxlength="150" value="{{ form.redirect_domain.value|default_if_none:'' }}">
             <span class="helptext">{{ form.redirect_domain.help_text }}</span>
         </p>
+        {% endif %}
 
         {% csrf_token %}
         <input type="submit" value="Save">

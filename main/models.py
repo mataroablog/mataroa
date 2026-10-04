@@ -65,6 +65,10 @@ class User(AbstractUser):
         help_text="Retiring your mataroa blog? We can redirect to your new domain.",
         validators=[validators.validate_domain_name],
     )
+    is_redirect_grandfathered = models.BooleanField(
+        default=False,
+        help_text="Keep redirect access for accounts created before premium was required.",
+    )
     custom_domain = models.CharField(
         max_length=150,
         blank=True,
@@ -175,6 +179,10 @@ class User(AbstractUser):
     @property
     def has_premium_features(self):
         return self.is_premium or self.is_grandfathered
+
+    @property
+    def has_redirect_features(self):
+        return self.has_premium_features or self.is_redirect_grandfathered
 
     @property
     def class_status(self):

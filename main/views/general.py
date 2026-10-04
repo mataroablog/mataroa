@@ -246,6 +246,12 @@ class UserUpdate(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     def get_object(self):
         return self.request.user
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if not self.request.user.has_redirect_features:
+            del form.fields["redirect_domain"]
+        return form
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["CUSTOM_DOMAIN_IP"] = settings.CUSTOM_DOMAIN_IP
