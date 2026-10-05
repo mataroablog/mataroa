@@ -220,6 +220,22 @@ class APIListPostTestCase(TestCase):
         self.assertEqual(post.title, "First Post")
         self.assertEqual(post.body, "before controlsurrogate")
 
+    def test_posts_post_invalid_published_at(self):
+        for value in (20261005, 0, 1.5, True, False, [], ["2026-10-05"], {}, "invalid"):
+            with self.subTest(published_at=value):
+                response = self.client.post(
+                    reverse("api_posts"),
+                    HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+                    content_type="application/json",
+                    data={"title": "First Post", "published_at": value},
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json(), {"ok": False, "message": "Input data invalid."}
+                )
+                self.assertEqual(models.Post.objects.count(), 0)
+
     def test_posts_post_other_owner(self):
         user_b = models.User.objects.create(username="bob")
         data = {
@@ -371,6 +387,59 @@ class APIListPatchTestCase(TestCase):
         post.refresh_from_db()
         self.assertEqual(post.title, "New title")
         self.assertEqual(post.body, "before controlsurrogate")
+
+    def test_post_patch_invalid_published_at(self):
+        post = models.Post.objects.create(
+            owner=self.user,
+            title="Hello world",
+            slug="hello-world",
+            body="Original body",
+            published_at=date(2020, 7, 2),
+        )
+        for value in (20261005, 0, 1.5, True, False, [], ["2026-10-05"], {}, "invalid"):
+            with self.subTest(published_at=value):
+                response = self.client.patch(
+                    reverse("api_post", args=(post.slug,)),
+                    HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+                    content_type="application/json",
+                    data={
+                        "title": "New title",
+                        "slug": "new-slug",
+                        "body": "New body",
+                        "published_at": value,
+                    },
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json(), {"ok": False, "message": "Input data invalid."}
+                )
+                post.refresh_from_db()
+                self.assertEqual(post.title, "Hello world")
+                self.assertEqual(post.slug, "hello-world")
+                self.assertEqual(post.body, "Original body")
+                self.assertEqual(post.published_at, date(2020, 7, 2))
+
+    def test_post_patch_unpublish(self):
+        for value in (None, ""):
+            with self.subTest(published_at=value):
+                post = models.Post.objects.create(
+                    owner=self.user,
+                    title="Hello world",
+                    slug="hello-world",
+                    published_at=date(2020, 7, 2),
+                )
+                response = self.client.patch(
+                    reverse("api_post", args=(post.slug,)),
+                    HTTP_AUTHORIZATION=f"Bearer {self.user.api_key}",
+                    content_type="application/json",
+                    data={"published_at": value},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                post.refresh_from_db()
+                self.assertIsNone(post.published_at)
+                post.delete()
 
     def test_post_patch_nonexistent_post(self):
         response = self.client.get(

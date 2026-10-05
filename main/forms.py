@@ -64,13 +64,22 @@ class ResetAPIKeyForm(forms.Form):
     """Reset user's api_key field."""
 
 
+class APIDateField(forms.DateField):
+    """Validate JSON date values before Django parses them."""
+
+    def to_python(self, value):
+        if value is not None and not isinstance(value, str):
+            raise forms.ValidationError(self.error_messages["invalid"], code="invalid")
+        return super().to_python(value)
+
+
 class APIPost(forms.Form):
     """Form for Post resource when accessed from the API."""
 
     title = forms.CharField(max_length=300, required=False)
     slug = forms.SlugField(max_length=300, required=False)
     body = forms.CharField(widget=forms.Textarea, required=False)
-    published_at = forms.DateField(required=False)
+    published_at = APIDateField(required=False)
 
 
 class APIPage(forms.Form):
