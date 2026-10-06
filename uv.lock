@@ -182,16 +182,16 @@ wheels = [
 
 [[package]]
 name = "django"
-version = "6.0.6"
+version = "6.0.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "sqlparse" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/78/29/ac41e16097af67066d97a7d5775c5d8e7efc5d0284f6b0a159e07b9adb92/django-6.0.6.tar.gz", hash = "sha256:ad03916ba59523d781ae5c3f631960c23d69a9d9c43cecda52fc23b47e953713", size = 10905525, upload-time = "2026-06-03T13:02:46.503Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/1f/e4c69ec67bedee10428875a44b8b4554d0448a264b50298bfa63d2162708/django-6.0.9.tar.gz", hash = "sha256:8ce037c971f421cfb47d38c097ca233a8f6dd42d9e9501a37e02dd7d08c5cb3f", size = 10955325, upload-time = "2026-10-06T12:57:57.479Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/50/23f9dc45483419a3cc2085b498b25adfbf10642b2941c73e6d2dfaffc9ab/django-6.0.6-py3-none-any.whl", hash = "sha256:25148b1194c47c2e685e5f5e9c5d59c78b075dfd282cb9618861ba6c1708f4d2", size = 8373354, upload-time = "2026-06-03T13:02:41.72Z" },
+    { url = "https://files.pythonhosted.org/packages/01/3f/f0378bc671b528caf61b143ba91c1057204a7e863d9a309d62a64203f9c4/django-6.0.9-py3-none-any.whl", hash = "sha256:5c6473d05bbea9c43359cc36701b5deec3c925f5311963786e1346544c1a68c0", size = 8377504, upload-time = "2026-10-06T12:57:52.649Z" },
 ]
 
 [[package]]
@@ -248,7 +248,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bleach", extras = ["css"], specifier = ">=6.2.0" },
-    { name = "django", specifier = ">=6.0" },
+    { name = "django", specifier = ">=6.0.9" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "markdown", specifier = ">=3.9" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
