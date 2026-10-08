@@ -16,7 +16,7 @@ No delete, unpublish, live-post edits, page writes, moderation, image upload, or
 
 ChatGPT → OAuth-protected Streamable HTTP `/mcp` → verified token subject → owner-scoped Django ORM.
 
-[Django OAuth Toolkit](https://django-oauth-toolkit.readthedocs.io/) handles authorization code + S256 PKCE, consent, opaque hashed tokens, refresh rotation, and revocation. The plugin limits the provider to explicitly allowlisted, pre-registered clients and one exact MCP resource. It does not store users' Mataroa API keys, pass MCP tokens to the REST API, or share a global blog account.
+Mataroa’s own Django views and three models handle authorization code + S256 PKCE, consent, opaque hashed tokens, refresh rotation, and revocation. The implementation supports explicitly allowlisted, pre-registered clients and one exact MCP resource. There is no OAuth framework dependency. It does not store users' Mataroa API keys, pass MCP tokens to the REST API, or share a global blog account.
 
 Permissions are independent: `blog:read`, `drafts:write`, and `posts:publish`. Every operation enforces scopes in code. OAuth consent grants access, not permission to publish arbitrary content. ChatGPT's tool approval and the packaged workflow handle the user's authorization for each publication; tool annotations and a fingerprint are not proof of human approval by themselves.
 
@@ -51,7 +51,7 @@ uv run ruff check
 uv run ruff format --check
 ```
 
-Tests use disposable SQLite databases and fabricated credentials only. They do not connect to a real Mataroa account. CI runs the same Django suite on PostgreSQL, including three row-lock race tests. Repeat these checks on the deployment's database version; SQLite alone cannot validate row-lock scheduling. See [Verification](docs/verification.md).
+Tests use disposable SQLite databases and fabricated credentials only. They do not connect to a real Mataroa account. CI runs the same Django suite on PostgreSQL, including publication and OAuth row-lock race tests. Repeat these checks on the deployment's database version; SQLite alone cannot validate row-lock scheduling. See [Verification](docs/verification.md).
 
 ## Deployment and ChatGPT connection
 

@@ -15,22 +15,17 @@ from main.models import Post, User
 if not settings.MATAROA_CHATGPT_ENABLED:
     raise SkipTest("Enable the ChatGPT integration to run OAuth tests.")
 
-from oauth2_provider.models import (  # noqa: E402
-    AccessToken,
-    Application,
-    set_token_value,
-)
+from main.models import OAuthClient, OAuthGrant, OAuthToken  # noqa: E402
+from mataroa.oauth import token_hash  # noqa: E402
 
 
 class HTTPIntegrationTests(TransactionTestCase):
     def setUp(self):
-        self.app = Application.objects.create(
+        self.app = OAuthClient.objects.create(
             client_id="test-chatgpt",
-            client_type=Application.CLIENT_PUBLIC,
-            authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+            client_type="public",
             redirect_uris="https://chatgpt.com/connector_platform_oauth_redirect",
             name="ChatGPT test",
-            skip_authorization=False,
         )
         self.alice = User.objects.create_user(username="alice")
         self.bob = User.objects.create_user(username="bob")
@@ -54,15 +49,25 @@ class HTTPIntegrationTests(TransactionTestCase):
             ("bob", self.bob, "blog:read"),
         ]:
             value = f"disposable-{name}-integration-token"
-            access = AccessToken(
-                application=self.app,
+            grant = OAuthGrant.objects.create(
+                client=self.app,
                 user=user,
-                expires=timezone.now() + timedelta(hours=1),
                 scope=scope,
-                resource=["https://mataroa.blog/mcp"],
+                resource="https://mataroa.blog/mcp",
+                redirect_uri=self.app.redirect_uris,
+                code_hash=token_hash(f"code-{name}"),
+                code_challenge="x" * 43,
+                code_expires=timezone.now(),
+                consumed=True,
             )
-            set_token_value(access, value)
-            access.save()
+            OAuthToken.objects.create(
+                grant=grant,
+                scope=scope,
+                access_hash=token_hash(value),
+                refresh_hash=token_hash(f"refresh-{name}"),
+                access_expires=timezone.now() + timedelta(hours=1),
+                refresh_expires=timezone.now() + timedelta(days=30),
+            )
             self.tokens[name] = value
 
     async def request(self, user, name, args):
@@ -143,12 +148,12 @@ class HTTPIntegrationTests(TransactionTestCase):
         self.assertIsNone(self.bob_post.published_at)
 
     def test_revocation_blocks_next_http_request(self):
-        AccessToken.objects.filter(user=self.alice).delete()
+        OAuthGrant.objects.filter(user=self.alice).delete()
         result = async_to_sync(self.request)("alice", "list_posts", {})
         self.assertEqual(result.status_code, 401)
 
     def test_mcp_route_cleans_up_database_connections_on_auth_rejection(self):
-        AccessToken.objects.filter(user=self.alice).delete()
+        OAuthGrant.objects.filter(user=self.alice).delete()
         with patch("django.db.close_old_connections") as cleanup:
             result = async_to_sync(self.request)("alice", "list_posts", {})
         self.assertEqual(result.status_code, 401)

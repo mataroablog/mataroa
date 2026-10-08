@@ -4,7 +4,7 @@ from django.urls import path
 
 from .oauth import MataroaAuthorizationView, MataroaRevokeTokenView, MataroaTokenView
 
-app_name = "oauth2_provider"
+app_name = "oauth"
 urlpatterns = [
     path("authorize/", MataroaAuthorizationView.as_view(), name="authorize"),
     path("token/", MataroaTokenView.as_view(), name="token"),

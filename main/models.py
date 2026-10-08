@@ -477,3 +477,87 @@ class Onboard(models.Model):
 
     def __str__(self):
         return f"Code: {self.code} - {self.user.username}"
+
+
+class OAuthClient(models.Model):
+    """Operator-registered client for Mataroa's authorization-code flow."""
+
+    client_id = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
+    client_type = models.CharField(
+        max_length=12, choices=[("public", "Public"), ("confidential", "Confidential")]
+    )
+    secret_hash = models.CharField(max_length=255, blank=True)
+    redirect_uris = models.TextField(
+        help_text="Exact HTTPS callback URLs, one per line."
+    )
+
+    def __str__(self):
+        return self.name
+
+    def set_secret(self, value):
+        from django.contrib.auth.hashers import make_password
+
+        self.secret_hash = make_password(value)
+
+    def allowed_redirects(self):
+        from urllib.parse import urlsplit
+
+        redirects = self.redirect_uris.split()
+        try:
+            for uri in redirects:
+                parsed = urlsplit(uri)
+                if (
+                    len(uri) > 2048
+                    or parsed.scheme != "https"
+                    or not parsed.hostname
+                    or (parsed.port is not None and not 1 <= parsed.port <= 65535)
+                    or parsed.username
+                    or parsed.password
+                    or parsed.fragment
+                    or "*" in uri
+                    or "\\" in uri
+                    or any(ord(char) < 33 or ord(char) > 126 for char in uri)
+                ):
+                    return []
+        except ValueError:
+            return []
+        return redirects
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if not self.allowed_redirects():
+            raise ValidationError(
+                {"redirect_uris": "Provide exact HTTPS callback URLs."}
+            )
+
+
+class OAuthGrant(models.Model):
+    """Consent, a single-use code, and the lock shared by its token family."""
+
+    client = models.ForeignKey(OAuthClient, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    scope = models.CharField(max_length=100)
+    resource = models.URLField(max_length=2048)
+    redirect_uri = models.URLField(max_length=2048)
+    code_hash = models.CharField(max_length=64, unique=True)
+    code_challenge = models.CharField(max_length=43)
+    code_expires = models.DateTimeField()
+    consumed = models.BooleanField(default=False)
+    revoked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class OAuthToken(models.Model):
+    """One access/refresh pair. Retain rotated hashes to detect refresh replay."""
+
+    grant = models.ForeignKey(
+        OAuthGrant, on_delete=models.CASCADE, related_name="tokens"
+    )
+    access_hash = models.CharField(max_length=64, unique=True)
+    refresh_hash = models.CharField(max_length=64, unique=True)
+    scope = models.CharField(max_length=100)
+    access_expires = models.DateTimeField()
+    refresh_expires = models.DateTimeField()
+    revoked = models.BooleanField(default=False)
