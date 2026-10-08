@@ -210,7 +210,7 @@ class Library {
     const more = element('load-more');
     more.hidden = this.offset >= this.total || this.posts.length === 0;
     more.disabled = !this.connected;
-    element('footer-label').textContent = !more.hidden ? `Showing ${this.posts.length.toLocaleString()} of ${this.total.toLocaleString()}` : 'Your words, a little closer.';
+    element('footer-label').textContent = !more.hidden ? `Showing ${this.posts.length.toLocaleString()} of ${this.total.toLocaleString()}` : '';
   }
   listError(message, retry) {
     this.errorMessage = message;
