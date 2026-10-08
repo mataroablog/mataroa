@@ -14,7 +14,7 @@ const template = await readFile(path.join(root, 'web/index.html'), 'utf8');
 const html = template
   .replace('<!-- APP_STYLES -->', () => `<style>${style.replaceAll('</style', '<\\/style')}</style>`)
   .replace('<!-- APP_SCRIPT -->', () => `<script type="module">${script.replaceAll('</script', '<\\/script')}</script>`);
-const destination = path.join(root, 'src/mataroa_chatgpt/static/library.html');
+const destination = path.join(root, '../../main/mcp/library.html');
 await mkdir(path.dirname(destination), { recursive: true });
 // Normalize blank lines emitted by bundled dependency styles.
 await writeFile(destination, html.replace(/^[ \t]+$/gm, ''));

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-const html = await readFile(new URL('../../src/mataroa_chatgpt/static/library.html', import.meta.url), 'utf8');
+const html = await readFile(new URL('../../../../main/mcp/library.html', import.meta.url), 'utf8');
 const post = { title: 'Bridge fixture', slug: 'bridge-fixture', published_at: '2024-01-01', url: 'https://example.mataroa.blog/blog/bridge-fixture/', excerpt: 'A local protocol test.' };
 const initial = { content: [], structuredContent: { posts: [post], total: 1 } };
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));

@@ -1,14 +1,25 @@
 """Real ASGI transport → OAuth verifier → tenant-scoped ORM tools."""
 
 from datetime import timedelta
+from unittest import SkipTest
 from unittest.mock import patch
 
 import httpx
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.test import TransactionTestCase
 from django.utils import timezone
+
 from main.models import Post, User
-from oauth2_provider.models import AccessToken, Application, set_token_value
+
+if not settings.MATAROA_CHATGPT_ENABLED:
+    raise SkipTest("Enable the ChatGPT integration to run OAuth tests.")
+
+from oauth2_provider.models import (  # noqa: E402
+    AccessToken,
+    Application,
+    set_token_value,
+)
 
 
 class HTTPIntegrationTests(TransactionTestCase):
@@ -31,7 +42,11 @@ class HTTPIntegrationTests(TransactionTestCase):
             published_at=None,
         )
         self.bob_post = Post.objects.create(
-            owner=self.bob, title="Bob private", slug="shared", body="Bob only", published_at=None
+            owner=self.bob,
+            title="Bob private",
+            slug="shared",
+            body="Bob only",
+            published_at=None,
         )
         self.tokens = {}
         for name, user, scope in [
@@ -58,24 +73,27 @@ class HTTPIntegrationTests(TransactionTestCase):
         # Simulate a fresh ASGI worker for this short-lived test event loop.
         runtime = reload(mataroa.asgi)
         application, mcp_application = runtime.application, runtime.mcp_application
-        async with mcp_application.router.lifespan_context(mcp_application):
-            async with httpx.AsyncClient(
-                transport=httpx.ASGITransport(application), base_url="https://mataroa.blog"
-            ) as client:
-                return await client.post(
-                    "/mcp",
-                    headers={
-                        "Authorization": f"Bearer {self.tokens[user]}",
-                        "Accept": "application/json, text/event-stream",
-                        "MCP-Protocol-Version": "2025-11-25",
-                    },
-                    json={
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "tools/call",
-                        "params": {"name": name, "arguments": args},
-                    },
-                )
+        async with (
+            mcp_application.router.lifespan_context(mcp_application),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(application),
+                base_url="https://mataroa.blog",
+            ) as client,
+        ):
+            return await client.post(
+                "/mcp",
+                headers={
+                    "Authorization": f"Bearer {self.tokens[user]}",
+                    "Accept": "application/json, text/event-stream",
+                    "MCP-Protocol-Version": "2025-11-25",
+                },
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": name, "arguments": args},
+                },
+            )
 
     def call(self, user, name, args):
         result = async_to_sync(self.request)(user, name, args)
@@ -96,7 +114,9 @@ class HTTPIntegrationTests(TransactionTestCase):
             {
                 "slug": "shared",
                 "published_at": "2026-10-08",
-                "expected_content_sha256": read["structuredContent"]["post"]["content_sha256"],
+                "expected_content_sha256": read["structuredContent"]["post"][
+                    "content_sha256"
+                ],
             },
         )
         self.assertTrue(denied["isError"])
@@ -111,7 +131,9 @@ class HTTPIntegrationTests(TransactionTestCase):
             {
                 "slug": "shared",
                 "published_at": "2026-10-08",
-                "expected_content_sha256": read["structuredContent"]["post"]["content_sha256"],
+                "expected_content_sha256": read["structuredContent"]["post"][
+                    "content_sha256"
+                ],
             },
         )
         self.assertTrue(result["structuredContent"]["ok"])

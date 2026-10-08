@@ -7,7 +7,7 @@ These are operator steps, not actions already performed by the build. Use a stag
 The MCP server is part of Mataroa's ASGI application, alongside the existing Django views. The default WSGI server does **not** expose `/mcp`.
 
 ```sh
-uv sync --extra chatgpt --all-groups
+uv sync --all-groups
 ```
 
 Set these deployment variables through the deployment's normal configuration system:
@@ -18,14 +18,14 @@ Set these deployment variables through the deployment's normal configuration sys
 
 The resource identifier is derived as the exact issuer plus `/mcp`. There is no Mataroa API key variable. Normal Mataroa database/session/email settings still apply. Never put real credentials into source files, sample manifests, chat, or build artifacts.
 
-For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. The workflow always installs the `chatgpt` extra so later deployments retain its dependencies, while the enable flag defaults to `0`.
+For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. MCP dependencies are included in the main project installation. The enable flag defaults to `0`.
 
 Enabling the integration loads Django OAuth Toolkit's installed app, migrations, and static assets. Run these commands with the deployment variables above set, before starting or reloading the service:
 
 ```sh
-uv run --extra chatgpt python manage.py migrate
-uv run --extra chatgpt python manage.py collectstatic --no-input
-uv run --extra chatgpt python manage.py check
+uv run python manage.py migrate
+uv run python manage.py collectstatic --no-input
+uv run python manage.py check
 ```
 
 Static collection must run with `MATAROA_CHATGPT_ENABLED=1` so the consent stylesheet is included in the production static manifest. Without it, the authorization screen returns HTTP 500 with a missing manifest entry.
@@ -33,7 +33,7 @@ Static collection must run with `MATAROA_CHATGPT_ENABLED=1` so the consent style
 Run an ASGI worker behind the existing HTTPS reverse proxy, for example:
 
 ```sh
-uv run --extra chatgpt uvicorn mataroa.asgi:application \
+uv run uvicorn mataroa.asgi:application \
   --host 127.0.0.1 --port 8000 --no-access-log \
   --proxy-headers --forwarded-allow-ips=127.0.0.1
 ```

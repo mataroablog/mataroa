@@ -12,7 +12,7 @@ export async function createPreviewServer(port = 4173) {
       else if (url.pathname === '/fixture-host.js') { res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }); res.end(await readFile(path.join(root, 'web/fixture-host.js'))); }
       else if (url.pathname === '/library.html') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'; img-src data:" });
-        res.end(await readFile(path.join(root, 'src/mataroa_chatgpt/static/library.html')));
+        res.end(await readFile(path.join(root, '../../main/mcp/library.html')));
       } else { res.writeHead(404); res.end('Not found'); }
     } catch { res.writeHead(500); res.end('Run npm run build before previewing.'); }
   });

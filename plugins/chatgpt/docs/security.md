@@ -18,7 +18,7 @@ Read permission is required at transport and tool level. Write permissions are i
 
 Queries filter posts/pages by owner and comments by post owner. Same slugs on different blogs are resolved within the authenticated account. Foreign-only resources return a generic not-found error. Comment email addresses are deferred at ORM retrieval and removed again at the MCP layer. Post bodies are never interpreted as instructions or executable HTML by the UI.
 
-No API keys are used by the official server. The optional standalone REST client keeps keys redacted and rejects redirect forwarding, path traversal, oversized responses, and invalid URLs. It is not wired into production MCP and must not be substituted for the user-scoped ORM backend.
+The MCP tools use the owner-scoped Django ORM backend directly. No API keys or REST adapter are involved.
 
 ## Writes
 

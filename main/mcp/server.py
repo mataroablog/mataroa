@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import argparse
 from collections.abc import Callable
 from datetime import date
-from importlib.resources import files
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from mcp.server.apps import APP_MIME_TYPE, Apps
@@ -28,7 +27,7 @@ from openai_mcp_extensions import (
 )
 from pydantic import Field
 
-from .client import MataroaError
+from .backend import MataroaError
 
 READ = "blog:read"
 DRAFTS = "drafts:write"
@@ -50,13 +49,22 @@ ICON = Icon(
     mime_type="image/svg+xml",
 )
 READ_ANNOTATIONS = ToolAnnotations(
-    read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+    read_only_hint=True,
+    destructive_hint=False,
+    idempotent_hint=True,
+    open_world_hint=False,
 )
 WRITE_ANNOTATIONS = ToolAnnotations(
-    read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False
+    read_only_hint=False,
+    destructive_hint=False,
+    idempotent_hint=False,
+    open_world_hint=False,
 )
 PUBLISH_ANNOTATIONS = ToolAnnotations(
-    read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=True
+    read_only_hint=False,
+    destructive_hint=True,
+    idempotent_hint=False,
+    open_world_hint=True,
 )
 
 
@@ -67,19 +75,28 @@ def _meta(*scopes: str) -> dict[str, Any]:
 def _status(post: dict[str, Any]) -> str:
     if not post.get("published_at"):
         return "draft"
-    return "scheduled" if post["published_at"] > date.today().isoformat() else "published"
+    return (
+        "scheduled" if post["published_at"] > date.today().isoformat() else "published"
+    )
 
 
-def _post_list(posts: list[dict[str, Any]], query: str, status: Status, limit: int, offset: int):
+def _post_list(
+    posts: list[dict[str, Any]], query: str, status: Status, limit: int, offset: int
+):
     needle = query.casefold().strip()
     matching = [
         post
         for post in posts
-        if (not needle or needle in f"{post['title']} {post.get('body') or ''}".casefold())
+        if (
+            not needle
+            or needle in f"{post['title']} {post.get('body') or ''}".casefold()
+        )
         and (status == "all" or _status(post) == status)
     ]
     # Explicit order keeps pages stable across backends, including undated drafts.
-    matching.sort(key=lambda p: (p.get("published_at") or "9999", p["slug"]), reverse=True)
+    matching.sort(
+        key=lambda p: (p.get("published_at") or "9999", p["slug"]), reverse=True
+    )
     summaries = [
         {
             "slug": p["slug"],
@@ -91,7 +108,12 @@ def _post_list(posts: list[dict[str, Any]], query: str, status: Status, limit: i
         }
         for p in matching[offset : offset + limit]
     ]
-    return {"posts": summaries, "total": len(matching), "offset": offset, "limit": limit}
+    return {
+        "posts": summaries,
+        "total": len(matching),
+        "offset": offset,
+        "limit": limit,
+    }
 
 
 def create_server(
@@ -105,13 +127,13 @@ def create_server(
 ) -> MCPServer:
     """Build a server. Production requires OAuth; factories are injectable for tests."""
     if backend_factory is None:
-        from .django_backend import DjangoBlogBackend
+        from .backend import DjangoBlogBackend
 
         backend_factory = DjangoBlogBackend
     if (issuer_url is None) != (resource_url is None):
         raise ValueError("Configure both the OAuth issuer and MCP resource URL.")
     if issuer_url and token_verifier is None:
-        from .oauth import DjangoTokenVerifier
+        from mataroa.oauth import DjangoTokenVerifier
 
         token_verifier = DjangoTokenVerifier(resource_url)
 
@@ -130,7 +152,9 @@ def create_server(
             if user_id < 1:
                 raise ValueError
         except ValueError:
-            raise ToolError("The Mataroa connection has an invalid account identity.") from None
+            raise ToolError(
+                "The Mataroa connection has an invalid account identity."
+            ) from None
         return backend_factory(user_id)
 
     async def invoke(method: str, *args: Any, scope: str = READ, **kwargs: Any):
@@ -142,7 +166,7 @@ def create_server(
     apps = Apps()
     extensions = OpenAIExtensions()
     if ui_html is None:
-        ui_html = files("mataroa_chatgpt").joinpath("static/library.html").read_text()
+        ui_html = Path(__file__).with_name("library.html").read_text()
     apps.add_resource(
         TextResource(
             uri=LIBRARY_URI,
@@ -181,7 +205,9 @@ def create_server(
     async def search_mentions(
         params: OpenAIMentionSearchParams, context: Context[Any, Any]
     ) -> OpenAIMentionSearchResult:
-        results = _post_list(await invoke("list_posts"), params.query[:300], "all", 20, 0)
+        results = _post_list(
+            await invoke("list_posts"), params.query[:300], "all", 20, 0
+        )
         return OpenAIMentionSearchResult(
             items=[
                 ResourceLink(
@@ -287,7 +313,11 @@ def create_server(
         """List your static pages. A hidden page is unlisted, not private or a draft."""
         pages = await invoke("list_pages")
         needle = query.casefold().strip()
-        matches = [p for p in pages if needle in f"{p['title']} {p.get('body') or ''}".casefold()]
+        matches = [
+            p
+            for p in pages
+            if needle in f"{p['title']} {p.get('body') or ''}".casefold()
+        ]
         return {
             "pages": [
                 {k: v for k, v in p.items() if k != "body"}
@@ -311,7 +341,9 @@ def create_server(
         offset: Offset = 0,
     ) -> dict[str, Any]:
         """Review comments on your blog. Omits commenters' private email addresses."""
-        comments = await invoke("list_comments", post_slug=post_slug, pending_only=pending_only)
+        comments = await invoke(
+            "list_comments", post_slug=post_slug, pending_only=pending_only
+        )
         # Defense in depth: the MCP surface never returns comment email addresses.
         safe = [{k: v for k, v in c.items() if k != "email"} for c in comments]
         return {
@@ -333,20 +365,8 @@ def create_server(
             post = await invoke("get_post", slug)
         except ToolError as exc:
             raise ResourceError(str(exc)) from None
-        return f"# {post['title']}\n\nStatus: {_status(post)}\n\n{post.get('body') or ''}"
+        return (
+            f"# {post['title']}\n\nStatus: {_status(post)}\n\n{post.get('body') or ''}"
+        )
 
     return server
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Mataroa's authenticated ChatGPT endpoint")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
-    import uvicorn
-
-    uvicorn.run("mataroa.asgi:application", host=args.host, port=args.port, access_log=False)
-
-
-if __name__ == "__main__":
-    main()

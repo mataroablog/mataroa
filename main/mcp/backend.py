@@ -9,20 +9,88 @@ happen under the same row lock and transaction. SQLite is for development only.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
+import json
 import re
+from collections.abc import Mapping
 from datetime import date
-from typing import Any
+from typing import Any, TypedDict
 
 from asgiref.sync import sync_to_async
 from django.db import IntegrityError, transaction
-from main import forms, models, scheme, text_processing
 
-from .client import MataroaError, MutationReceipt, Page, Post, post_fingerprint
+from main import forms, models, scheme, text_processing
 
 _SLUG = re.compile(r"[A-Za-z0-9_-]{1,300}\Z")
 _FINGERPRINT = re.compile(r"[0-9a-f]{64}\Z")
 _ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
+
+
+class Post(TypedDict):
+    slug: str
+    title: str
+    body: str | None
+    published_at: str | None
+    url: str
+    content_sha256: str
+
+
+class Page(TypedDict):
+    slug: str
+    title: str
+    body: str | None
+    is_hidden: bool
+    url: str
+
+
+class MutationReceipt(TypedDict):
+    ok: bool
+    slug: str
+    url: str
+
+
+class MataroaError(Exception):
+    """A sanitized error safe to expose in MCP tool results."""
+
+    def __init__(
+        self, code: str, message: str, *, status_code: int | None = None
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.status_code = status_code
+
+
+def post_fingerprint(post: Mapping[str, Any]) -> str:
+    """SHA-256 of canonical JSON binding slug, title, body, and publication date.
+
+    The URL, response envelope, and any existing fingerprint are not included.
+    Keep the fingerprint from the exact draft the user reviewed for publication.
+    """
+    try:
+        values = {key: post[key] for key in ("slug", "title", "body", "published_at")}
+    except (KeyError, TypeError):
+        raise MataroaError(
+            "invalid_response", "Mataroa returned an invalid response."
+        ) from None
+    if (
+        not all(isinstance(values[key], str) for key in ("slug", "title"))
+        or (values["body"] is not None and not isinstance(values["body"], str))
+        or (
+            values["published_at"] is not None
+            and not isinstance(values["published_at"], str)
+        )
+    ):
+        raise MataroaError("invalid_response", "Mataroa returned an invalid response.")
+    encoded = json.dumps(
+        values, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    try:
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    except UnicodeError:
+        raise MataroaError(
+            "invalid_response", "Mataroa returned an invalid response."
+        ) from None
 
 
 def _invalid(message: str) -> MataroaError:
@@ -36,16 +104,22 @@ def _not_found() -> MataroaError:
 
 def _validate_slug(slug: str) -> None:
     if not isinstance(slug, str) or not _SLUG.fullmatch(slug):
-        raise _invalid("Slug must be 1–300 ASCII letters, digits, underscores, or hyphens.")
+        raise _invalid(
+            "Slug must be 1–300 ASCII letters, digits, underscores, or hyphens."
+        )
 
 
 def _validate_fingerprint(value: str) -> None:
     if not isinstance(value, str) or not _FINGERPRINT.fullmatch(value):
-        raise _invalid("The expected content fingerprint must be a lowercase SHA-256 hex digest.")
+        raise _invalid(
+            "The expected content fingerprint must be a lowercase SHA-256 hex digest."
+        )
 
 
 def _validate_content(*, title: str | None, body: str | None) -> None:
-    if title is not None and (not isinstance(title, str) or not title.strip() or len(title) > 300):
+    if title is not None and (
+        not isinstance(title, str) or not title.strip() or len(title) > 300
+    ):
         raise _invalid("Title must be a nonempty string of at most 300 characters.")
     if body is not None and not isinstance(body, str):
         raise _invalid("Body must be a string.")
@@ -122,19 +196,20 @@ class DjangoBlogBackend:
             raise _invalid("An authenticated user primary key is required.")
         self._user_id = user_id
 
-    async def aclose(self) -> None:
-        """The combined ASGI wrapper owns per-request database cleanup."""
-
     def _posts(self):
-        return models.Post.objects.filter(owner_id=self._user_id).select_related("owner")
+        return models.Post.objects.filter(owner_id=self._user_id).select_related(
+            "owner"
+        )
 
     def _pages(self):
-        return models.Page.objects.filter(owner_id=self._user_id).select_related("owner")
+        return models.Page.objects.filter(owner_id=self._user_id).select_related(
+            "owner"
+        )
 
     def _comments(self, *, include_email: bool):
-        comments = models.Comment.objects.filter(post__owner_id=self._user_id).select_related(
-            "post__owner"
-        )
+        comments = models.Comment.objects.filter(
+            post__owner_id=self._user_id
+        ).select_related("post__owner")
         # Do not even retrieve commenters' email addresses unless explicitly requested.
         return comments if include_email else comments.defer("email")
 
@@ -184,7 +259,9 @@ class DjangoBlogBackend:
                         pk=self._user_id, is_active=True
                     )
                 except models.User.DoesNotExist:
-                    raise MataroaError("unauthorized", "Mataroa authentication failed.") from None
+                    raise MataroaError(
+                        "unauthorized", "Mataroa authentication failed."
+                    ) from None
                 slug = text_processing.create_post_slug(title, owner)
                 if len(slug) > 300:
                     # Upstream suffixes duplicates; reserve room for its 9-char suffix.
@@ -213,7 +290,9 @@ class DjangoBlogBackend:
         _validate_fingerprint(expected_content_sha256)
         _validate_content(title=title, body=body)
         data = {
-            key: value for key, value in {"title": title, "body": body}.items() if value is not None
+            key: value
+            for key, value in {"title": title, "body": body}.items()
+            if value is not None
         }
         if not data:
             raise _invalid("Provide at least one draft field to update.")
@@ -239,11 +318,15 @@ class DjangoBlogBackend:
         _validate_slug(slug)
         _validate_fingerprint(expected_content_sha256)
         if not isinstance(published_at, str) or not _ISO_DATE.fullmatch(published_at):
-            raise _invalid("Publication date must be an explicit YYYY-MM-DD calendar date.")
+            raise _invalid(
+                "Publication date must be an explicit YYYY-MM-DD calendar date."
+            )
         try:
             date.fromisoformat(published_at)
         except ValueError:
-            raise _invalid("Publication date must be a valid YYYY-MM-DD calendar date.") from None
+            raise _invalid(
+                "Publication date must be a valid YYYY-MM-DD calendar date."
+            ) from None
         form = _post_form({"published_at": published_at})
         with transaction.atomic():
             post = self._locked_draft(slug, expected_content_sha256)
@@ -284,7 +367,9 @@ class DjangoBlogBackend:
         return [_comment(comment, include_email=include_email) for comment in comments]
 
     @sync_to_async(thread_sensitive=True)
-    def get_comment(self, comment_id: int, *, include_email: bool = False) -> dict[str, Any]:
+    def get_comment(
+        self, comment_id: int, *, include_email: bool = False
+    ) -> dict[str, Any]:
         if type(comment_id) is not int or comment_id < 1:
             raise _invalid("Comment ID must be a positive integer.")
         if not isinstance(include_email, bool):

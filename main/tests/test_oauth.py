@@ -9,7 +9,7 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
-from unittest import skipUnless
+from unittest import SkipTest, skipUnless
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlencode, urlsplit
 
@@ -18,26 +18,46 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection
 from django.db.models.query import QuerySet
-from django.test import Client, RequestFactory, TestCase, TransactionTestCase, override_settings
+from django.test import (
+    Client,
+    RequestFactory,
+    TestCase,
+    TransactionTestCase,
+    override_settings,
+)
 from django.utils import timezone
 from django.views.debug import SafeExceptionReporterFilter
-from oauth2_provider.models import AccessToken, Application, Grant, RefreshToken, set_token_value
-from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
-from mataroa_chatgpt.oauth import DjangoTokenVerifier
+if not settings.MATAROA_CHATGPT_ENABLED:
+    raise SkipTest("Enable the ChatGPT integration to run OAuth tests.")
+
+from oauth2_provider.models import (  # noqa: E402
+    AccessToken,
+    Application,
+    Grant,
+    RefreshToken,
+    set_token_value,
+)
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError  # noqa: E402
+
+from mataroa.oauth import DjangoTokenVerifier  # noqa: E402
 
 RESOURCE = "https://mataroa.blog/mcp"
 REDIRECT = "https://chatgpt.com/connector_platform/oauth/callback"
 VERIFIER = "this-is-a-disposable-test-code-verifier-" + "x" * 32
 CHALLENGE = (
-    base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).rstrip(b"=").decode()
+    base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest())
+    .rstrip(b"=")
+    .decode()
 )
 SCOPES = "blog:read drafts:write posts:publish"
 
 
 class OAuthTestHelpers:
     def setUp(self):
-        self.user = get_user_model().objects.create_user("oauthalice", password="test-password")
+        self.user = get_user_model().objects.create_user(
+            "oauthalice", password="test-password"
+        )
         self.application = Application.objects.create(
             client_id="test-chatgpt",
             name="ChatGPT test fixture",
@@ -82,7 +102,9 @@ class OAuthTestHelpers:
         response = self.get("/oauth/authorize/", parameters)
         self.assertEqual(response.status_code, 200, response.content)
         self.assertContains(response, "csrfmiddlewaretoken")
-        self.assertContains(response, "Read your posts, drafts, pages, and blog comments")
+        self.assertContains(
+            response, "Read your posts, drafts, pages, and blog comments"
+        )
         response = self.post("/oauth/authorize/", {**parameters, "allow": "true"})
         self.assertEqual(response.status_code, 302, response.content)
         query = parse_qs(urlsplit(response.url).query)
@@ -144,10 +166,16 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.assertEqual(
             metadata["authorization_endpoint"], "https://mataroa.blog/oauth/authorize/"
         )
-        self.assertEqual(metadata["token_endpoint"], "https://mataroa.blog/oauth/token/")
-        self.assertEqual(metadata["revocation_endpoint"], "https://mataroa.blog/oauth/revoke/")
+        self.assertEqual(
+            metadata["token_endpoint"], "https://mataroa.blog/oauth/token/"
+        )
+        self.assertEqual(
+            metadata["revocation_endpoint"], "https://mataroa.blog/oauth/revoke/"
+        )
         self.assertEqual(metadata["code_challenge_methods_supported"], ["S256"])
-        self.assertEqual(metadata["grant_types_supported"], ["authorization_code", "refresh_token"])
+        self.assertEqual(
+            metadata["grant_types_supported"], ["authorization_code", "refresh_token"]
+        )
         self.assertEqual(metadata["response_types_supported"], ["code"])
         self.assertFalse(metadata["client_id_metadata_document_supported"])
         self.assertNotIn("registration_endpoint", metadata)
@@ -157,7 +185,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         ):
             resource = self.get(path).json()
             self.assertEqual(resource["resource"], RESOURCE)
-            self.assertEqual(resource["authorization_servers"], ["https://mataroa.blog"])
+            self.assertEqual(
+                resource["authorization_servers"], ["https://mataroa.blog"]
+            )
             self.assertEqual(resource["bearer_methods_supported"], ["header"])
 
     def test_no_registration_device_or_introspection_endpoints(self):
@@ -172,7 +202,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
     def test_discovery_rejects_wrong_host_and_plain_http(self):
         self.assertEqual(
             self.client.get(
-                "/.well-known/oauth-authorization-server", secure=True, HTTP_HOST="evil.example"
+                "/.well-known/oauth-authorization-server",
+                secure=True,
+                HTTP_HOST="evil.example",
             ).status_code,
             400,
         )
@@ -185,17 +217,23 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
 
     def test_get_requires_login_and_never_issues_a_grant(self):
         anonymous = Client()
-        response = self.get("/oauth/authorize/", self.auth_parameters(), client=anonymous)
+        response = self.get(
+            "/oauth/authorize/", self.auth_parameters(), client=anonymous
+        )
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith("/accounts/login/?next="))
         self.assertEqual(Grant.objects.count(), 0)
-        self.assertEqual(self.get("/oauth/authorize/", self.auth_parameters()).status_code, 200)
+        self.assertEqual(
+            self.get("/oauth/authorize/", self.auth_parameters()).status_code, 200
+        )
         self.assertEqual(Grant.objects.count(), 0)
 
     def test_consent_cancel_creates_no_grant(self):
         response = self.post("/oauth/authorize/", self.auth_parameters())
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(parse_qs(urlsplit(response.url).query)["error"], ["access_denied"])
+        self.assertEqual(
+            parse_qs(urlsplit(response.url).query)["error"], ["access_denied"]
+        )
         self.assertEqual(Grant.objects.count(), 0)
 
     def test_consent_is_csrf_protected_but_token_exchange_uses_client_auth(self):
@@ -203,7 +241,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         browser.force_login(self.user)
         self.assertEqual(
             self.post(
-                "/oauth/authorize/", {**self.auth_parameters(), "allow": "true"}, client=browser
+                "/oauth/authorize/",
+                {**self.auth_parameters(), "allow": "true"},
+                client=browser,
             ).status_code,
             403,
         )
@@ -266,7 +306,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         code = parse_qs(urlsplit(response.url).query)["code"][0]
         tokens = self.exchange(code)
         self.assertEqual(tokens.status_code, 200, tokens.content)
-        self.assertEqual(self.verify(tokens.json()["access_token"]).subject, str(self.user.pk))
+        self.assertEqual(
+            self.verify(tokens.json()["access_token"]).subject, str(self.user.pk)
+        )
 
     def test_authorization_rejects_missing_or_non_s256_pkce(self):
         for overrides in (
@@ -282,7 +324,10 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
     def test_authorization_requires_state_and_explicit_redirect(self):
         for overrides in ({"state": ""}, {"redirect_uri": ""}):
             self.assertEqual(
-                self.get("/oauth/authorize/", self.auth_parameters(**overrides)).status_code, 400
+                self.get(
+                    "/oauth/authorize/", self.auth_parameters(**overrides)
+                ).status_code,
+                400,
             )
 
     def test_authorization_requires_one_exact_resource_on_get_and_post(self):
@@ -298,7 +343,10 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             parameters = self.auth_parameters(resource=audience)
             self.assertEqual(self.get("/oauth/authorize/", parameters).status_code, 400)
             self.assertEqual(
-                self.post("/oauth/authorize/", {**parameters, "allow": "true"}).status_code, 400
+                self.post(
+                    "/oauth/authorize/", {**parameters, "allow": "true"}
+                ).status_code,
+                400,
             )
         self.assertEqual(Grant.objects.count(), 0)
 
@@ -331,13 +379,17 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             response = self.get("/oauth/authorize/", self.auth_parameters(**overrides))
             self.assertEqual(response.status_code, 400, response.content)
         code = self.authorize()
-        self.assertEqual(self.exchange(code, redirect_uri=REDIRECT + "/").status_code, 400)
+        self.assertEqual(
+            self.exchange(code, redirect_uri=REDIRECT + "/").status_code, 400
+        )
 
     def test_unknown_scopes_and_missing_read_scope_are_rejected(self):
         for scopes in ("blog:read admin", "posts:publish", "drafts:write"):
             response = self.get("/oauth/authorize/", self.auth_parameters(scope=scopes))
             self.assertEqual(response.status_code, 302)
-            self.assertEqual(parse_qs(urlsplit(response.url).query)["error"], ["invalid_scope"])
+            self.assertEqual(
+                parse_qs(urlsplit(response.url).query)["error"], ["invalid_scope"]
+            )
 
     def test_read_only_consent_stays_read_only(self):
         token = self.issue(scope="blog:read")
@@ -358,7 +410,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.assertNotEqual(rotated["refresh_token"], token["refresh_token"])
         self.assertIsNone(self.verify(token["access_token"]))
         self.assertEqual(self.verify(rotated["access_token"]).resource, RESOURCE)
-        self.assertEqual(RefreshToken.objects.get(revoked__isnull=True).resource, [RESOURCE])
+        self.assertEqual(
+            RefreshToken.objects.get(revoked__isnull=True).resource, [RESOURCE]
+        )
         replay = self.post(
             "/oauth/token/",
             {
@@ -368,7 +422,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             },
         )
         self.assertEqual(replay.status_code, 400)
-        self.assertIsNone(self.verify(rotated["access_token"]))  # family reuse protection
+        self.assertIsNone(
+            self.verify(rotated["access_token"])
+        )  # family reuse protection
 
     def test_refresh_cannot_change_audience_or_escalate_scopes(self):
         token = self.issue(scope="blog:read")
@@ -377,10 +433,14 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             "client_id": "test-chatgpt",
             "refresh_token": token["refresh_token"],
         }
-        response = self.post("/oauth/token/", {**values, "resource": "https://evil.example/mcp"})
+        response = self.post(
+            "/oauth/token/", {**values, "resource": "https://evil.example/mcp"}
+        )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"], "invalid_target")
-        response = self.post("/oauth/token/", {**values, "scope": "blog:read posts:publish"})
+        response = self.post(
+            "/oauth/token/", {**values, "scope": "blog:read posts:publish"}
+        )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"], "invalid_scope")
 
@@ -471,7 +531,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             self.assertIn(response.status_code, (400, 401))
         self.application.skip_authorization = True
         self.application.save(update_fields=["skip_authorization"])
-        self.assertEqual(self.get("/oauth/authorize/", self.auth_parameters()).status_code, 400)
+        self.assertEqual(
+            self.get("/oauth/authorize/", self.auth_parameters()).status_code, 400
+        )
 
     def test_unbound_legacy_refresh_token_cannot_acquire_resource_binding(self):
         tokens = self.issue()
@@ -510,17 +572,25 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.application.save(update_fields=["client_type", "client_secret"])
         code = self.authorize()
         self.assertEqual(self.exchange(code).status_code, 401)
-        self.assertEqual(self.exchange(code, client_secret="wrong-test-secret").status_code, 401)
-        response = self.exchange(code, client_secret="disposable-confidential-client-test-secret")
+        self.assertEqual(
+            self.exchange(code, client_secret="wrong-test-secret").status_code, 401
+        )
+        response = self.exchange(
+            code, client_secret="disposable-confidential-client-test-secret"
+        )
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(self.verify(response.json()["access_token"]).subject, str(self.user.pk))
+        self.assertEqual(
+            self.verify(response.json()["access_token"]).subject, str(self.user.pk)
+        )
 
     def test_confidential_client_basic_auth(self):
         self.application.client_type = Application.CLIENT_CONFIDENTIAL
         self.application.client_secret = "disposable-basic-auth-test-secret"
         self.application.save(update_fields=["client_type", "client_secret"])
         code = self.authorize()
-        basic = base64.b64encode(b"test-chatgpt:disposable-basic-auth-test-secret").decode()
+        basic = base64.b64encode(
+            b"test-chatgpt:disposable-basic-auth-test-secret"
+        ).decode()
         response = self.client.post(
             "/oauth/token/",
             urlencode(
@@ -547,13 +617,19 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             redirect_uris=REDIRECT,
         )
         code = self.authorize()
-        with override_settings(MATAROA_CHATGPT_CLIENT_IDS=("test-chatgpt", "second-client")):
-            self.assertEqual(self.exchange(code, client_id="second-client").status_code, 400)
+        with override_settings(
+            MATAROA_CHATGPT_CLIENT_IDS=("test-chatgpt", "second-client")
+        ):
+            self.assertEqual(
+                self.exchange(code, client_id="second-client").status_code, 400
+            )
         self.assertEqual(AccessToken.objects.count(), 0)
 
     def test_expired_code_and_unbound_legacy_grant_cannot_be_exchanged(self):
         code = self.authorize()
-        Grant.objects.filter(code=code).update(expires=timezone.now() - timedelta(seconds=1))
+        Grant.objects.filter(code=code).update(
+            expires=timezone.now() - timedelta(seconds=1)
+        )
         self.assertEqual(self.exchange(code).status_code, 400)
         code = self.authorize()
         Grant.objects.filter(code=code).update(resource=[])
@@ -576,7 +652,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             400,
         )
         code = self.authorize()
-        self.assertEqual(self.exchange(code, client_id=["wrong", "test-chatgpt"]).status_code, 400)
+        self.assertEqual(
+            self.exchange(code, client_id=["wrong", "test-chatgpt"]).status_code, 400
+        )
         self.assertEqual(AccessToken.objects.count(), 0)
 
     def test_expired_refresh_token_is_rejected(self):
@@ -631,10 +709,14 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
 
     def test_auto_approval_cannot_bypass_explicit_consent(self):
         self.issue()
-        response = self.get("/oauth/authorize/", self.auth_parameters(approval_prompt="auto"))
+        response = self.get(
+            "/oauth/authorize/", self.auth_parameters(approval_prompt="auto")
+        )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Grant.objects.count(), 0)
-        response = self.get("/oauth/authorize/", self.auth_parameters(approval_prompt="force"))
+        response = self.get(
+            "/oauth/authorize/", self.auth_parameters(approval_prompt="force")
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Grant.objects.count(), 0)
 
@@ -644,7 +726,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(response.json()["error"], "invalid_client")
         values = {**self.auth_parameters(), "allow": "true"}
-        self.assertEqual(self.get("/oauth/authorize/", self.auth_parameters()).status_code, 200)
+        self.assertEqual(
+            self.get("/oauth/authorize/", self.auth_parameters()).status_code, 200
+        )
         self.application.delete()
         response = self.post("/oauth/authorize/", values)
         self.assertEqual(response.status_code, 400, response.content)
@@ -681,9 +765,14 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         standard_post = SafeExceptionReporterFilter().get_post_parameters(request)
         for key in values:
             self.assertNotEqual(standard_post[key], values[key])
-        filtered = request.exception_reporter_filter.get_traceback_frame_variables(request, frame)
+        filtered = request.exception_reporter_filter.get_traceback_frame_variables(
+            request, frame
+        )
         self.assertTrue(
-            all(value == SafeExceptionReporterFilter.cleansed_substitute for _, value in filtered)
+            all(
+                value == SafeExceptionReporterFilter.cleansed_substitute
+                for _, value in filtered
+            )
         )
         self.assertNotIn(
             secret, str(request.exception_reporter_filter.get_post_parameters(request))
@@ -709,7 +798,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
 
         with (
             patch.object(QuerySet, "select_for_update", track_lock),
-            patch.object(MataroaOAuth2Validator, "validate_refresh_token", track_validate),
+            patch.object(
+                MataroaOAuth2Validator, "validate_refresh_token", track_validate
+            ),
         ):
             response = self.post(
                 "/oauth/token/",
@@ -722,7 +813,10 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.assertEqual(response.status_code, 200, response.content)
 
 
-@skipUnless(connection.vendor == "postgresql", "PostgreSQL row-lock concurrency needs PostgreSQL")
+@skipUnless(
+    connection.vendor == "postgresql",
+    "PostgreSQL row-lock concurrency needs PostgreSQL",
+)
 @override_settings(MATAROA_CHATGPT_CLIENT_IDS=("test-chatgpt",))
 class OAuthRefreshConcurrencyTests(OAuthTestHelpers, TransactionTestCase):
     def test_concurrent_refresh_serializes_and_replay_revokes_family(self):
@@ -783,7 +877,9 @@ class OAuthRefreshConcurrencyTests(OAuthTestHelpers, TransactionTestCase):
             outcomes = [future.result(timeout=20) for future in futures]
         self.assertEqual(sorted(status for status, _ in outcomes), [200, 400])
         success = next(body for status, body in outcomes if status == 200)
-        self.assertEqual(self.verify(success["access_token"]).subject, str(self.user.pk))
+        self.assertEqual(
+            self.verify(success["access_token"]).subject, str(self.user.pk)
+        )
         self.assertEqual(AccessToken.objects.count(), 1)
         self.assertEqual(RefreshToken.objects.count(), 1)
         self.assertEqual(RefreshToken.objects.filter(revoked__isnull=True).count(), 1)

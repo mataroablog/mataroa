@@ -38,17 +38,17 @@ jobs:
       - name: Update Python dependencies
         run: |
           ssh -i ~/.ssh/id_ed25519 -S ~/.ssh/deploy-control ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
-            "sudo -u deploy bash -c 'cd /var/www/mataroa && /home/deploy/.local/bin/uv sync --extra chatgpt --all-groups'"
+            "sudo -u deploy bash -c 'cd /var/www/mataroa && /home/deploy/.local/bin/uv sync --all-groups'"
 
       - name: Run database migrations
         run: |
           ssh -i ~/.ssh/id_ed25519 -S ~/.ssh/deploy-control ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
-            "sudo -u deploy bash -c 'cd /var/www/mataroa && export DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" MATAROA_CHATGPT_ENABLED=$MATAROA_CHATGPT_ENABLED && /home/deploy/.local/bin/uv run --extra chatgpt python manage.py migrate --no-input'"
+            "sudo -u deploy bash -c 'cd /var/www/mataroa && export DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" MATAROA_CHATGPT_ENABLED=$MATAROA_CHATGPT_ENABLED && /home/deploy/.local/bin/uv run python manage.py migrate --no-input'"
 
       - name: Collect static files
         run: |
           ssh -i ~/.ssh/id_ed25519 -S ~/.ssh/deploy-control ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
-            "sudo -u deploy bash -c 'cd /var/www/mataroa && export MATAROA_CHATGPT_ENABLED=$MATAROA_CHATGPT_ENABLED && /home/deploy/.local/bin/uv run --extra chatgpt python manage.py collectstatic --no-input'"
+            "sudo -u deploy bash -c 'cd /var/www/mataroa && export MATAROA_CHATGPT_ENABLED=$MATAROA_CHATGPT_ENABLED && /home/deploy/.local/bin/uv run python manage.py collectstatic --no-input'"
 
       - name: Reload mataroa service
         run: |

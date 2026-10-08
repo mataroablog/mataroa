@@ -1,5 +1,6 @@
 # python
 *.pyc
+__pycache__/
 
 # environment
 .envrc

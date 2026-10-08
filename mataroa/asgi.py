@@ -14,8 +14,9 @@ from django.conf import settings  # noqa: E402
 if settings.MATAROA_CHATGPT_ENABLED:
     from asgiref.sync import sync_to_async
     from django.db import close_old_connections
-    from mataroa_chatgpt.server import create_server
     from mcp.server.transport_security import TransportSecuritySettings
+
+    from main.mcp.server import create_server
 
     resource = urlsplit(settings.MATAROA_MCP_RESOURCE_URL)
     server = create_server(

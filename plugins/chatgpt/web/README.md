@@ -17,7 +17,7 @@ npm test
 ```
 
 The build writes the self-contained resource at
-[../src/mataroa_chatgpt/static/library.html](../src/mataroa_chatgpt/static/library.html).
+[main/mcp/library.html](../../../main/mcp/library.html).
 The Python server serves that resource with MCP App metadata. Commit the rebuilt
 HTML when changing the frontend; Node is not needed by the production server.
 

@@ -20,15 +20,17 @@ ChatGPT → OAuth-protected Streamable HTTP `/mcp` → verified token subject �
 
 Permissions are independent: `blog:read`, `drafts:write`, and `posts:publish`. Every operation enforces scopes in code. OAuth consent grants access, not permission to publish arbitrary content. ChatGPT's tool approval and the packaged workflow handle the user's authorization for each publication; tool annotations and a fingerprint are not proof of human approval by themselves.
 
-Draft mutations verify a content fingerprint while holding the PostgreSQL row lock. The official server uses this ORM backend. `client.py` also contains an optional, unused REST adapter; its API read-before-write check cannot be atomic and is not the production server's backend.
+The implementation lives in `main/mcp/`: `server.py` defines the tools, `backend.py` uses Django models, and `library.html` is the bundled UI. OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
+
+This directory contains the ChatGPT manifests, skills, frontend sources, and integration documentation. Python dependencies and tests belong to the main Mataroa project; there is no separately installed plugin server.
 
 ## Development
 
 From the **Mataroa repository root**:
 
 ```sh
-uv sync --extra chatgpt --all-groups
-uv run --extra chatgpt python manage.py check
+uv sync --all-groups
+uv run python manage.py check
 ```
 
 To rebuild the native UI (Node 22+):
@@ -42,16 +44,16 @@ npm test
 npm run test:ui
 ```
 
-For isolated Python tests, from `plugins/chatgpt`:
+For isolated Python tests, from the **Mataroa repository root**:
 
 ```sh
 uv sync --all-groups
-uv run pytest -q
-uv run ruff check .
-uv run ruff format --check .
+uv run python manage.py test --settings=mataroa.settings_test
+uv run ruff check
+uv run ruff format --check
 ```
 
-Tests use disposable SQLite databases and fabricated credentials only. They do not connect to a real Mataroa account. The full plugin suite, all three row-lock race tests, and the existing Mataroa regression suite also passed on disposable PostgreSQL 16.15. Repeat these checks on the deployment's database version; SQLite alone cannot validate row-lock scheduling. See [Verification](docs/verification.md).
+Tests use disposable SQLite databases and fabricated credentials only. They do not connect to a real Mataroa account. CI runs the same Django suite on PostgreSQL, including three row-lock race tests. Repeat these checks on the deployment's database version; SQLite alone cannot validate row-lock scheduling. See [Verification](docs/verification.md).
 
 ## Deployment and ChatGPT connection
 
