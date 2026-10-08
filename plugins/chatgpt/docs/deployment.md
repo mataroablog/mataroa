@@ -18,12 +18,17 @@ Set these deployment variables through the deployment's normal configuration sys
 
 The resource identifier is derived as the exact issuer plus `/mcp`. There is no Mataroa API key variable. Normal Mataroa database/session/email settings still apply. Never put real credentials into source files, sample manifests, chat, or build artifacts.
 
-Enabling the integration loads Django OAuth Toolkit's installed app and migrations:
+For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. The workflow always installs the `chatgpt` extra so later deployments retain its dependencies, while the enable flag defaults to `0`.
+
+Enabling the integration loads Django OAuth Toolkit's installed app, migrations, and static assets. Run these commands with the deployment variables above set, before starting or reloading the service:
 
 ```sh
 uv run --extra chatgpt python manage.py migrate
+uv run --extra chatgpt python manage.py collectstatic --no-input
 uv run --extra chatgpt python manage.py check
 ```
+
+Static collection must run with `MATAROA_CHATGPT_ENABLED=1` so the consent stylesheet is included in the production static manifest. Without it, the authorization screen returns HTTP 500 with a missing manifest entry.
 
 Run an ASGI worker behind the existing HTTPS reverse proxy, for example:
 
