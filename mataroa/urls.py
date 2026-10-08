@@ -14,6 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
@@ -21,3 +22,25 @@ urlpatterns = [
     path("dja/", admin.site.urls),
     path("", include("main.urls")),
 ]
+
+if settings.MATAROA_CHATGPT_ENABLED:
+    from .oauth import MataroaResourceMetadataView, MataroaServerMetadataView
+
+    urlpatterns = [
+        path("oauth/", include("mataroa.oauth_urls")),
+        path(
+            ".well-known/oauth-authorization-server",
+            MataroaServerMetadataView.as_view(),
+            name="mcp-oauth-server-metadata",
+        ),
+        path(
+            ".well-known/oauth-protected-resource/mcp",
+            MataroaResourceMetadataView.as_view(),
+            name="mcp-oauth-resource-metadata",
+        ),
+        path(
+            ".well-known/oauth-protected-resource",
+            MataroaResourceMetadataView.as_view(),
+            name="mcp-oauth-resource-metadata-root",
+        ),
+    ] + urlpatterns

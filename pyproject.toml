@@ -37,3 +37,9 @@ select = [
     "I",
 ]
 ignore = ["E501"] # line too long
+
+[project.optional-dependencies]
+chatgpt = ["mataroa-chatgpt"]
+
+[tool.uv.sources]
+mataroa-chatgpt = { path = "plugins/chatgpt", editable = true }

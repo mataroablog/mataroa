@@ -1,0 +1,286 @@
+import { dateLabel, parseList, parsePost, publicationLabel, publicationState, publicPostUrl, wordCount } from './model.ts';
+import type { Post, PostSummary, Status, ToolResult } from './model.ts';
+
+export interface Bridge {
+  callTool(name: string, args: Record<string, unknown>): Promise<ToolResult>;
+  openLink(url: string): Promise<{ isError?: boolean }>;
+}
+function element<T extends HTMLElement = HTMLElement>(id: string): T {
+  const value = document.getElementById(id);
+  if (!value) throw new Error(`Missing interface element: ${id}`);
+  return value as T;
+}
+function textElement(tag: string, className: string, text: string): HTMLElement {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
+}
+export class Library {
+  private readonly bridge: Bridge;
+  private connected = false;
+  private initialReceived = false;
+  private listEpoch = 0;
+  private postEpoch = 0;
+  private posts: PostSummary[] = [];
+  private total = 0;
+  private offset = 0;
+  private status: Status = 'all';
+  private query = '';
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private waitingTimer: ReturnType<typeof setTimeout> | undefined;
+  private selected: PostSummary | null = null;
+  private currentPost: Post | null = null;
+  private listLoading = true;
+  private errorMessage: string | null = null;
+
+  constructor(bridge: Bridge) {
+    this.bridge = bridge;
+    this.skeleton();
+    element('search-form').addEventListener('submit', event => {
+      event.preventDefault();
+      this.search();
+    });
+    element<HTMLInputElement>('search').addEventListener('input', () => {
+      clearTimeout(this.timer);
+      ++this.listEpoch; // Invalidate earlier results as soon as the query changes.
+      this.timer = setTimeout(() => this.search(), 300);
+    });
+    document.querySelectorAll<HTMLButtonElement>('[data-status]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (this.status === button.dataset.status) return;
+        this.status = button.dataset.status as Status;
+        this.search();
+      });
+    });
+    element('refresh').addEventListener('click', () => this.reset());
+    element('reset-search').addEventListener('click', () => this.reset());
+    element('load-more').addEventListener('click', () => void this.load(true));
+    element('back').addEventListener('click', () => this.back());
+    element('open-post').addEventListener('click', () => void this.openPublicPost());
+  }
+  ready(): void {
+    this.connected = true;
+    element<HTMLInputElement>('search').disabled = false;
+    document.querySelectorAll<HTMLButtonElement>('[data-status]').forEach(button => { button.disabled = false; });
+    element<HTMLButtonElement>('refresh').disabled = false;
+    if (!this.initialReceived) {
+      this.waitingTimer = setTimeout(() => {
+        if (!this.initialReceived) this.listError('Your library is taking a little longer to arrive. Try refreshing it.');
+      }, 15000);
+    }
+    if (this.errorMessage) this.listError(this.errorMessage);
+    else this.renderRows();
+  }
+  receiveInitial(result: ToolResult): void {
+    // Tool notifications carry no request ID. Once the user navigates, their
+    // correlated callServerTool responses are authoritative over host notifications.
+    if (this.initialReceived || this.listEpoch > 0) return;
+    this.initialReceived = true;
+    clearTimeout(this.waitingTimer);
+    try {
+      const data = parseList(result);
+      this.errorMessage = null;
+      element('library-notice').hidden = true;
+      this.posts = data.posts;
+      this.offset = data.posts.length;
+      this.total = data.total;
+      this.listLoading = false;
+      this.renderRows();
+    } catch { this.listError('Your library could not be loaded. Try refreshing it.'); }
+  }
+  connectionError(): void {
+    this.listError('The connection to ChatGPT could not be established. Close this library and open it again.');
+  }
+  cancelled(): void {
+    if (!this.initialReceived) {
+      this.initialReceived = true;
+      clearTimeout(this.waitingTimer);
+      this.listError('Loading was cancelled. Refresh when you’re ready.');
+    }
+  }
+  private search(): void {
+    clearTimeout(this.timer);
+    this.query = element<HTMLInputElement>('search').value.trim();
+    void this.load(false);
+  }
+  private reset(): void {
+    this.query = '';
+    this.status = 'all';
+    element<HTMLInputElement>('search').value = '';
+    clearTimeout(this.timer);
+    void this.load(false);
+  }
+  private async load(append: boolean): Promise<void> {
+    if (!this.connected) return;
+    this.initialReceived = true;
+    clearTimeout(this.waitingTimer);
+    const epoch = ++this.listEpoch;
+    const offset = append ? this.offset : 0;
+    this.listLoading = true;
+    this.errorMessage = null;
+    element('library-notice').hidden = true;
+    element('empty-state').hidden = true;
+    element('post-list').setAttribute('aria-busy', 'true');
+    element<HTMLButtonElement>('refresh').disabled = true;
+    element<HTMLButtonElement>('load-more').disabled = true;
+    element('count').textContent = append ? 'Loading more posts…' : 'Finding your words…';
+    this.renderFilters();
+    if (!append) this.skeleton();
+    try {
+      const result = await this.bridge.callTool('list_posts', { query: this.query, status: this.status, limit: 50, offset });
+      if (epoch !== this.listEpoch) return;
+      const data = parseList(result);
+      const merged = append ? [...this.posts, ...data.posts] : data.posts;
+      this.posts = [...new Map(merged.map(post => [post.slug, post])).values()];
+      this.total = data.total;
+      this.offset = offset + data.posts.length;
+      // A changing server-side collection must not leave an infinite load-more loop.
+      if (data.posts.length === 0) this.offset = Math.max(this.offset, this.total);
+      this.listLoading = false;
+      this.renderRows();
+    } catch {
+      if (epoch !== this.listEpoch) return;
+      this.listLoading = false;
+      if (!append) { this.posts = []; this.total = 0; this.offset = 0; }
+      this.renderRows();
+      this.listError('Your posts could not be loaded. Check your Mataroa connection and try again.', () => void this.load(append));
+    }
+  }
+  private renderFilters(): void {
+    document.querySelectorAll<HTMLButtonElement>('[data-status]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.status === this.status));
+    });
+    element('search-hint').hidden = !this.query;
+  }
+  private renderRows(): void {
+    if (this.listLoading) return;
+    const list = element('post-list');
+    list.replaceChildren();
+    list.setAttribute('aria-busy', 'false');
+    this.renderFilters();
+    for (const post of this.posts) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'post-row cursor-interaction';
+      row.dataset.slug = post.slug;
+      row.disabled = !this.connected;
+      row.setAttribute('aria-label', `${post.title}, ${publicationLabel(post)}`);
+      const meta = textElement('span', 'row-meta', '');
+      meta.append(textElement('span', `badge badge-${publicationState(post)}`, publicationLabel(post)), textElement('span', 'row-date', dateLabel(post.published_at)));
+      const bottom = textElement('span', 'row-bottom', '');
+      bottom.append(textElement('span', 'row-slug', `/${post.slug}/`), textElement('span', 'row-arrow', '↗'));
+      bottom.lastElementChild?.setAttribute('aria-hidden', 'true');
+      row.append(meta, textElement('span', 'row-title', post.title));
+      if (post.excerpt) row.append(textElement('span', 'row-excerpt', post.excerpt));
+      row.append(bottom);
+      row.addEventListener('click', () => void this.read(post));
+      list.append(row);
+    }
+    const filtered = Boolean(this.query || this.status !== 'all');
+    element('count').textContent = `${this.total.toLocaleString()} ${this.total === 1 ? 'post' : 'posts'}${filtered ? ' found' : ' in your library'}`;
+    element('empty-state').hidden = this.posts.length !== 0;
+    element('empty-title').textContent = filtered ? 'No matching words, yet' : 'A little room for words';
+    element('empty-description').textContent = filtered ? 'Try another search or show all your posts.' : 'When you write on Mataroa, your posts will appear here.';
+    element('reset-search').hidden = !filtered;
+    element<HTMLButtonElement>('refresh').disabled = !this.connected;
+    const more = element<HTMLButtonElement>('load-more');
+    more.hidden = this.offset >= this.total || this.posts.length === 0;
+    more.disabled = !this.connected;
+    element('footer-label').textContent = !more.hidden ? `Showing ${this.posts.length.toLocaleString()} of ${this.total.toLocaleString()}` : 'Your words, a little closer.';
+  }
+  private listError(message: string, retry?: () => void): void {
+    this.errorMessage = message;
+    this.listLoading = false;
+    element('post-list').setAttribute('aria-busy', 'false');
+    if (!this.posts.length) { element('post-list').replaceChildren(); element('empty-state').hidden = true; }
+    element('count').textContent = 'Library unavailable';
+    element<HTMLButtonElement>('refresh').disabled = !this.connected;
+    element<HTMLButtonElement>('load-more').disabled = !this.connected;
+    this.notice('library-notice', message, retry ?? (this.connected ? () => void this.load(false) : undefined));
+  }
+  private notice(id: string, message: string, retry?: () => void): void {
+    const notice = element(id);
+    notice.replaceChildren(textElement('span', '', message));
+    if (retry) {
+      const button = document.createElement('button');
+      button.className = 'text-button cursor-interaction';
+      button.textContent = 'Try again';
+      button.addEventListener('click', retry);
+      notice.append(button);
+    }
+    notice.hidden = false;
+  }
+  private skeleton(): void {
+    const list = element('post-list');
+    list.replaceChildren();
+    for (let n = 0; n < 3; n++) {
+      const row = textElement('div', 'skeleton', '');
+      row.setAttribute('aria-hidden', 'true');
+      row.append(document.createElement('span'), document.createElement('span'), document.createElement('span'));
+      list.append(row);
+    }
+  }
+  private async read(summary: PostSummary): Promise<void> {
+    const epoch = ++this.postEpoch;
+    this.selected = summary;
+    this.currentPost = null;
+    element('library').hidden = true;
+    element('reader').hidden = false;
+    element('reader-notice').hidden = true;
+    element('reader-content').setAttribute('aria-busy', 'true');
+    element('open-post').hidden = true;
+    this.renderPostMeta(summary);
+    element('post-body').textContent = 'Loading post…';
+    element('word-count').textContent = '';
+    element('post-title').focus();
+    window.scrollTo({ top: 0 });
+    try {
+      const data = parsePost(await this.bridge.callTool('get_post', { slug: summary.slug }));
+      if (epoch !== this.postEpoch) return;
+      if (data.slug !== summary.slug) throw new Error('Unexpected post');
+      this.currentPost = data;
+      this.renderPostMeta(data);
+      element('post-body').textContent = data.body || 'This post is empty.';
+      const count = wordCount(data.body);
+      element('word-count').textContent = `${count.toLocaleString()} ${count === 1 ? 'word' : 'words'}`;
+      element('open-post').hidden = publicPostUrl(data) === null;
+    } catch {
+      if (epoch !== this.postEpoch) return;
+      element('post-body').textContent = '';
+      this.notice('reader-notice', 'This post could not be opened. It may have changed or your connection may need attention.', () => void this.read(summary));
+    } finally {
+      if (epoch === this.postEpoch) element('reader-content').setAttribute('aria-busy', 'false');
+    }
+  }
+  private renderPostMeta(post: PostSummary): void {
+    const status = element('post-status');
+    status.className = `badge badge-${publicationState(post)}`;
+    status.textContent = publicationLabel(post);
+    element('post-title').textContent = post.title;
+    element('post-date').textContent = dateLabel(post.published_at);
+    element('post-slug').textContent = `/${post.slug}/`;
+  }
+  private back(): void {
+    ++this.postEpoch; // A late response cannot reopen a dismissed post.
+    this.currentPost = null;
+    element('reader').hidden = true;
+    element('library').hidden = false;
+    const selectedRow = [...document.querySelectorAll<HTMLButtonElement>('.post-row')].find(row => row.dataset.slug === this.selected?.slug);
+    (selectedRow ?? element('library-title')).focus();
+  }
+  private async openPublicPost(): Promise<void> {
+    if (!this.currentPost) return;
+    const url = publicPostUrl(this.currentPost);
+    if (!url) return;
+    const epoch = this.postEpoch;
+    const button = element<HTMLButtonElement>('open-post');
+    button.disabled = true;
+    try {
+      const result = await this.bridge.openLink(url);
+      if (result.isError) throw new Error('Link was not opened');
+    } catch {
+      if (epoch === this.postEpoch) this.notice('reader-notice', 'ChatGPT could not open the blog link. Please try again.');
+    } finally { button.disabled = false; }
+  }
+}

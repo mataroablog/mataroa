@@ -1,0 +1,38 @@
+[project]
+name = "mataroa-chatgpt"
+version = "0.1.0"
+description = "Draft-first Mataroa plugin for ChatGPT, powered by MCP and OpenAI extensions"
+requires-python = ">=3.13"
+dependencies = [
+  "mcp>=2.3,<3",
+  "openai-mcp-extensions>=0.1.0,<0.2",
+  "httpx>=0.28,<0.29",
+  "uvicorn>=0.34,<1",
+  "django>=6.0.9,<6.1",
+  "pydantic>=2.12,<3",
+  "django-oauth-toolkit>=3.4.1,<4",
+  "psycopg[binary]>=3.2",
+  "bleach[css]>=6.2",
+  "markdown>=3.9",
+  "stripe==13.0.1",
+]
+
+[project.scripts]
+mataroa-chatgpt = "mataroa_chatgpt.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

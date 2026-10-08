@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Mataroa · Your writing</title>
+  <!-- APP_STYLES -->
+</head>
+<body>
+  <main id="app" class="app-shell" aria-label="Mataroa post library">
+    <header class="masthead">
+      <span class="wordmark">mataroa<span aria-hidden="true">.</span></span>
+      <span class="mode-label"><span class="mode-dot" aria-hidden="true"></span>Read-only</span>
+    </header>
+    <section id="library" class="library" aria-labelledby="library-title">
+      <div class="heading-row">
+        <div><p class="eyebrow">POST LIBRARY</p><h1 id="library-title">Your writing</h1></div>
+        <button id="refresh" class="icon-button cursor-interaction" aria-label="Refresh posts" title="Refresh posts" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 6.1a8 8 0 0 1 13.2 3M4.7 14.9a8 8 0 0 0 13.2 3"/></svg>
+        </button>
+      </div>
+      <form id="search-form" role="search" class="search-form">
+        <label for="search" class="sr-only">Search posts</label>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input id="search" type="search" placeholder="Search your writing…" autocomplete="off" maxlength="200" disabled>
+        <kbd aria-hidden="true">↵</kbd>
+      </form>
+      <div class="filters" role="group" aria-label="Filter by publication status">
+        <button class="filter cursor-interaction" data-status="all" aria-pressed="true" disabled>All posts</button>
+        <button class="filter cursor-interaction" data-status="draft" aria-pressed="false" disabled>Drafts</button>
+        <button class="filter cursor-interaction" data-status="published" aria-pressed="false" disabled>Published</button>
+      </div>
+      <div class="list-meta"><span id="count" role="status" aria-live="polite">Connecting to your library…</span><span id="search-hint" hidden>Search results</span></div>
+      <div id="library-notice" class="notice" role="alert" hidden></div>
+      <div id="post-list" class="post-list" aria-label="Posts" aria-busy="true"></div>
+      <div id="empty-state" class="empty-state" hidden><span class="empty-mark" aria-hidden="true">↳</span><h2 id="empty-title">A little room for words</h2><p id="empty-description">Your posts will appear here.</p><button id="reset-search" class="text-button cursor-interaction" hidden>Show all posts</button></div>
+      <footer class="library-footer"><span id="footer-label">Your words, a little closer.</span><button id="load-more" class="text-button cursor-interaction" hidden>Load more</button></footer>
+    </section>
+    <section id="reader" class="reader" aria-labelledby="post-title" hidden>
+      <nav class="reader-nav" aria-label="Post navigation"><button id="back" class="text-button cursor-interaction"><span aria-hidden="true">←</span> All posts</button><button id="open-post" class="text-button cursor-interaction" hidden>View on blog <span aria-hidden="true">↗</span></button></nav>
+      <div id="reader-notice" class="notice" role="alert" hidden></div>
+      <div id="reader-content" class="reader-content" aria-busy="false">
+        <div class="post-meta"><span id="post-status" class="badge"></span><span id="post-date"></span></div>
+        <h1 id="post-title" tabindex="-1"></h1>
+        <p id="post-slug" class="post-slug"></p>
+        <div class="source-label"><span>MARKDOWN SOURCE</span><span id="word-count"></span></div>
+        <pre id="post-body" class="post-body"></pre>
+      </div>
+      <footer class="reader-footer">Read-only preview · Markdown is shown as text</footer>
+    </section>
+  </main>
+  <!-- APP_SCRIPT -->
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""Mataroa ChatGPT plugin."""

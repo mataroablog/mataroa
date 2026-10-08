@@ -289,3 +289,80 @@ LOGGING = {
         },
     },
 }
+
+
+# Optional first-party ChatGPT/MCP integration. Nothing is registered or granted
+# on startup. Enable only after migrations and explicit OAuth client registration.
+MATAROA_CHATGPT_ENABLED = os.getenv("MATAROA_CHATGPT_ENABLED", "0") == "1"
+MATAROA_MCP_ISSUER_URL = os.getenv(
+    "MATAROA_MCP_ISSUER_URL", f"https://{CANONICAL_HOST}"
+).rstrip("/")
+MATAROA_MCP_RESOURCE_URL = f"{MATAROA_MCP_ISSUER_URL}/mcp"
+MATAROA_CHATGPT_CLIENT_IDS = tuple(
+    value.strip()
+    for value in os.getenv("MATAROA_CHATGPT_CLIENT_IDS", "").split(",")
+    if value.strip()
+)
+
+if MATAROA_CHATGPT_ENABLED:
+    from django.core.exceptions import ImproperlyConfigured
+
+    _mcp_issuer = parse.urlsplit(MATAROA_MCP_ISSUER_URL)
+    if (
+        _mcp_issuer.scheme != "https"
+        or _mcp_issuer.netloc != CANONICAL_HOST
+        or _mcp_issuer.path
+        or _mcp_issuer.query
+        or _mcp_issuer.fragment
+        or _mcp_issuer.username
+        or _mcp_issuer.password
+    ):
+        raise ImproperlyConfigured(
+            "MATAROA_MCP_ISSUER_URL must be the canonical HTTPS origin, without a path."
+        )
+    INSTALLED_APPS += ["oauth2_provider"]
+    OAUTH2_PROVIDER = {
+        "OAUTH2_VALIDATOR_CLASS": "mataroa.oauth.MataroaOAuth2Validator",
+        "SCOPES": {
+            "blog:read": "Read your posts, drafts, pages, and blog comments",
+            "drafts:write": "Create and edit unpublished drafts",
+            "posts:publish": "Publish or schedule approved drafts",
+        },
+        "DEFAULT_SCOPES": ["blog:read"],
+        "PKCE_REQUIRED": True,
+        "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+        "AUTHORIZATION_CODE_EXPIRE_SECONDS": 120,
+        "REFRESH_TOKEN_EXPIRE_SECONDS": 30 * 24 * 60 * 60,
+        "ROTATE_REFRESH_TOKEN": True,
+        "REFRESH_TOKEN_REUSE_PROTECTION": True,
+        "REFRESH_TOKEN_GRACE_PERIOD_SECONDS": 0,
+        "ALLOWED_REDIRECT_URI_SCHEMES": ["https"],
+        "ALLOW_URI_WILDCARDS": False,
+        "REQUEST_APPROVAL_PROMPT": "force",
+        "DCR_ENABLED": False,
+        "CIMD_ENABLED": False,
+        "OIDC_ENABLED": False,
+        "OIDC_ISS_ENDPOINT": MATAROA_MCP_ISSUER_URL,
+        "OAUTH2_RESPONSE_TYPES_SUPPORTED": ["code"],
+        "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+        "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": [
+            "client_secret_basic",
+            "client_secret_post",
+            "none",
+        ],
+        "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": MATAROA_MCP_RESOURCE_URL,
+        "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": [MATAROA_MCP_ISSUER_URL],
+        "OAUTH2_PROTECTED_RESOURCE_NAME": "Mataroa ChatGPT plugin",
+        "OAUTH2_PROTECTED_RESOURCE_BEARER_METHODS_SUPPORTED": ["header"],
+        "RESOURCE_SERVER_TOKEN_RESOURCE_VALIDATOR": "mataroa.oauth.exact_resource_validator",
+        "COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT": True,
+        "COMPLIANT_BCP_RFC9700_PASSWORD_GRANT": True,
+        "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
+        "COMPLIANT_BCP_RFC9700_ACCESS_TOKEN_TRANSPORT": True,
+        "COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS": True,
+        "COMPLIANT_BCP_RFC9700_TOKEN_STORAGE": True,
+        "COMPLIANT_BCP_RFC9700_REFRESH_TOKEN": True,
+        "COMPLIANT_BCP_RFC9700_REDIRECT_URI_SCHEME": True,
+        "COMPLIANT_BCP_RFC9700_REDIRECT_URI_MATCHING": True,
+        "COMPLIANT_BCP_RFC9700_PKCE_REQUIRED": True,
+    }

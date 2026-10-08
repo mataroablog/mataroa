@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mataroa",
+  "version": "0.1.0",
+  "description": "Read your Mataroa blog, work on drafts, and publish approved posts.",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/connect-blog/SKILL.md",
+      "interface": {
+        "displayName": "Mataroa",
+        "shortDescription": "Your blog, thoughtfully written",
+        "longDescription": "Browse posts and drafts in the Blog Library, read pages and comments, save unpublished drafts, and publish only the version you approve.",
+        "developerName": "Mataroa",
+        "category": "Productivity",
+        "capabilities": ["Interactive", "Read", "Write"],
+        "websiteURL": "https://mataroa.blog",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg",
+        "defaultPrompt": [
+          "@Mataroa open my Blog Library.",
+          "@Mataroa show my unpublished drafts.",
+          "@Mataroa help me turn this outline into a draft."
+        ]
+      }
+    }
+  }
+}
