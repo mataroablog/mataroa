@@ -32,6 +32,7 @@ Authorization-code issuance/consumption is also serialized and rolled back if co
 ## Not yet verified
 
 - Live ChatGPT registration, account linking, installation, and UI rendering in its sandbox
+- Simultaneous requests from different users through one long-lived MCP worker: existing HTTP isolation tests use fresh app instances, so they do not establish concurrent same-worker isolation
 - Production TLS/reverse proxy, rate limits, and operational logging
 - Pixel-level browser/screenshot QA: Chromium cannot create the required sockets in this execution environment; DOM and protocol tests passed, but they do not establish layout quality
 - Public-directory review or publication

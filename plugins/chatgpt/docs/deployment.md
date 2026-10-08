@@ -65,7 +65,7 @@ After changing server metadata, refresh the custom MCP connection and start a ne
 
 If using a registered MCP-server mapping, obtain its real `plugin_asdk_app...` ID from ChatGPT after registration and package the supported `.app.json` mapping using the current [packaging documentation](https://developers.openai.com/plugins/build/plugins). This build intentionally contains no fabricated registration ID.
 
-For public submission use **With MCP** and the public HTTPS endpoint. Supply the actual developer identity, privacy policy, terms, support information, screenshots, and review account through OpenAI's submission flow. Review those disclosures before publishing. Keep consent scopes, advertised capabilities, and the implemented tools aligned.
+Follow the current [upload and submission flow](https://developers.openai.com/plugins/deploy/submission): upload the plugin ZIP in the OpenAI Plugins portal under the verified developer identity, resolve metadata and skill findings, then connect the public HTTPS endpoint under **MCPs**. Complete domain verification and authentication, inspect the tool scan, supply review information, and submit for review. Publish only after approval and the owner's go-ahead. Reviewer credentials belong in the portal's private review fields, never in the ZIP. Keep consent scopes, advertised capabilities, and implemented tools aligned.
 
 The prepared code is not evidence of a successful live connection, production deployment, or public-directory approval.
 
