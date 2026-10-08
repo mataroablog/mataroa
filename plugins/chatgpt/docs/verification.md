@@ -5,8 +5,8 @@
 - Django suite with the integration enabled: **446 tests on PostgreSQL 17**, all passing, including five concurrency tests
 - The same **446 tests on SQLite**, with five PostgreSQL-only tests skipped
 - Integration disabled: **388 tests on SQLite**, passing with three skips
-- **29 frontend tests** against the plain JavaScript files and rendered Django template
-- **11 Chromium browser scenarios** in an opaque-origin sandbox; light/dark/narrow screenshots inspected
+- **40 checks on the browser test page**, using the production scripts and rendered Django template
+- Includes real DOM interactions, narrow layout, and an opaque-origin sandbox check
 - Manifest-hashed static URLs and matching resource CSP verified for same-site and CDN static hosting
 - OAuth consent uses Mataroa’s own layout and renders without Toolkit static assets
 - Django system checks with integration enabled and disabled
@@ -27,7 +27,7 @@ uv run ruff format --check
 
 The test settings enable OAuth and use an isolated SQLite test database by default. The suite covers owner isolation, scopes, PKCE, audience binding, consent, revocation, token rotation, error redaction, and draft revision guards. SQLite cannot establish PostgreSQL row-lock behavior.
 
-For the frontend, run `npm ci`, `npm test`, and `npm run test:ui` from `plugins/chatgpt`. There is no build or type-check step. The preview uses the repository’s Python `.venv` to render the production template. Browser checks need an installed Chromium; see [the frontend README](../web/README.md).
+For the frontend, run `uv run python plugins/chatgpt/web/preview.py` from the repository root and open `http://127.0.0.1:4173/tests/`. The page displays pass/fail results. It replaces the Node/jsdom/Playwright setup; automatic browser launch, CI exit codes, real input automation, and screenshots are no longer included. Use `/preview/` for manual interaction and appearance checks. See [the frontend README](../web/README.md).
 
 ## PostgreSQL concurrency checks
 
@@ -42,4 +42,4 @@ This enables five concurrent-operation tests: exactly-once publication, single-u
 - Production TLS/reverse proxy, rate limits, operational logging, and the deployment's PostgreSQL version
 - Public-directory review or publication
 
-The fixture preview and Playwright browser checks use fictional posts. Local tests do not create production data or OAuth grants.
+The fixture preview and browser test page use fictional posts. Local tests do not create production data or OAuth grants.

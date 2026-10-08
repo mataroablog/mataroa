@@ -1,29 +1,26 @@
-import { afterEach, test } from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { JSDOM } from 'jsdom';
-const script = await readFile(new URL('../../../../main/static/mcp/bridge.js', import.meta.url), 'utf8');
+import { test, afterEach, assert, createFrame } from './runner.js';
 const instances = [];
-afterEach(() => { for (const { bridge, win } of instances.splice(0)) { bridge.close(); win.close(); } });
-function setup(handlers = {}) {
-  const win = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true }).window;
+afterEach(() => { for (const { bridge, frame, postMessage } of instances.splice(0).reverse()) { bridge.close(); frame.remove(); window.postMessage = postMessage; } });
+async function setup(handlers = {}) {
+  const frame = await createFrame('/bridge.html');
+  const win = frame.contentWindow;
+  const postMessage = window.postMessage;
   const sent = [];
   let resize;
   let disconnected = false;
   win.ResizeObserver = class { constructor(callback) { resize = callback; } observe() {} disconnect() { disconnected = true; } };
-  win.postMessage = message => sent.push(message);
-  win.eval(script);
+  window.postMessage = message => sent.push(message);
   const bridge = new win.Mataroa.HostBridge(handlers);
-  const deliver = (message, source = win) => win.dispatchEvent(new win.MessageEvent('message', { data: { jsonrpc: '2.0', ...message }, source }));
+  const deliver = (message, source = window) => win.dispatchEvent(new win.MessageEvent('message', { data: { jsonrpc: '2.0', ...message }, source }));
   const host = { protocolVersion: '2026-01-26', hostCapabilities: { serverTools: {}, openLinks: {} }, hostContext: { theme: 'dark' } };
   async function connect(result = host) { const promise = bridge.connect(); deliver({ id: sent.at(-1).id, result }); await promise; }
-  instances.push({ bridge, win });
+  instances.push({ bridge, frame, postMessage });
   return { win, bridge, sent, deliver, connect, resize: () => resize(), disconnected: () => disconnected };
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
 
 test('rejects foreign sources and malformed messages, correlates out-of-order responses', async () => {
-  const { bridge, sent, deliver, connect } = setup();
+  const { bridge, sent, deliver, connect } = await setup();
   await connect();
   const first = bridge.callTool('get_post', { slug: 'first' });
   const firstId = sent.at(-1).id;
@@ -43,7 +40,7 @@ test('rejects foreign sources and malformed messages, correlates out-of-order re
 });
 test('registers initial-result and cancellation handlers before initialization finishes', async () => {
   const results = []; let cancelled = 0;
-  const { bridge, sent, deliver } = setup({ result: result => results.push(result), cancelled: () => cancelled++ });
+  const { bridge, sent, deliver } = await setup({ result: result => results.push(result), cancelled: () => cancelled++ });
   const ready = bridge.connect();
   const id = sent.at(-1).id;
   deliver({ method: 'ui/notifications/tool-result', params: { structuredContent: { posts: [], total: 0 } } });
@@ -56,7 +53,7 @@ test('registers initial-result and cancellation handlers before initialization f
   await assert.rejects(bridge.openLink('https://example.org'), /unavailable/);
 });
 test('reports RPC errors and cancels timed-out requests without retaining callbacks', async () => {
-  const { bridge, sent, deliver, connect } = setup(); await connect();
+  const { bridge, sent, deliver, connect } = await setup(); await connect();
   const error = bridge.callTool('list_posts', {});
   deliver({ id: sent.at(-1).id, error: { code: -32603, message: 'Disconnected account' } });
   await assert.rejects(error, /Disconnected account/);
@@ -69,15 +66,15 @@ test('reports RPC errors and cancels timed-out requests without retaining callba
   deliver({ id, result: {} }); // A late response is ignored.
 });
 test('failed and timed-out initialization closes the connection', async () => {
-  const { bridge, connect } = setup();
+  const { bridge, connect } = await setup();
   await assert.rejects(connect({ protocolVersion: 'unknown', hostCapabilities: {} }), /Unsupported/);
   assert.equal(bridge.closed, true);
-  const other = setup();
+  const other = await setup();
   await assert.rejects(other.bridge.connect(5), /timed out/);
   assert.equal(other.bridge.closed, true);
 });
 test('context patches preserve theme variables and cursor when omitted', async () => {
-  const { win, deliver, connect } = setup(); await connect();
+  const { win, deliver, connect } = await setup(); await connect();
   deliver({ method: 'ui/notifications/host-context-changed', params: { styles: { variables: { '--color-text-primary': '#123456' } }, 'openai/interactionCursor': 'default' } });
   deliver({ method: 'ui/notifications/host-context-changed', params: { theme: 'light' } });
   const root = win.document.documentElement;
@@ -87,7 +84,7 @@ test('context patches preserve theme variables and cursor when omitted', async (
 });
 test('resize reports intrinsic height changes and teardown stops all work', async () => {
   let closed = 0;
-  const { win, bridge, sent, deliver, connect, resize, disconnected } = setup({ closed: () => closed++ });
+  const { win, bridge, sent, deliver, connect, resize, disconnected } = await setup({ closed: () => closed++ });
   let height = 800;
   win.document.documentElement.getBoundingClientRect = () => ({ height });
   await connect(); await tick();
@@ -111,7 +108,7 @@ test('resize reports intrinsic height changes and teardown stops all work', asyn
   await assert.rejects(bridge.callTool('list_posts', {}), /unavailable/);
 });
 test('pagehide releases pending requests', async () => {
-  const { win, bridge, connect } = setup(); await connect();
+  const { win, bridge, connect } = await setup(); await connect();
   const pending = bridge.openLink('https://example.org');
   win.dispatchEvent(new win.Event('pagehide'));
   await assert.rejects(pending, /closed/);

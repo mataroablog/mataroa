@@ -14,58 +14,49 @@ asset origin (or the configured static CDN). Data travels through the host;
 sandbox without requiring cross-origin module headers. Bump `LIBRARY_URI` when
 making incompatible resource changes, since hosts cache UI resources by URI.
 
-## Check
+## Browser tests and preview
 
-Node is used only for tests and the fictional preview. Set up the repository's
-Python `.venv` first (`uv sync --all-groups`); the fixture renders the real Django
-template. From `plugins/chatgpt`, using a Node version supported by `package.json`:
+From the repository root:
 
 ```sh
-npm ci
-npm test
+uv sync --all-groups
+uv run python plugins/chatgpt/web/preview.py
 ```
 
-Tests cover response validation, publication states, inert-text rendering,
-search/filter requests, pagination, retries, late responses, focus restoration,
-and the served scripts' host handshake. Bridge tests exercise message-source
-validation, request correlation, timeouts, cancellation, theme changes, resize,
-and teardown. Python tests verify collected asset URLs and CSP origins for both
-Mataroa-hosted files and a static CDN.
+Open **http://127.0.0.1:4173/tests/** in your browser. It runs 40 checks and shows
+an individual pass/fail result for each. Use **Run again** to repeat them. Keep
+the tab visible while tests run, since browsers can pause animation callbacks
+in background tabs. Reload the page after editing test or production files.
 
-## Local fixture preview
+There is no Node, npm, package lockfile, browser driver, or downloaded test
+framework. A small Python server uses Django's template engine and serves only
+the fixture files on loopback. It needs no database, account, or environment
+configuration. Stop it with Ctrl-C; use `--port 4174` to select another port.
 
-```sh
-npm run preview
-```
+The tests cover validation, publication states, inert-text rendering, search,
+filters, pagination, retries, late responses, focus restoration, host messages,
+timeouts, themes, cursor changes, resizing, and teardown. The app scenarios load
+the actual production scripts and stylesheet. An additional opaque-origin
+sandbox check verifies asset loading, safe text rendering, and host-mediated
+links under the resource CSP. Nothing contacts a real Mataroa account.
 
-Open the printed loopback URL. It hosts a **fictional sample library**, not a
-connected Mataroa account. The parent frame implements a minimal JSON-RPC host
-for the real production app in an iframe. Only `list_posts`, `get_post`, and
-`ui/open-link` are supported; opening a link is recorded instead of navigating.
+The former Playwright scenarios now run as assertions on this page. Automated
+browser launch, process exit codes for CI, simulated keyboard/pointer input,
+and automatic screenshot capture are no longer included. Tests dispatch DOM
+events and click controls in code; use the preview for hands-on interaction and
+visual checks. The JavaScript tests are a manual browser check, separate from
+`manage.py test`. Results are also exposed as `window.testResults` for future
+automation. Live ChatGPT compatibility still requires a real host check.
 
-Optional query parameters:
+Open **http://127.0.0.1:4173/preview/** for the fictional library in a sandboxed
+iframe. Public links are recorded by the simulated host instead of navigating.
+Useful preview parameters:
 
 - `?theme=dark` starts with the dark host theme.
 - `?mode=empty` shows an empty library.
-- `?mode=error` returns an initial tool failure, recoverable with Refresh.
-- `?mode=injection` inserts HTML-like text and an unsafe URL to check isolation.
+- `?mode=error` returns an initial failure, recoverable with Refresh.
+- `?mode=injection` checks HTML-like text and an unsafe URL.
 - `?mode=pagination` provides 59 fictional posts.
-
-For real rendering and screenshot checks:
-
-```sh
-npx playwright install chromium
-npm run test:ui
-```
-
-The runner uses `/usr/bin/chromium` when available, otherwise Playwright's
-installed Chromium. Set `CHROMIUM_PATH` to choose another installed binary.
-Screenshots go in `web/test-results/`, which is excluded from source control.
-The browser runner loads the production static files in an opaque-origin sandbox
-with a CSP that allows those files and blocks data connections. It checks
-light/dark/narrow layouts and interrupted navigation.
-If the environment prevents Chromium from creating sockets or launching, these
-checks cannot run there; DOM/protocol tests do not establish pixel-level quality.
 
 ## Server contract
 

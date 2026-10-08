@@ -1,6 +1,5 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import '../../../../main/static/mcp/model.js';
+import { test, assert } from './runner.js';
+import '/static/mcp/model.js';
 const { parseList, parsePost, publicationState, publicPostUrl, wordCount } = globalThis.Mataroa;
 const post = { title: 'Title', slug: 'title', published_at: '2024-01-01', url: 'https://example.mataroa.blog/blog/title/', excerpt: '' };
 test('validates library envelopes and retains text literally', () => {
