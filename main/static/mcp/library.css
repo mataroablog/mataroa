@@ -33,12 +33,14 @@ p { margin: 16px 0; }
 .masthead { margin: 16px 0; padding-bottom: 4px; border-bottom: 2px solid var(--border); }
 .wordmark { font-size: 1.8rem; font-weight: 500; }
 .heading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.text-button, .filter { padding: 0; border: 0; background: transparent; color: var(--link-color); text-align: left; }
-.text-button:hover:not(:disabled), .filter:hover:not(:disabled) { text-decoration: underline; }
+.text-button { padding: 0; border: 0; background: transparent; color: var(--link-color); text-align: left; }
+.text-button:hover:not(:disabled) { text-decoration: underline; }
 .search-form input { display: block; width: 100%; padding: 8px; border: 2px solid var(--border); border-radius: 0; background: var(--background); }
 input::placeholder { color: var(--quiet); }
-.filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 16px 0; }
-.filter[aria-pressed="true"] { color: var(--foreground); font-weight: 700; text-decoration: underline; }
+.filters { display: flex; flex-wrap: wrap; gap: 5px; margin: 16px 0; }
+.filter { padding: 6px 11px; border: 0; border-radius: 6px; background: transparent; color: var(--quiet); font-size: .875rem; }
+.filter:hover:not(:disabled) { background: var(--soft); }
+.filter[aria-pressed="true"] { background: var(--border); color: var(--foreground); font-weight: 600; }
 .list-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 16px 0; color: var(--quiet); font-size: .875rem; }
 .post-row { display: block; width: 100%; text-align: left; padding: 0; margin: 0 0 24px; border: 0; background: transparent; }
 .row-meta, .post-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--quiet); font-size: .875rem; }
