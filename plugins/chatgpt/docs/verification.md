@@ -2,10 +2,10 @@
 
 ## Checked locally
 
-- Django suite with the integration enabled: **432 tests**, passing with three PostgreSQL-only concurrency tests skipped on SQLite
-- Django suite with the integration disabled: **387 tests**, passing with the OAuth modules and PostgreSQL-only publication test skipped
-- **22 frontend tests**, TypeScript checking, and the self-contained HTML build
-- The relocated UI bundle is byte-for-byte unchanged
+- Django suite with the integration enabled: **433 tests**, passing with three PostgreSQL-only concurrency tests skipped on SQLite
+- **29 frontend tests** against the plain JavaScript files and rendered Django template
+- **11 Chromium browser scenarios** in an opaque-origin sandbox; light/dark/narrow screenshots inspected
+- Manifest-hashed static URLs and matching resource CSP verified for same-site and CDN static hosting
 - OAuth consent renders successfully with production manifest storage after static collection
 - Django system checks with integration enabled and disabled
 - Ruff lint/format checks, workflow YAML/shell syntax, and `git diff --check`
@@ -25,7 +25,7 @@ uv run ruff format --check
 
 The test settings enable OAuth and use an isolated SQLite test database by default. The suite covers owner isolation, scopes, PKCE, audience binding, consent, revocation, token rotation, error redaction, and draft revision guards. SQLite cannot establish PostgreSQL row-lock behavior.
 
-For the frontend, run `npm test`, `npm run typecheck`, and `npm run build` from `plugins/chatgpt`.
+For the frontend, run `npm ci`, `npm test`, and `npm run test:ui` from `plugins/chatgpt`. There is no build or type-check step. The preview uses the repository’s Python `.venv` to render the production template. Browser checks need an installed Chromium; see [the frontend README](../web/README.md).
 
 ## PostgreSQL concurrency checks
 
@@ -38,7 +38,6 @@ This enables the three concurrent-operation tests: exactly-once publication, sin
 - Live ChatGPT registration, account linking, installation, and UI rendering in its sandbox
 - Concurrent different-user requests through one long-lived MCP worker; checked-in HTTP tests create fresh app instances
 - Production TLS/reverse proxy, rate limits, operational logging, and the deployment's PostgreSQL version
-- Browser/screenshot layout checks; DOM and protocol tests do not establish layout quality
 - Public-directory review or publication
 
 The fixture preview and Playwright browser checks use fictional posts. Local tests do not create production data or OAuth grants.

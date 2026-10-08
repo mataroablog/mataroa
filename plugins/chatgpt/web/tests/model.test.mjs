@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseList, parsePost, publicationState, publicPostUrl, wordCount } from '../model.ts';
+import '../../../../main/static/mcp/model.js';
+const { parseList, parsePost, publicationState, publicPostUrl, wordCount } = globalThis.Mataroa;
 const post = { title: 'Title', slug: 'title', published_at: '2024-01-01', url: 'https://example.mataroa.blog/blog/title/', excerpt: '' };
 test('validates library envelopes and retains text literally', () => {
   const unsafe = { ...post, title: '<script>alert(1)</script>' };

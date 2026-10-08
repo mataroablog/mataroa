@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Mataroa · Your writing</title>
-  <!-- APP_STYLES -->
+  <link rel="stylesheet" href="{{ assets.style }}">
 </head>
 <body>
   <main id="app" class="app-shell" aria-label="Mataroa post library">
@@ -50,6 +50,9 @@
       <footer class="reader-footer">Read-only preview · Markdown is shown as text</footer>
     </section>
   </main>
-  <!-- APP_SCRIPT -->
+  <script defer src="{{ assets.model }}"></script>
+  <script defer src="{{ assets.library }}"></script>
+  <script defer src="{{ assets.bridge }}"></script>
+  <script defer src="{{ assets.main }}"></script>
 </body>
 </html>

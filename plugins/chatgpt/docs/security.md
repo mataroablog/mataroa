@@ -35,6 +35,7 @@ SQLite tests validate guards and rollback, but cannot prove PostgreSQL row-lock 
 - Stateless HTTP avoids cross-user session reuse
 - Request-size bounds, capped tool pagination, sanitized errors
 - Scoped consent descriptions and safe exception reporting for OAuth request data
-- No remote dependencies loaded by the bundled UI
+- No third-party frontend dependencies; scripts and styles load from the configured Django static origin, explicitly allowed by the resource CSP
+- Host messages must come from the parent frame; pending requests time out and are cleared on teardown
 
 Before release: add concurrent different-user requests through one long-lived MCP worker (the current HTTP isolation tests create fresh app instances), repeat the verified database concurrency tests on staging, and check trusted reverse-proxy behavior, rate limiting, TLS, production log redaction, real ChatGPT OAuth/reconnect behavior, browser sandbox rendering, and revocation. Do not treat offline tests as a production security certification. Operator admin security, account recovery, data retention, and general Mataroa infrastructure remain upstream responsibilities.

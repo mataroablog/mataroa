@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date
-from pathlib import Path
 from typing import Annotated, Any, Literal
+from urllib.parse import urljoin, urlsplit
 
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.templatetags.static import static
 from mcp.server.apps import APP_MIME_TYPE, Apps
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken
@@ -32,7 +35,7 @@ from .backend import MataroaError
 READ = "blog:read"
 DRAFTS = "drafts:write"
 PUBLISH = "posts:publish"
-LIBRARY_URI = "ui://mataroa/library"
+LIBRARY_URI = "ui://mataroa/library-v2"
 Slug = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,300}$")]
 Fingerprint = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Title = Annotated[str, Field(min_length=1, max_length=300)]
@@ -116,6 +119,24 @@ def _post_list(
     }
 
 
+def library_resource():
+    """Use collectstatic's URLs, including hashed filenames and CDN origins."""
+    assets = {
+        name: urljoin(settings.MATAROA_MCP_ISSUER_URL + "/", static(f"mcp/{filename}"))
+        for name, filename in {
+            "style": "library.css",
+            "model": "model.js",
+            "library": "library.js",
+            "bridge": "bridge.js",
+            "main": "main.js",
+        }.items()
+    }
+    origins = sorted(
+        {f"{urlsplit(url).scheme}://{urlsplit(url).netloc}" for url in assets.values()}
+    )
+    return render_to_string("main/mcp_library.html", {"assets": assets}), origins
+
+
 def create_server(
     *,
     backend_factory: Callable[[int], Any] | None = None,
@@ -165,8 +186,9 @@ def create_server(
 
     apps = Apps()
     extensions = OpenAIExtensions()
+    resource_domains = []
     if ui_html is None:
-        ui_html = Path(__file__).with_name("library.html").read_text()
+        ui_html, resource_domains = library_resource()
     apps.add_resource(
         TextResource(
             uri=LIBRARY_URI,
@@ -175,7 +197,9 @@ def create_server(
             mime_type=APP_MIME_TYPE,
             text=ui_html,
             meta={
-                "ui": {"csp": {"connectDomains": [], "resourceDomains": []}},
+                "ui": {
+                    "csp": {"connectDomains": [], "resourceDomains": resource_domains}
+                },
                 "openai/ui": OpenAIUiResourceMetadata(
                     preferred_display_mode="fullscreen",
                     available_display_modes=["inline", "fullscreen"],

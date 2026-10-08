@@ -20,9 +20,9 @@ ChatGPT → OAuth-protected Streamable HTTP `/mcp` → verified token subject �
 
 Permissions are independent: `blog:read`, `drafts:write`, and `posts:publish`. Every operation enforces scopes in code. OAuth consent grants access, not permission to publish arbitrary content. ChatGPT's tool approval and the packaged workflow handle the user's authorization for each publication; tool annotations and a fingerprint are not proof of human approval by themselves.
 
-The implementation lives in `main/mcp/`: `server.py` defines the tools, `backend.py` uses Django models, and `library.html` is the bundled UI. OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
+The implementation lives in `main/mcp/`: `server.py` defines the tools, `backend.py` uses Django models, and the UI is a Django template (`main/templates/main/mcp_library.html`) with plain JavaScript and CSS in `main/static/mcp/`. OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
 
-This directory contains the ChatGPT manifests, skills, frontend sources, and integration documentation. Python dependencies and tests belong to the main Mataroa project; there is no separately installed plugin server.
+This directory contains the ChatGPT manifests, skills, frontend tests/preview, and integration documentation. Python dependencies and tests belong to the main Mataroa project; there is no separately installed plugin server.
 
 ## Development
 
@@ -33,13 +33,11 @@ uv sync --all-groups
 uv run python manage.py check
 ```
 
-To rebuild the native UI (Node 22+):
+The native UI has no build step or runtime JavaScript dependencies. Django’s normal `collectstatic` publishes its files. Node is only needed for frontend tests and the local fixture preview:
 
 ```sh
 cd plugins/chatgpt
 npm ci
-npm run build
-npm run typecheck
 npm test
 npm run test:ui
 ```
@@ -69,4 +67,4 @@ This plugin's `plugin.json`, `mcp.json`, skills, and assets follow the portable 
 - [Connect and test a ChatGPT plugin](https://developers.openai.com/plugins/deploy/connect-chatgpt)
 - [OpenAI MCP Extensions specification](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md)
 
-The parent repository's [AGPL-3.0 license](../../LICENSE) applies. Bundled dependency notices are retained in the built UI.
+The parent repository's [AGPL-3.0 license](../../LICENSE) applies.

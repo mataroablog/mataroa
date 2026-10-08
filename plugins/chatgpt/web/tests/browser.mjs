@@ -6,7 +6,7 @@ import { createPreviewServer } from '../preview.mjs';
 const server = await createPreviewServer(0);
 const base = `http://127.0.0.1:${server.address().port}`;
 const executablePath = process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
-const browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox'] });
+const browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox'] }).catch(error => { server.close(); throw error; });
 const page = await browser.newPage({ viewport: { width: 440, height: 900 } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
@@ -38,7 +38,7 @@ try {
     await expect(frame.locator('#post-body')).toContainText('## Making room');
     await expect(frame.locator('#reader-content')).toHaveAttribute('aria-busy', 'false');
     await frame.getByRole('button', { name: 'View on blog' }).click();
-    assert.deepEqual(await page.evaluate(() => window.demo.links), ['https://example.mataroa.blog/blog/small-things/']);
+    await expect.poll(() => page.evaluate(() => window.demo.links)).toEqual(['https://example.mataroa.blog/blog/small-things/']);
     await page.screenshot({ path: 'web/test-results/post-reader.png', fullPage: true });
     await frame.getByRole('button', { name: 'All posts', exact: true }).click();
     await expect(frame.locator('#library')).toBeVisible();

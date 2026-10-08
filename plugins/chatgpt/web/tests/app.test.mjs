@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-const html = await readFile(new URL('../../../../main/mcp/library.html', import.meta.url), 'utf8');
+import { libraryHTML, assetDirectory } from '../template.mjs';
+const html = libraryHTML();
 const post = { title: 'Bridge fixture', slug: 'bridge-fixture', published_at: '2024-01-01', url: 'https://example.mataroa.blog/blog/bridge-fixture/', excerpt: 'A local protocol test.' };
 const initial = { content: [], structuredContent: { posts: [post], total: 1 } };
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-test('built HTML is self-contained, uses official bridge handshake and consumes initial result', async () => {
+test('served scripts initialize the host bridge and consume the initial result', async () => {
   const dom = new JSDOM(html, { url: 'https://fixture.local/library.html', pretendToBeVisual: true, runScripts: 'outside-only' });
   const win = dom.window;
   const errors = [];
@@ -19,7 +19,6 @@ test('built HTML is self-contained, uses official bridge handshake and consumes 
   win.ResizeObserver = class { observe() {} disconnect() {} };
   win.scrollTo = () => {};
   win.console = { ...console, debug: () => {}, error: message => errors.push(message) };
-  win.bundleError = error => errors.push(error.message);
   const deliver = message => queueMicrotask(() => win.dispatchEvent(new win.MessageEvent('message', { data: { jsonrpc: '2.0', ...message }, source: win })));
   win.postMessage = message => {
     if (message.method === 'ui/initialize') deliver({ id: message.id, result: { protocolVersion: message.params.protocolVersion, hostInfo: { name: 'Fixture', version: '1.0' }, hostCapabilities: { serverTools: {}, openLinks: {} }, hostContext: { theme: 'dark', 'openai/interactionCursor': 'default' } } });
@@ -31,9 +30,14 @@ test('built HTML is self-contained, uses official bridge handshake and consumes 
     if (message.method === 'ui/open-link') { links.push(message.params.url); deliver({ id: message.id, result: {} }); }
   };
   try {
-    assert.equal(win.document.querySelectorAll('script[src], link[rel="stylesheet"]').length, 0);
-    const script = win.document.querySelector('script[type="module"]').textContent;
-    await runInContext(`(async () => { ${script}\n})().catch(window.bundleError)`, dom.getInternalVMContext(), { timeout: 5000 });
+    assert.equal(win.document.querySelectorAll('script:not([src])').length, 0);
+    assert.equal(win.document.querySelectorAll('link[rel="stylesheet"]').length, 1);
+    const scripts = [...win.document.querySelectorAll('script[src]')];
+    assert.equal(scripts.length, 4);
+    for (const script of scripts) {
+      assert.equal(script.defer, true);
+      win.eval(await readFile(new URL(new URL(script.src).pathname.split('/').at(-1), assetDirectory), 'utf8'));
+    }
     await tick();
     assert.deepEqual(errors, []);
     assert.equal(win.document.documentElement.dataset.theme, 'dark');
@@ -51,5 +55,5 @@ test('built HTML is self-contained, uses official bridge handshake and consumes 
     assert.equal(win.document.documentElement.dataset.theme, 'light');
     assert.equal(win.document.documentElement.style.getPropertyValue('--cursor-interaction'), 'pointer');
     assert.deepEqual(errors, []);
-  } finally { dom.window.close(); }
+  } finally { win.dispatchEvent(new win.Event('pagehide')); dom.window.close(); }
 });

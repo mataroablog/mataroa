@@ -1,31 +1,36 @@
 # Mataroa post library
 
-A native, read-only MCP App for the ChatGPT plugin sidebar. The production app
-uses the official `@modelcontextprotocol/ext-apps` bridge and bundles OpenAI's
-MCP App stylesheet. No framework runtime, remote scripts, analytics, account
-credentials, or direct Mataroa requests are included in the HTML.
+A native, read-only MCP App for the ChatGPT plugin sidebar. Production uses a
+Django template and ordinary JavaScript/CSS in `main/static/mcp/`. There is no
+bundler, TypeScript, frontend SDK, or generated HTML. The small `bridge.js`
+implements the MCP Apps JSON-RPC host connection: initialization, tool calls,
+links, initial-result/cancellation notifications, theme/cursor changes, resizing,
+timeouts, and teardown.
 
-## Build and check
+`main/mcp/server.py` renders the template with absolute static URLs, including
+Django's production filename hashes. The resource CSP permits just the static
+asset origin (or the configured static CDN). Data travels through the host;
+`connectDomains` stays empty. Classic deferred scripts work inside the host's
+sandbox without requiring cross-origin module headers. Bump `LIBRARY_URI` when
+making incompatible resource changes, since hosts cache UI resources by URI.
 
-Use a Node version supported by [package.json](../package.json), then run:
+## Check
+
+Node is used only for tests and the fictional preview. Set up the repository's
+Python `.venv` first (`uv sync --all-groups`); the fixture renders the real Django
+template. From `plugins/chatgpt`, using a Node version supported by `package.json`:
 
 ```sh
 npm ci
-npm run typecheck
-npm run build
 npm test
 ```
 
-The build writes the self-contained resource at
-[main/mcp/library.html](../../../main/mcp/library.html).
-The Python server serves that resource with MCP App metadata. Commit the rebuilt
-HTML when changing the frontend; Node is not needed by the production server.
-
-`npm test` covers runtime response validation, publication states, inert-text
-rendering, search/filter requests, paging, retries, late-response handling, focus
-restoration, and the official bridge handshake against the actual bundled HTML.
-The bundle test also checks initial tool-result delivery, server tool calls,
-external-link requests, theme changes, and absence of external asset references.
+Tests cover response validation, publication states, inert-text rendering,
+search/filter requests, pagination, retries, late responses, focus restoration,
+and the served scripts' host handshake. Bridge tests exercise message-source
+validation, request correlation, timeouts, cancellation, theme changes, resize,
+and teardown. Python tests verify collected asset URLs and CSP origins for both
+Mataroa-hosted files and a static CDN.
 
 ## Local fixture preview
 
@@ -56,14 +61,15 @@ npm run test:ui
 The runner uses `/usr/bin/chromium` when available, otherwise Playwright's
 installed Chromium. Set `CHROMIUM_PATH` to choose another installed binary.
 Screenshots go in `web/test-results/`, which is excluded from source control.
-The browser runner checks the actual bundle under a restrictive CSP with no
-network access, including light/dark/narrow layouts and interrupted navigation.
+The browser runner loads the production static files in an opaque-origin sandbox
+with a CSP that allows those files and blocks data connections. It checks
+light/dark/narrow layouts and interrupted navigation.
 If the environment prevents Chromium from creating sockets or launching, these
 checks cannot run there; DOM/protocol tests do not establish pixel-level quality.
 
 ## Server contract
 
-Register the initial result handler **before** calling `app.connect()`. The app
+Register the initial result handler **before** calling `bridge.connect()`. The app
 renders `open_library`'s initial tool result without a redundant `list_posts`
 request. Once the user navigates, correlated tool-call responses take precedence
 over uncorrelated host notifications.

@@ -2,6 +2,12 @@
 
 These are operator steps, not actions already performed by the build. Use a staging deployment and disposable blogs first. Production hosting, OAuth client registration, and public submission each need the owner's approval.
 
+The library UI has no frontend build step. Deploy its plain JavaScript/CSS with
+the normal Django `collectstatic` command before starting the ASGI workers.
+The MCP resource uses absolute, manifest-hashed static URLs and declares their
+origin in its CSP. Ensure those static files are publicly reachable over HTTPS;
+they contain no account data. Node and npm are only needed for local tests.
+
 ## 1. Install and configure the server
 
 The MCP server is part of Mataroa's ASGI application, alongside the existing Django views. The default WSGI server does **not** expose `/mcp`.

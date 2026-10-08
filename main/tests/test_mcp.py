@@ -264,3 +264,55 @@ class MCPServerTests(SimpleTestCase):
             )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["result"]["serverInfo"]["name"], "mataroa")
+
+
+class LibraryAssetTests(SimpleTestCase):
+    def test_collected_assets_and_csp_match_the_resource(self):
+        """A sandbox can load the exact deployed files without a JS build or CORS."""
+        import re
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from urllib.parse import urlsplit
+
+        from asgiref.sync import async_to_sync
+        from django.core.management import call_command
+        from django.test import override_settings
+
+        from main.mcp.server import LIBRARY_URI
+
+        for static_url, origin in [
+            ("/static/", "https://mataroa.blog"),
+            ("https://static.example/assets/", "https://static.example"),
+        ]:
+            with (
+                self.subTest(static_url=static_url),
+                TemporaryDirectory() as directory,
+                override_settings(
+                    DEBUG=False,
+                    STATIC_ROOT=directory,
+                    STATIC_URL=static_url,
+                    MATAROA_MCP_ISSUER_URL="https://mataroa.blog",
+                    STORAGES={
+                        "staticfiles": {
+                            "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+                        }
+                    },
+                ),
+            ):
+                call_command("collectstatic", interactive=False, verbosity=0)
+                server = create_server()
+                resource = list(async_to_sync(server.read_resource)(LIBRARY_URI))[0]
+                self.assertEqual(
+                    resource.meta["ui"]["csp"],
+                    {"connectDomains": [], "resourceDomains": [origin]},
+                )
+                html = resource.content
+                urls = re.findall(r'(?:src|href)="([^"]+)"', html)
+                self.assertEqual(len(urls), 5)
+                for url in urls:
+                    self.assertTrue(url.startswith(origin + "/"))
+                    self.assertRegex(url, r"/mcp/[a-z]+\.[a-f0-9]{12}\.(js|css)$")
+                    filename = urlsplit(url).path.rsplit("/", 1)[1]
+                    self.assertTrue((Path(directory) / "mcp" / filename).is_file())
+                self.assertEqual(html.count("<script defer src="), 4)
+                self.assertNotIn('<script type="module">', html)

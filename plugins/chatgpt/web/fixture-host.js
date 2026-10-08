@@ -1,4 +1,4 @@
-// Local-only host simulator. Never imported by or bundled with the production app.
+// Local-only host simulator. Never loaded by the production app.
 const iframe = document.querySelector('iframe');
 const now = new Date();
 const ago = days => new Date(now.getTime() - days * 86400000).toISOString().slice(0, 10);
@@ -16,7 +16,7 @@ if (mode === 'pagination') {
   for (let i = 0; i < 54; i++) posts.push({ ...posts[0], title: `Archive note ${i + 1}`, slug: `archive-${i + 1}` });
 }
 const state = window.demo = { posts, calls: [], links: [], delays: {}, failNext: null, held: [], holdPosts: false, mode };
-function send(message) { iframe.contentWindow.postMessage({ jsonrpc: '2.0', ...message }, location.origin); }
+function send(message) { iframe.contentWindow.postMessage({ jsonrpc: '2.0', ...message }, '*'); }
 function list(args = {}) {
   const q = (args.query || '').toLowerCase();
   const filtered = (state.mode === 'empty' ? [] : posts).filter(post =>
@@ -28,7 +28,7 @@ function list(args = {}) {
 state.theme = theme => send({ method: 'ui/notifications/host-context-changed', params: { theme } });
 state.releasePosts = () => { state.held.splice(0).forEach(reply => reply()); state.holdPosts = false; };
 window.addEventListener('message', event => {
-  if (event.source !== iframe.contentWindow || event.origin !== location.origin) return;
+  if (event.source !== iframe.contentWindow || event.origin !== 'null') return;
   const message = event.data;
   if (message?.jsonrpc !== '2.0') return;
   if (message.method === 'ui/initialize') {

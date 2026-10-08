@@ -1,3 +1,17 @@
+:root {
+  color-scheme: light;
+  --background: var(--color-background-primary, light-dark(#fff, #181818));
+  --foreground: var(--color-text-primary, light-dark(#1a1c1f, #fff));
+  --border: var(--color-border-secondary, light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%)));
+  --input: var(--color-border-primary, light-dark(rgb(26 28 31 / 11.8%), rgb(255 255 255 / 12%)));
+  --ring: var(--color-ring-primary, var(--color-text-info, light-dark(#339cff, #83c3ff)));
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+body { margin: 0; background: var(--background); color: var(--foreground); font: var(--font-weight-normal, 430) 14px/1.5 var(--font-sans, -apple-system, system-ui, 'Segoe UI', sans-serif); }
+h1, h2, h3, p { margin-block: 0; }
+h2, h3 { font-weight: var(--font-weight-medium, 500); line-height: 1.25; }
+h2 { font-size: 20px; }
+h3 { font-size: 18px; }
 :root { --ink: var(--foreground); --quiet: var(--color-text-secondary, #686761); --hairline: var(--border); --soft: color-mix(in srgb, var(--ink) 4%, var(--background)); --serif: Georgia, 'Times New Roman', serif; }
 :root[data-theme="dark"] { --quiet: var(--color-text-secondary, #aaa9a3); }
 * { box-sizing: border-box; }

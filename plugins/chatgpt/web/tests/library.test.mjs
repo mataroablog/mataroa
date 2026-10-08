@@ -1,9 +1,11 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
-import { Library } from '../library.ts';
-const template = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+import '../../../../main/static/mcp/model.js';
+import '../../../../main/static/mcp/library.js';
+import { libraryHTML } from '../template.mjs';
+const { Library } = globalThis.Mataroa;
+const template = libraryHTML();
 const base = { title: 'A quiet place', slug: 'quiet', published_at: '2024-01-01', url: 'https://example.mataroa.blog/blog/quiet/', excerpt: 'Some words.' };
 const draft = { ...base, title: 'An unfinished page', slug: 'draft', published_at: null };
 const scheduled = { ...base, title: 'Coming soon', slug: 'soon', published_at: '2999-01-01' };
