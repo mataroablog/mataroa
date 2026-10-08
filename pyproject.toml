@@ -7,7 +7,6 @@ requires-python = ">=3.13"
 dependencies = [
     "bleach[css]>=6.2.0",
     "django>=6.0.9,<6.1",
-    "django-oauth-toolkit>=3.4.1,<4",
     "gunicorn>=23.0",
     "markdown>=3.9",
     "mcp>=2.3,<3",

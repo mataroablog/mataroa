@@ -17,8 +17,6 @@ MATAROA_CHATGPT_ENABLED = True
 MATAROA_MCP_ISSUER_URL = "https://mataroa.blog"
 MATAROA_MCP_RESOURCE_URL = "https://mataroa.blog/mcp"
 MATAROA_CHATGPT_CLIENT_IDS = ("test-chatgpt",)
-OAUTH2_PROVIDER = {**OAUTH2_PROVIDER}  # noqa: F405
-OAUTH2_PROVIDER["ALWAYS_RELOAD_OAUTHLIB_CORE"] = True  # noqa: F405
 
 # Opt into a disposable PostgreSQL server for row-lock concurrency tests.
 if os.environ.get("MATAROA_TEST_POSTGRES_DB"):

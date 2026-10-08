@@ -1,171 +1,135 @@
-"""OAuth security boundary for the optional, first-party ChatGPT integration.
+"""Mataroa's fixed OAuth flow: consent, S256 code exchange, refresh and revoke.
 
-Django OAuth Toolkit handles protocol parsing, consent, PKCE, rotation and
-revocation. This module deliberately narrows it to pre-registered clients and
-one resource; it never accepts Mataroa API keys or fetches client metadata URLs.
+Only pre-registered clients and the canonical MCP resource are supported.
+Tokens and authorization codes are random opaque values, stored as SHA-256 hashes.
 """
 
+import base64
+import binascii
 import hashlib
 import re
-from urllib.parse import urlsplit
+import secrets
+from datetime import timedelta
+from urllib.parse import unquote_plus, urlencode, urlsplit, urlunsplit
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.db import router, transaction
-from django.http import JsonResponse
+from django.contrib.auth.hashers import check_password
+from django.contrib.auth.views import redirect_to_login
+from django.db import transaction
+from django.http import HttpResponseRedirect, JsonResponse
+from django.shortcuts import render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.debug import SafeExceptionReporterFilter
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_post_parameters
 from mcp.server.auth.provider import AccessToken
-from oauth2_provider.models import (
-    get_access_token_model,
-    get_application_model,
-    get_grant_model,
-    get_refresh_token_model,
-)
-from oauth2_provider.oauth2_validators import OAuth2Validator
-from oauth2_provider.views import (
-    AuthorizationView,
-    OAuthProtectedResourceMetadataView,
-    OAuthServerMetadataView,
-    RevokeTokenView,
-    TokenView,
-)
-from oauthlib.oauth2.rfc6749 import errors
+
+from main.models import OAuthClient, OAuthGrant, OAuthToken
+
+SCOPES = {
+    "blog:read": "Read your posts, drafts, pages, and blog comments",
+    "drafts:write": "Create and edit unpublished drafts",
+    "posts:publish": "Publish or schedule approved drafts",
+}
+CLIENT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
 
 
-def client_is_allowed(application):
-    """Fail closed until the operator explicitly enables a registered client."""
-    if application is None:
-        return False
-    redirects = application.redirect_uris.split()
-    return (
-        application.client_id in settings.MATAROA_CHATGPT_CLIENT_IDS
-        and application.authorization_grant_type == application.GRANT_AUTHORIZATION_CODE
-        and not application.skip_authorization
-        and bool(redirects)
-        and all(
-            urlsplit(uri).scheme == "https"
-            and bool(urlsplit(uri).hostname)
-            and not urlsplit(uri).username
-            and not urlsplit(uri).password
-            and not urlsplit(uri).fragment
-            and "*" not in uri
-            for uri in redirects
-        )
+def token_hash(value):
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def client_is_allowed(client):
+    return bool(
+        client
+        and client.client_id in settings.MATAROA_CHATGPT_CLIENT_IDS
+        and client.client_type in {"public", "confidential"}
+        and client.allowed_redirects()
     )
 
 
-def exact_resource_validator(request_uri, audiences):
-    return audiences == [settings.MATAROA_MCP_RESOURCE_URL] and (
-        request_uri == settings.MATAROA_MCP_RESOURCE_URL
-    )
+def valid_scope(scope):
+    values = scope.split(" ")
+    return "blog:read" in values and set(values).issubset(SCOPES)
 
 
-def _invalid_target(request):
-    raise errors.CustomOAuth2Error(
-        error="invalid_target",
-        description="The resource must be the canonical Mataroa MCP endpoint.",
-        request=request,
-    )
+def error_response(error, status=400):
+    response = JsonResponse({"error": error}, status=status)
+    if status == 401:
+        response["WWW-Authenticate"] = 'Basic realm="Mataroa OAuth"'
+    return response
 
 
-class MataroaOAuth2Validator(OAuth2Validator):
-    """Require exact client, redirect, resource, user and grant bindings."""
+def parameters(request):
+    values = request.POST if request.method == "POST" else request.GET
+    if any(len(items) != 1 or len(items[0]) > 4096 for _, items in values.lists()):
+        return None
+    return values
 
-    def _load_application(self, client_id, request):
-        # Check before the toolkit lookup: no CIMD fetch, even if an operator
-        # accidentally enables CIMD later.
-        if client_id not in settings.MATAROA_CHATGPT_CLIENT_IDS:
+
+def authenticate_client(request, values):
+    """Exactly one authentication method; Basic credentials use form decoding."""
+    client_id, secret = values.get("client_id", ""), values.get("client_secret", "")
+    authorization = request.headers.get("Authorization")
+    if authorization:
+        if "client_secret" in values:
             return None
-        application = super()._load_application(client_id, request)
-        return application if client_is_allowed(application) else None
-
-    def validate_redirect_uri(self, client_id, redirect_uri, request, *args, **kwargs):
-        return client_is_allowed(request.client) and (
-            redirect_uri in request.client.redirect_uris.split()
-        )
-
-    def confirm_redirect_uri(
-        self, client_id, code, redirect_uri, client, *args, **kwargs
-    ):
-        grant = get_grant_model().objects.filter(code=code, application=client).first()
-        return bool(grant and redirect_uri == grant.redirect_uri)
-
-    def validate_response_type(
-        self, client_id, response_type, client, request, *args, **kwargs
-    ):
-        return response_type == "code" and client_is_allowed(client)
-
-    def validate_grant_type(
-        self, client_id, grant_type, client, request, *args, **kwargs
-    ):
-        return grant_type in {
-            "authorization_code",
-            "refresh_token",
-        } and client_is_allowed(client)
-
-    def is_pkce_required(self, client_id, request):
-        return True
-
-    def validate_scopes(self, client_id, scopes, client, request, *args, **kwargs):
-        return "blog:read" in scopes and super().validate_scopes(
-            client_id, scopes, client, request, *args, **kwargs
-        )
-
-    def _validate_resource_uris(self, request, resources):
-        super()._validate_resource_uris(request, resources)
-        if resources and resources != [settings.MATAROA_MCP_RESOURCE_URL]:
-            _invalid_target(request)
-
-    def _create_authorization_code(self, request, code, expires=None):
-        if getattr(request, "resource", None) != [settings.MATAROA_MCP_RESOURCE_URL]:
-            _invalid_target(request)
-        if request.code_challenge_method != "S256" or not re.fullmatch(
-            r"[A-Za-z0-9_-]{43}", request.code_challenge or ""
-        ):
-            raise errors.InvalidRequestError(
-                description="S256 PKCE is required.", request=request
+        try:
+            scheme, credentials = authorization.split(" ", 1)
+            if scheme.lower() != "basic":
+                return None
+            client_id, secret = (
+                base64.b64decode(credentials, validate=True).decode().split(":", 1)
             )
-        if not request.user or not request.user.is_active:
-            raise errors.AccessDeniedError(request=request)
-        return super()._create_authorization_code(request, code, expires)
+            client_id, secret = unquote_plus(client_id), unquote_plus(secret)
+            if "client_id" in values and values["client_id"] != client_id:
+                return None
+        except (ValueError, UnicodeError, binascii.Error):
+            return None
+    if client_id not in settings.MATAROA_CHATGPT_CLIENT_IDS:
+        return None
+    client = OAuthClient.objects.filter(client_id=client_id).first()
+    if not client_is_allowed(client):
+        return None
+    if client.client_type == "confidential":
+        return client if secret and check_password(secret, client.secret_hash) else None
+    return client if not authorization and "client_secret" not in values else None
 
-    def validate_code(self, client_id, code, client, request, *args, **kwargs):
-        if not super().validate_code(client_id, code, client, request, *args, **kwargs):
-            return False
-        grant = get_grant_model().objects.get(code=code, application=client)
-        return bool(
-            grant.resource == [settings.MATAROA_MCP_RESOURCE_URL]
-            and grant.code_challenge_method == "S256"
-            and request.user
-            and request.user.is_active
+
+def authorization_redirect(values, **result):
+    parts = urlsplit(values["redirect_uri"])
+    query = urlencode(
+        {**result, "state": values["state"], "iss": settings.MATAROA_MCP_ISSUER_URL}
+    )
+    return HttpResponseRedirect(
+        urlunsplit(
+            parts._replace(query=parts.query + "&" + query if parts.query else query)
         )
+    )
 
-    def validate_refresh_token(self, refresh_token, client, request, *args, **kwargs):
-        if not super().validate_refresh_token(
-            refresh_token, client, request, *args, **kwargs
-        ):
-            return False
-        return bool(
-            request.refresh_token_instance.resource
-            == [settings.MATAROA_MCP_RESOURCE_URL]
-            and request.user
-            and request.user.is_active
-        )
 
-    def _check_and_set_request_resource(self, request):
-        # MCP clients must send resource on the code exchange. Refresh may omit
-        # it, in which case Toolkit inherits the existing, already-bound resource.
-        if request.grant_type == "authorization_code" and not getattr(
-            request, "resource", None
-        ):
-            _invalid_target(request)
-        super()._check_and_set_request_resource(request)
-        if request.resource != [settings.MATAROA_MCP_RESOURCE_URL]:
-            _invalid_target(request)
+def issue_tokens(grant, scope):
+    access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+    now = timezone.now()
+    OAuthToken.objects.create(
+        grant=grant,
+        scope=scope,
+        access_hash=token_hash(access),
+        refresh_hash=token_hash(refresh),
+        access_expires=now + timedelta(hours=1),
+        refresh_expires=now + timedelta(days=30),
+    )
+    return JsonResponse(
+        {
+            "access_token": access,
+            "refresh_token": refresh,
+            "token_type": "Bearer",
+            "expires_in": 3600,
+            "scope": scope,
+        }
+    )
 
 
 class OAuthExceptionReporterFilter(SafeExceptionReporterFilter):
@@ -195,212 +159,299 @@ class OAuthExceptionReporterFilter(SafeExceptionReporterFilter):
         }
 
 
-class CanonicalOAuthEndpointMixin:
+@method_decorator(sensitive_post_parameters(), name="dispatch")
+class OAuthView(View):
+    http_method_names = ["get", "post", "head", "options"]
+
     def dispatch(self, request, *args, **kwargs):
         request.exception_reporter_filter = OAuthExceptionReporterFilter()
         issuer = urlsplit(settings.MATAROA_MCP_ISSUER_URL)
-        if request.get_host() != issuer.netloc or request.scheme != issuer.scheme:
-            return JsonResponse(
-                {
-                    "error": "invalid_request",
-                    "error_description": "Use the canonical HTTPS host.",
-                },
-                status=400,
-            )
-        response = super().dispatch(request, *args, **kwargs)
+        if (
+            request.get_host() != issuer.netloc
+            or request.scheme != issuer.scheme
+            or request.method == "POST"
+            and request.content_type != "application/x-www-form-urlencoded"
+        ):
+            response = error_response("invalid_request")
+        else:
+            response = super().dispatch(request, *args, **kwargs)
         response["Cache-Control"] = "no-store"
+        response["Pragma"] = "no-cache"
         response["Referrer-Policy"] = "no-referrer"
         return response
 
 
-class MataroaAuthorizationView(CanonicalOAuthEndpointMixin, AuthorizationView):
-    def dispatch(self, request, *args, **kwargs):
-        parameters = request.POST if request.method == "POST" else request.GET
-        if parameters.getlist("resource") != [settings.MATAROA_MCP_RESOURCE_URL]:
-            return JsonResponse({"error": "invalid_target"}, status=400)
-        if any(len(values) != 1 for _, values in parameters.lists()):
-            return JsonResponse({"error": "invalid_request"}, status=400)
-        if parameters.get("approval_prompt", "force") != "force":
-            return JsonResponse(
-                {
-                    "error": "invalid_request",
-                    "error_description": "Explicit consent is required.",
-                },
-                status=400,
-            )
-        client_id = parameters.get("client_id")
+class MataroaAuthorizationView(OAuthView):
+    def get(self, request):
+        values = parameters(request)
+        if values is None:
+            return error_response("invalid_request")
+        if values.get("resource") != settings.MATAROA_MCP_RESOURCE_URL:
+            return error_response("invalid_target")
+        client = OAuthClient.objects.filter(
+            client_id=values.get("client_id", "")
+        ).first()
+        if not client_is_allowed(client):
+            return error_response("invalid_client")
         if (
-            client_id not in settings.MATAROA_CHATGPT_CLIENT_IDS
-            or not client_is_allowed(
-                get_application_model().objects.filter(client_id=client_id).first()
-            )
+            values.get("redirect_uri") not in client.allowed_redirects()
+            or values.get("response_type") != "code"
+            or values.get("response_mode", "query") != "query"
+            or values.get("code_challenge_method") != "S256"
+            or not re.fullmatch(r"[A-Za-z0-9_-]{43}", values.get("code_challenge", ""))
+            or not values.get("state")
+            or values.get("approval_prompt", "force") != "force"
         ):
-            return JsonResponse({"error": "invalid_client"}, status=400)
-        if (
-            parameters.get("response_type") != "code"
-            or parameters.get("code_challenge_method") != "S256"
-            or not re.fullmatch(
-                r"[A-Za-z0-9_-]{43}", parameters.get("code_challenge", "")
+            return error_response("invalid_request")
+        scope = values.get("scope", "blog:read")
+        if not valid_scope(scope):
+            return authorization_redirect(values, error="invalid_scope")
+        scope = " ".join(dict.fromkeys(scope.split()))
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        if not request.user.is_active:
+            return error_response("access_denied")
+        if request.method == "POST":
+            if values.get("allow") != "true":
+                return authorization_redirect(values, error="access_denied")
+            code = secrets.token_urlsafe(32)
+            OAuthGrant.objects.create(
+                client=client,
+                user=request.user,
+                scope=scope,
+                resource=values["resource"],
+                redirect_uri=values["redirect_uri"],
+                code_hash=token_hash(code),
+                code_challenge=values["code_challenge"],
+                code_expires=timezone.now() + timedelta(minutes=2),
             )
-            or not parameters.get("redirect_uri")
-            or not parameters.get("state")
-        ):
-            return JsonResponse(
-                {
-                    "error": "invalid_request",
-                    "error_description": "Code flow, state, exact redirect_uri and S256 PKCE are required.",
-                },
-                status=400,
+            return authorization_redirect(values, code=code)
+        fields = {
+            name: values[name]
+            for name in (
+                "client_id",
+                "redirect_uri",
+                "response_type",
+                "code_challenge",
+                "code_challenge_method",
+                "state",
+                "resource",
             )
-        return super().dispatch(request, *args, **kwargs)
+        }
+        fields["scope"] = scope
+        return render(
+            request,
+            "main/oauth_authorize.html",
+            {
+                "application": client,
+                "fields": fields,
+                "permissions": [SCOPES[name] for name in dict.fromkeys(scope.split())],
+            },
+        )
 
-    def form_valid(self, form):
-        # An administrator may remove an application after the consent form was
-        # rendered, or even between dispatch validation and Toolkit's lookup.
-        try:
-            return super().form_valid(form)
-        except get_application_model().DoesNotExist:
-            return JsonResponse({"error": "invalid_client"}, status=400)
+    post = get
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-@method_decorator(sensitive_post_parameters(), name="dispatch")
-class MataroaTokenView(CanonicalOAuthEndpointMixin, TokenView):
-    def authorization_flow_token_response(self, request, *args, **kwargs):
-        try:
-            return super().authorization_flow_token_response(request, *args, **kwargs)
-        finally:
-            # Toolkit's narrower inner decorator otherwise overwrites our outer
-            # marker, exposing code/verifier/refresh tokens to mail_admins.
-            request.sensitive_post_parameters = "__ALL__"
+class MataroaTokenView(OAuthView):
+    def post(self, request):
+        if "resource" in request.POST and request.POST.getlist("resource") != [
+            settings.MATAROA_MCP_RESOURCE_URL
+        ]:
+            return error_response("invalid_target")
+        values = parameters(request)
+        if values is None:
+            return error_response("invalid_request")
+        client = authenticate_client(request, values)
+        if client is None:
+            return error_response("invalid_client", 401)
+        grant_type = values.get("grant_type")
+        if grant_type not in {"authorization_code", "refresh_token"}:
+            return error_response("unsupported_grant_type")
+        resource = values.get("resource")
+        if (resource is not None and resource != settings.MATAROA_MCP_RESOURCE_URL) or (
+            grant_type == "authorization_code" and resource is None
+        ):
+            return error_response("invalid_target")
+        if grant_type == "authorization_code":
+            return self.exchange_code(client, values)
+        return self.refresh(client, values)
 
-    def post(self, request, *args, **kwargs):
-        if request.POST.get("grant_type") not in {
-            "authorization_code",
-            "refresh_token",
-        }:
-            return JsonResponse({"error": "unsupported_grant_type"}, status=400)
-        parameters = request.POST
-        if any(
-            len(values) != 1 for key, values in parameters.lists() if key != "resource"
+    @staticmethod
+    @transaction.atomic
+    def exchange_code(client, values):
+        verifier = values.get("code_verifier", "")
+        if not values.get("redirect_uri") or not re.fullmatch(
+            r"[A-Za-z0-9._~-]{43,128}", verifier
         ):
-            return JsonResponse({"error": "invalid_request"}, status=400)
-        if (
-            "resource" in parameters
-            and parameters.getlist("resource") != [settings.MATAROA_MCP_RESOURCE_URL]
-        ) or (
-            parameters.get("grant_type") == "authorization_code"
-            and "resource" not in parameters
-        ):
-            return JsonResponse({"error": "invalid_target"}, status=400)
-        if parameters.get("grant_type") == "authorization_code" and (
-            not parameters.get("redirect_uri")
-            or not re.fullmatch(
-                r"[A-Za-z0-9._~-]{43,128}", parameters.get("code_verifier", "")
+            return error_response("invalid_request")
+        grant = (
+            OAuthGrant.objects.select_for_update()
+            .filter(
+                code_hash=token_hash(values.get("code", "")),
+                client=client,
             )
+            .first()
+        )
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        if (
+            grant is None
+            or grant.revoked
+            or not grant.user.is_active
+            or grant.redirect_uri != values["redirect_uri"]
+            or grant.resource != settings.MATAROA_MCP_RESOURCE_URL
+            or not valid_scope(grant.scope)
+            or not secrets.compare_digest(grant.code_challenge, challenge)
         ):
-            return JsonResponse({"error": "invalid_request"}, status=400)
-        if parameters.get("grant_type") == "authorization_code":
-            # oauthlib saves tokens before consuming the authorization code.
-            # Hold the grant lock through both operations, and roll back any
-            # tokens if consuming the code fails. PostgreSQL serializes races.
-            grant_model = get_grant_model()
-            database = router.db_for_write(grant_model)
-            with transaction.atomic(using=database):
-                grant_model.objects.using(database).select_for_update().filter(
-                    code=parameters.get("code", "")
-                ).first()
-                response = self.authorization_flow_token_response(
-                    request, *args, **kwargs
-                )
-                if response.status_code != 200:
-                    transaction.set_rollback(True, using=database)
-        else:
-            # Serialize refresh validation and rotation, including revoked-token
-            # checks. Otherwise two requests can both validate a live token and
-            # race into Toolkit's hashed-token response reconstruction.
-            refresh_model = get_refresh_token_model()
-            database = router.db_for_write(refresh_model)
-            checksum = hashlib.sha256(
-                parameters.get("refresh_token", "").encode()
-            ).hexdigest()
-            with transaction.atomic(using=database):
-                refresh_model.objects.using(database).select_for_update().filter(
-                    token_checksum=checksum
-                ).first()
-                response = self.authorization_flow_token_response(
-                    request, *args, **kwargs
-                )
-                # Deliberately commit expected 400 errors: replay detection must
-                # retain its revocation of the compromised token family.
-        # Toolkit's backend catches errors raised by resource validation during
-        # token saving, but does not add JSON headers to that exception path.
-        response["Content-Type"] = "application/json"
-        response["Pragma"] = "no-cache"
-        return response
+            return error_response("invalid_grant")
+        if grant.consumed:
+            # RFC 6749: reject reuse and revoke credentials issued from this code.
+            grant.revoked = True
+            grant.save(update_fields=["revoked"])
+            return error_response("invalid_grant")
+        if grant.code_expires <= timezone.now():
+            return error_response("invalid_grant")
+        grant.consumed = True
+        grant.save(update_fields=["consumed"])
+        return issue_tokens(grant, grant.scope)
+
+    @staticmethod
+    @transaction.atomic
+    def refresh(client, values):
+        token = OAuthToken.objects.filter(
+            refresh_hash=token_hash(values.get("refresh_token", "")),
+            grant__client=client,
+        ).first()
+        if token is None:
+            return error_response("invalid_grant")
+        # All generations lock the same grant, including revocation/replay of an
+        # older token racing with rotation of its newest descendant.
+        grant = OAuthGrant.objects.select_for_update().filter(pk=token.grant_id).first()
+        token = OAuthToken.objects.filter(pk=token.pk).first()
+        if (
+            grant is None
+            or token is None
+            or grant.revoked
+            or not grant.consumed
+            or not grant.user.is_active
+            or grant.resource != settings.MATAROA_MCP_RESOURCE_URL
+            or not valid_scope(token.scope)
+            or not set(token.scope.split()).issubset(grant.scope.split())
+        ):
+            return error_response("invalid_grant")
+        if token.revoked:
+            grant.revoked = True
+            grant.save(update_fields=["revoked"])
+            return error_response("invalid_grant")
+        if token.refresh_expires <= timezone.now():
+            return error_response("invalid_grant")
+        scope = values.get("scope", token.scope)
+        if not valid_scope(scope) or not set(scope.split()).issubset(
+            token.scope.split()
+        ):
+            return error_response("invalid_scope")
+        token.revoked = True
+        token.save(update_fields=["revoked"])
+        return issue_tokens(grant, " ".join(dict.fromkeys(scope.split())))
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-@method_decorator(sensitive_post_parameters(), name="dispatch")
-class MataroaRevokeTokenView(CanonicalOAuthEndpointMixin, RevokeTokenView):
-    pass
+class MataroaRevokeTokenView(OAuthView):
+    @transaction.atomic
+    def post(self, request):
+        from django.db.models import Q
+
+        values = parameters(request)
+        if values is None or not values.get("token"):
+            return error_response("invalid_request")
+        client = authenticate_client(request, values)
+        if client is None:
+            return error_response("invalid_client", 401)
+        checksum = token_hash(values["token"])
+        token = OAuthToken.objects.filter(
+            Q(access_hash=checksum) | Q(refresh_hash=checksum), grant__client=client
+        ).first()
+        if token:
+            OAuthGrant.objects.filter(pk=token.grant_id).update(revoked=True)
+        return JsonResponse({})
 
 
-class MataroaServerMetadataView(CanonicalOAuthEndpointMixin, OAuthServerMetadataView):
-    pass
+class MataroaServerMetadataView(OAuthView):
+    def get(self, request):
+        issuer = settings.MATAROA_MCP_ISSUER_URL
+        return JsonResponse(
+            {
+                "issuer": issuer,
+                "authorization_endpoint": issuer + "/oauth/authorize/",
+                "token_endpoint": issuer + "/oauth/token/",
+                "revocation_endpoint": issuer + "/oauth/revoke/",
+                "response_types_supported": ["code"],
+                "response_modes_supported": ["query"],
+                "grant_types_supported": ["authorization_code", "refresh_token"],
+                "code_challenge_methods_supported": ["S256"],
+                "scopes_supported": list(SCOPES),
+                "token_endpoint_auth_methods_supported": CLIENT_AUTH_METHODS,
+                "revocation_endpoint_auth_methods_supported": CLIENT_AUTH_METHODS,
+                "authorization_response_iss_parameter_supported": True,
+                "client_id_metadata_document_supported": False,
+            }
+        )
 
 
-class MataroaResourceMetadataView(
-    CanonicalOAuthEndpointMixin, OAuthProtectedResourceMetadataView
-):
-    pass
+class MataroaResourceMetadataView(OAuthView):
+    def get(self, request):
+        return JsonResponse(
+            {
+                "resource": settings.MATAROA_MCP_RESOURCE_URL,
+                "authorization_servers": [settings.MATAROA_MCP_ISSUER_URL],
+                "scopes_supported": list(SCOPES),
+                "bearer_methods_supported": ["header"],
+                "resource_name": "Mataroa ChatGPT plugin",
+            }
+        )
 
 
 class DjangoTokenVerifier:
-    """Each request rechecks the database; revocation is effective immediately.
-
-    No API key fallback, external introspection, token passthrough or shared user.
-    The authenticated subject is the token's real Django user primary key.
-    """
-
-    def __init__(self, resource_url: str | None = None):
+    def __init__(self, resource_url=None):
         self.resource_url = resource_url or settings.MATAROA_MCP_RESOURCE_URL
 
-    async def verify_token(self, token: str) -> AccessToken | None:
+    async def verify_token(self, token):
         if not token or len(token) > 4096:
             return None
         return await sync_to_async(self._verify_token, thread_sensitive=True)(token)
 
-    def _verify_token(self, token: str) -> AccessToken | None:
-        checksum = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    def _verify_token(self, token):
         access = (
-            get_access_token_model()
-            .objects.select_related("application", "user")
-            .filter(token_checksum=checksum)
+            OAuthToken.objects.select_related("grant__client", "grant__user")
+            .filter(access_hash=token_hash(token))
             .first()
         )
+        if access is None:
+            return None
+        grant = access.grant
         if (
-            access is None
-            or not access.is_valid(["blog:read"])
-            or access.resource != [self.resource_url]
+            access.revoked
+            or grant.revoked
+            or not grant.consumed
+            or access.access_expires <= timezone.now()
+            or not grant.user.is_active
+            or not client_is_allowed(grant.client)
+            or grant.resource != self.resource_url
             or self.resource_url != settings.MATAROA_MCP_RESOURCE_URL
-            or access.user is None
-            or not access.user.is_active
-            or not client_is_allowed(access.application)
+            or not valid_scope(access.scope)
+            or not set(access.scope.split()).issubset(grant.scope.split())
         ):
             return None
-        scopes = access.scope.split()
-        if not set(scopes).issubset({"blog:read", "drafts:write", "posts:publish"}):
-            return None
-        expires = access.expires
-        if timezone.is_naive(expires):
-            expires = timezone.make_aware(expires, timezone.get_default_timezone())
         return AccessToken(
             token=token,
-            client_id=access.application.client_id,
-            scopes=scopes,
-            expires_at=int(expires.timestamp()),
+            client_id=grant.client.client_id,
+            scopes=access.scope.split(),
+            expires_at=int(access.access_expires.timestamp()),
             resource=self.resource_url,
-            subject=str(access.user_id),
+            subject=str(grant.user_id),
             claims={"iss": settings.MATAROA_MCP_ISSUER_URL},
         )

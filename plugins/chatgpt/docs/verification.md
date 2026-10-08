@@ -2,15 +2,17 @@
 
 ## Checked locally
 
-- Django suite with the integration enabled: **433 tests**, passing with three PostgreSQL-only concurrency tests skipped on SQLite
+- Django suite with the integration enabled: **446 tests on PostgreSQL 17**, all passing, including five concurrency tests
+- The same **446 tests on SQLite**, with five PostgreSQL-only tests skipped
+- Integration disabled: **388 tests on SQLite**, passing with three skips
 - **29 frontend tests** against the plain JavaScript files and rendered Django template
 - **11 Chromium browser scenarios** in an opaque-origin sandbox; light/dark/narrow screenshots inspected
 - Manifest-hashed static URLs and matching resource CSP verified for same-site and CDN static hosting
-- OAuth consent renders successfully with production manifest storage after static collection
+- OAuth consent uses Mataroa’s own layout and renders without Toolkit static assets
 - Django system checks with integration enabled and disabled
 - Ruff lint/format checks, workflow YAML/shell syntax, and `git diff --check`
 
-Python code now uses the main project's dependencies and Django test runner. There is no separate Python plugin package or pytest environment. The unused REST adapter and its tests have been removed.
+Python code uses the main project’s dependencies and Django test runner. The OAuth implementation uses Django and the standard library; `django-oauth-toolkit`, `oauthlib`, and `jwcrypto` have been removed from the dependency lock. Client registration, grant revocation, token issuance rollback, hashed credential storage, and expired-family cleanup have automated coverage.
 
 ## Run checks
 
@@ -31,7 +33,7 @@ For the frontend, run `npm ci`, `npm test`, and `npm run test:ui` from `plugins/
 
 Use a dedicated disposable server. Set `MATAROA_TEST_POSTGRES_DB`, `MATAROA_TEST_POSTGRES_HOST`, `MATAROA_TEST_POSTGRES_PORT`, and `MATAROA_TEST_POSTGRES_USER` (plus `MATAROA_TEST_POSTGRES_PASSWORD` through secure environment configuration), then run the same Django test command above. Django creates a separate test database. CI runs this configuration as well.
 
-This enables the three concurrent-operation tests: exactly-once publication, single-use authorization codes, and refresh-token replay-family revocation. Do not point the test configuration at a production server.
+This enables five concurrent-operation tests: exactly-once publication, single-use authorization codes, refresh-token replay, replay across different token generations, and revocation racing with renewal. Do not point the test configuration at a production server.
 
 ## Still requires staging verification
 

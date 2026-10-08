@@ -26,7 +26,7 @@ The resource identifier is derived as the exact issuer plus `/mcp`. There is no 
 
 For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. MCP dependencies are included in the main project installation. The enable flag defaults to `0`.
 
-Enabling the integration loads Django OAuth Toolkit's installed app, migrations, and static assets. Run these commands with the deployment variables above set, before starting or reloading the service:
+OAuth uses `main.OAuthClient`, `main.OAuthGrant`, and `main.OAuthToken`. Their migration runs with the normal Django app even when the integration is disabled. Run these commands before starting or reloading the service:
 
 ```sh
 uv run python manage.py migrate
@@ -34,7 +34,9 @@ uv run python manage.py collectstatic --no-input
 uv run python manage.py check
 ```
 
-Static collection must run with `MATAROA_CHATGPT_ENABLED=1` so the consent stylesheet is included in the production static manifest. Without it, the authorization screen returns HTTP 500 with a missing manifest entry.
+The consent screen uses the normal Mataroa layout. Static collection includes the library UI independently of the enable flag.
+
+This replaces the undeployed Toolkit-based implementation. Existing experimental Toolkit registrations and tokens are not imported: register clients in the new admin screen and reconnect test accounts. Old Toolkit tables are left untouched and unused; reverting code does not migrate new credentials back into them.
 
 Run an ASGI worker behind the existing HTTPS reverse proxy, for example:
 
@@ -50,12 +52,12 @@ The MCP transport independently restricts Host and Origin; configure a dedicated
 
 ## 2. Pre-register the ChatGPT OAuth client
 
-Use Django admin's OAuth Toolkit Applications interface under the normal secured admin flow. Keep registration restricted to authorized operators.
+Use Django admin’s **OAuth clients** screen under the normal secured admin flow. Keep registration restricted to authorized operators.
 
-- Authorization grant: authorization code
+- Client ID and name: the values configured for the ChatGPT connection
 - Client type: the public or confidential type selected in ChatGPT's connection settings
 - Redirect URIs: copy the **exact** URI displayed by ChatGPT; HTTPS only, no wildcard
-- Skip authorization: off
+- New secret: for confidential clients, enter the same random secret configured in ChatGPT (at least 32 characters). The admin hashes it and never displays it again; blank on edit keeps the existing hash.
 - Put the created client ID in `MATAROA_CHATGPT_CLIENT_IDS`
 
 No dynamic client registration or outbound client-metadata fetching is enabled. A client not on the allowlist cannot connect. A confidential client's secret must be supplied only through secure administrative forms; it is never tool input. The app is interoperable with `client_secret_basic`, `client_secret_post`, and public-client `none`, all with S256 PKCE.
@@ -82,7 +84,7 @@ The prepared code is not evidence of a successful live connection, production de
 
 ## Operation and rollback
 
-- Rotate/revoke OAuth grants through the normal operator flow. Every MCP request rechecks token existence, expiry, active user status, allowed client, resource, and scopes.
+- Use Django admin’s **OAuth grants** screen to revoke selected grants and all their tokens. Each request rechecks the grant, token expiry, active user, allowed client, resource, and scopes. Grant fields are read-only.
 - Set `MATAROA_CHATGPT_ENABLED=0` and restart to remove MCP/OAuth routes. This does not delete existing data or grants; explicitly revoke grants if retiring the service.
-- Schedule the toolkit's expired-token cleanup through normal deployment operations after reviewing retention requirements.
+- Schedule `uv run python manage.py clearoauth` to remove expired families. It retains rotated token hashes while any descendant can still be renewed, so replay detection continues to work.
 - Never log request authorization headers, OAuth request bodies, authorization codes, refresh tokens, or tool bodies containing private drafts.

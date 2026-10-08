@@ -1,0 +1,23 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}Connect {{ application.name }}{% endblock %}
+
+{% block content %}
+<h1>Connect {{ application.name }}</h1>
+<p>Signed in as <strong>{{ request.user.username }}</strong>.</p>
+<p>This application is requesting permission to:</p>
+<ul>
+    {% for permission in permissions %}
+    <li>{{ permission }}</li>
+    {% endfor %}
+</ul>
+<p>Approving access allows these actions on your Mataroa account.</p>
+<form method="post" action="{% url 'oauth:authorize' %}">
+    {% csrf_token %}
+    {% for name, value in fields.items %}
+    <input type="hidden" name="{{ name }}" value="{{ value }}">
+    {% endfor %}
+    <button type="submit" name="allow" value="true">Allow access</button>
+    <button type="submit" name="allow" value="false">Cancel</button>
+</form>
+{% endblock content %}
