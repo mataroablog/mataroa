@@ -33,14 +33,13 @@ uv sync --all-groups
 uv run python manage.py check
 ```
 
-The native UI has no build step or runtime JavaScript dependencies. Django’s normal `collectstatic` publishes its files. Node is only needed for frontend tests and the local fixture preview:
+The native UI has no build step or runtime JavaScript dependencies. Django’s normal `collectstatic` publishes its files. Run the browser tests and fictional preview without Node:
 
 ```sh
-cd plugins/chatgpt
-npm ci
-npm test
-npm run test:ui
+uv run python plugins/chatgpt/web/preview.py
 ```
+
+Open `http://127.0.0.1:4173/tests/` to run the checks, or `/preview/` to explore the library. See [the frontend README](web/README.md) for coverage and the limits of manual browser testing.
 
 For isolated Python tests, from the **Mataroa repository root**:
 

@@ -1,5 +1,6 @@
 // Local-only host simulator. Never loaded by the production app.
-const iframe = document.querySelector('iframe');
+export function fixtureHost(iframe, { mode = 'normal', theme = 'light', opaque = false } = {}) {
+const timers = new Set();
 const now = new Date();
 const ago = days => new Date(now.getTime() - days * 86400000).toISOString().slice(0, 10);
 const future = new Date(now.getTime() + 14 * 86400000).toISOString().slice(0, 10);
@@ -10,29 +11,28 @@ const posts = [
   { title: 'On writing things down', slug: 'writing-things-down', published_at: ago(18), excerpt: 'Not everything needs to become something. Sometimes a few honest sentences are enough.', body: 'Not everything needs to become something.\n\nSometimes a few honest sentences are enough.' },
   { title: 'Hello, world. Again.', slug: 'hello-again', published_at: ago(40), excerpt: 'A new beginning, a blank page, and no particular plan.', body: 'A new beginning, a blank page, and no particular plan.' },
 ].map(post => ({ ...post, url: `https://example.mataroa.blog/blog/${post.slug}/`, content_sha256: 'a'.repeat(64) }));
-const mode = new URLSearchParams(location.search).get('mode') || 'normal';
 if (mode === 'injection') posts.unshift({ title: '<img src=x onerror=alert(1)>', slug: 'untrusted', published_at: ago(1), excerpt: '<script>window.hacked = true</script>', body: '<script>window.hacked = true</script>\n<img src=x onerror=alert(1)>\n[Link](javascript:alert(1))', url: 'javascript:alert(1)', content_sha256: 'b'.repeat(64) });
 if (mode === 'pagination') {
   for (let i = 0; i < 54; i++) posts.push({ ...posts[0], title: `Archive note ${i + 1}`, slug: `archive-${i + 1}` });
 }
-const state = window.demo = { posts, calls: [], links: [], delays: {}, failNext: null, held: [], holdPosts: false, mode };
+const state = { posts, calls: [], links: [], delays: {}, failNext: null, held: [], holdPosts: false, mode };
 function send(message) { iframe.contentWindow.postMessage({ jsonrpc: '2.0', ...message }, '*'); }
 function list(args = {}) {
   const q = (args.query || '').toLowerCase();
   const filtered = (state.mode === 'empty' ? [] : posts).filter(post =>
     (args.status !== 'draft' || !post.published_at) &&
-    (args.status !== 'published' || Boolean(post.published_at)) &&
+    (args.status !== 'published' || (Boolean(post.published_at) && post.published_at <= now.toISOString().slice(0, 10))) &&
     (!q || `${post.title} ${post.slug} ${post.excerpt}`.toLowerCase().includes(q)));
   return { content: [], structuredContent: { posts: filtered.slice(args.offset || 0, (args.offset || 0) + (args.limit || 50)).map(({ body, content_sha256, ...post }) => post), total: filtered.length } };
 }
 state.theme = theme => send({ method: 'ui/notifications/host-context-changed', params: { theme } });
 state.releasePosts = () => { state.held.splice(0).forEach(reply => reply()); state.holdPosts = false; };
-window.addEventListener('message', event => {
-  if (event.source !== iframe.contentWindow || event.origin !== 'null') return;
+const receive = event => {
+  if (event.source !== iframe.contentWindow || event.origin !== (opaque ? 'null' : location.origin)) return;
   const message = event.data;
   if (message?.jsonrpc !== '2.0') return;
   if (message.method === 'ui/initialize') {
-    send({ id: message.id, result: { protocolVersion: message.params.protocolVersion, hostInfo: { name: 'Local Mataroa fixture host', version: '1.0.0' }, hostCapabilities: { serverTools: {}, openLinks: {} }, hostContext: { theme: new URLSearchParams(location.search).get('theme') || 'light', displayMode: 'inline' } } });
+    send({ id: message.id, result: { protocolVersion: message.params.protocolVersion, hostInfo: { name: 'Local Mataroa fixture host', version: '1.0.0' }, hostCapabilities: { serverTools: {}, openLinks: {} }, hostContext: { theme: theme, displayMode: 'inline' } } });
   } else if (message.method === 'ui/notifications/initialized') {
     send({ method: 'ui/notifications/tool-input', params: { arguments: {} } });
     send({ method: 'ui/notifications/tool-result', params: state.mode === 'error' ? { isError: true, content: [{ type: 'text', text: 'Fixture failure' }] } : list() });
@@ -48,10 +48,14 @@ window.addEventListener('message', event => {
       } else send({ id: message.id, error: { code: -32601, message: 'This fixture only permits read tools.' } });
     };
     if (name === 'get_post' && state.holdPosts) state.held.push(reply);
-    else setTimeout(reply, state.delays[args.query] || 20);
+    else { const timer = setTimeout(() => { timers.delete(timer); reply(); }, state.delays[args.query] || 20); timers.add(timer); }
   } else if (message.method === 'ui/open-link') {
     state.links.push(message.params.url);
     send({ id: message.id, result: {} });
   }
-});
-iframe.src = '/library.html';
+};
+window.addEventListener('message', receive);
+state.close = () => { window.removeEventListener('message', receive); timers.forEach(clearTimeout); iframe.remove(); };
+state.send = send;
+return state;
+}

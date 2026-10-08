@@ -6,7 +6,7 @@ The library UI has no frontend build step. Deploy its plain JavaScript/CSS with
 the normal Django `collectstatic` command before starting the ASGI workers.
 The MCP resource uses absolute, manifest-hashed static URLs and declares their
 origin in its CSP. Ensure those static files are publicly reachable over HTTPS;
-they contain no account data. Node and npm are only needed for local tests.
+they contain no account data. Local tests use the Python preview server and a browser; Node is not required.
 
 ## 1. Install and configure the server
 
