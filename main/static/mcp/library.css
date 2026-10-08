@@ -43,8 +43,10 @@ input::placeholder { color: var(--quiet); }
 .filter[aria-pressed="true"] { background: var(--border); color: var(--foreground); font-weight: 600; }
 .list-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 16px 0; color: var(--quiet); font-size: .875rem; }
 .post-row { display: block; width: 100%; text-align: left; padding: 0; margin: 0 0 24px; border: 0; background: transparent; }
-.row-meta, .post-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--quiet); font-size: .875rem; }
-.badge { white-space: nowrap; }
+.row-meta, .post-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--quiet); font-size: .875rem; }
+.badge { padding: 0 6px; border: 1px solid var(--border); border-radius: 4px; font-size: .75rem; line-height: 1.5; white-space: nowrap; }
+.badge-draft { background: var(--soft); }
+.badge-scheduled { color: light-dark(#855e28, #e4bd84); border-color: light-dark(#e7d7bc, #5b4e39); }
 .row-title { display: block; margin: 4px 0; color: var(--link-color); font-size: 1.2rem; overflow-wrap: anywhere; }
 .post-row:hover .row-title { text-decoration: underline; }
 .row-excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
