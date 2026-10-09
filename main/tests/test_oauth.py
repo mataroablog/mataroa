@@ -6,8 +6,10 @@ credentials. No network service is contacted.
 
 import base64
 import hashlib
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from html import unescape
 from threading import Barrier
 from unittest import SkipTest, skipUnless
 from unittest.mock import patch
@@ -317,6 +319,80 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.assertEqual(tokens.status_code, 200, tokens.content)
         self.assertEqual(
             self.verify(tokens.json()["access_token"]).grant.user_id, self.user.pk
+        )
+
+    def test_signup_resumes_oauth_after_validation_error_with_csrf_checks(self):
+        browser = Client(enforce_csrf_checks=True)
+        parameters = self.auth_parameters(state="state + / ? & = %")
+        response = self.get("/oauth/authorize/", parameters, client=browser)
+        next_url = parse_qs(urlsplit(response.url).query)["next"][0]
+        response = self.get(response.url, client=browser)
+        signup_url = unescape(
+            re.search(r'href="([^"]+)">Sign up</a>', response.content.decode())[1]
+        )
+        self.assertEqual(parse_qs(urlsplit(signup_url).query)["next"], [next_url])
+
+        def submit(path, values):
+            return browser.post(
+                path,
+                urlencode(
+                    {
+                        **values,
+                        "csrfmiddlewaretoken": browser.cookies["csrftoken"].value,
+                    }
+                ),
+                content_type="application/x-www-form-urlencoded",
+                secure=True,
+                HTTP_HOST="mataroa.blog",
+                HTTP_REFERER="https://mataroa.blog" + path,
+            )
+
+        response = self.get(signup_url, client=browser)
+        self.assertContains(
+            response, f'<input type="hidden" name="next" value="{next_url}">', html=True
+        )
+        response = submit(signup_url, {"next": response.context["next"]})
+        second_url = response.url
+        response = self.get(second_url, client=browser)
+        self.assertEqual(response.context["next"], next_url)
+        # Switching back to login must also retain the authorization request.
+        login_url = unescape(
+            re.search(r'href="([^"]+)">Log in</a>', response.content.decode())[1]
+        )
+        self.assertEqual(parse_qs(urlsplit(login_url).query)["next"], [next_url])
+        values = {
+            "username": "oauthnewuser",
+            "password1": "abcdef123456",
+            "password2": "does-not-match",
+            "next": response.context["next"],
+        }
+        response = submit(second_url, values)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("password2", response.context["form"].errors)
+        self.assertContains(
+            response, f'<input type="hidden" name="next" value="{next_url}">', html=True
+        )
+        values.update(password2=values["password1"], next=response.context["next"])
+        response = submit(second_url, values)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, next_url)
+        self.assertFalse(OAuthGrant.objects.exists())
+
+        response = self.get(response.url, client=browser)
+        self.assertContains(response, "Allow access")
+        self.assertEqual(response.context["fields"], parameters)
+        self.assertEqual(response.context["user"].username, "oauthnewuser")
+        response = submit(
+            "/oauth/authorize/", {**response.context["fields"], "allow": "true"}
+        )
+        self.assertEqual(response.status_code, 302)
+        callback = parse_qs(urlsplit(response.url).query)
+        self.assertEqual(callback["state"], [parameters["state"]])
+        tokens = self.exchange(callback["code"][0])
+        self.assertEqual(tokens.status_code, 200, tokens.content)
+        self.assertEqual(
+            self.verify(tokens.json()["access_token"]).grant.user.username,
+            "oauthnewuser",
         )
 
     def test_authorization_rejects_missing_or_non_s256_pkce(self):
