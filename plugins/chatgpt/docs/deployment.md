@@ -3,14 +3,14 @@
 These are operator steps, not actions already performed by the build. Use a staging deployment and disposable blogs first. Production hosting, OAuth client registration, and public submission each need the owner's approval.
 
 The library UI has no frontend build step. Deploy its plain JavaScript/CSS with
-the normal Django `collectstatic` command before starting the ASGI workers.
+the normal Django `collectstatic` command before reloading the Django workers.
 The MCP resource uses absolute, manifest-hashed static URLs and declares their
 origin in its CSP. Ensure those static files are publicly reachable over HTTPS;
 they contain no account data. Local tests use the Python preview server and a browser; Node is not required.
 
 ## 1. Install and configure the server
 
-The MCP server is part of Mataroa's ASGI application, alongside the existing Django views. The default WSGI server does **not** expose `/mcp`.
+The MCP endpoint is an ordinary synchronous Django view. Keep the existing Gunicorn/WSGI service and its reload configuration; it now serves `/mcp` alongside the website. Uvicorn and an additional server process are not needed.
 
 ```sh
 uv sync --all-groups
@@ -24,7 +24,7 @@ Set these deployment variables through the deployment's normal configuration sys
 
 The resource identifier is derived as the exact issuer plus `/mcp`. There is no Mataroa API key variable. Normal Mataroa database/session/email settings still apply. Never put real credentials into source files, sample manifests, chat, or build artifacts.
 
-For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. MCP dependencies are included in the main project installation. The enable flag defaults to `0`.
+For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. There are no additional MCP Python dependencies. The enable flag defaults to `0`.
 
 OAuth uses `main.OAuthClient`, `main.OAuthGrant`, and `main.OAuthToken`. Their migration runs with the normal Django app even when the integration is disabled. Run these commands before starting or reloading the service:
 
@@ -38,17 +38,23 @@ The consent screen uses the normal Mataroa layout. Static collection includes th
 
 This replaces the undeployed Toolkit-based implementation. Existing experimental Toolkit registrations and tokens are not imported: register clients in the new admin screen and reconnect test accounts. Old Toolkit tables are left untouched and unused; reverting code does not migrate new credentials back into them.
 
-Run an ASGI worker behind the existing HTTPS reverse proxy, for example:
+Keep the existing Gunicorn command targeting `mataroa.wsgi:application` and the
+existing HTTPS reverse proxy. The proxy must preserve the Host header and set
+`X-Forwarded-Proto: https`; Gunicorn must trust forwarded headers only from that
+proxy (its `forwarded_allow_ips` setting). Django checks the resulting scheme
+and canonical hostname, and rejects requests when either is wrong. Do not
+replace trusted-proxy configuration with a wildcard or trust client-supplied
+forwarded headers directly.
 
-```sh
-uv run uvicorn mataroa.asgi:application \
-  --host 127.0.0.1 --port 8000 --no-access-log \
-  --proxy-headers --forwarded-allow-ips=127.0.0.1
-```
+Forward `/mcp`, `/oauth/`, and the discovery paths to Django without redirects.
+The MCP view accepts one JSON-RPC message per POST and returns JSON; it does not
+use SSE, WebSockets, sessions, background tasks, or streaming proxy settings.
+GET and DELETE return 405 after authentication. Leave OAuth, authorization
+headers, and private request bodies out of access logs.
 
-Replace the proxy IP allowlist with the actual trusted proxy only. Do not use `*`. The authorization endpoints check the canonical HTTPS scheme and host; forwarding the wrong scheme causes a deliberate rejection. The deployment must forward `/mcp`, `/oauth/`, and the discovery paths to this application without redirects, token logging, buffering problems, or authentication-replacing headers.
-
-The MCP transport independently restricts Host and Origin; configure a dedicated staging canonical hostname rather than weakening these checks. TLS termination, rate limits, and request log redaction need staging verification. Use production PostgreSQL, not SQLite.
+Use a dedicated staging canonical hostname with PostgreSQL. Verify TLS,
+forwarded HTTPS handling, static asset URLs, rate limits, and log redaction
+before connecting a real account.
 
 ## 2. Pre-register the ChatGPT OAuth client
 

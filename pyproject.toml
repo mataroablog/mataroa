@@ -9,20 +9,15 @@ dependencies = [
     "django>=6.0.9,<6.1",
     "gunicorn>=23.0",
     "markdown>=3.9",
-    "mcp>=2.3,<3",
-    "openai-mcp-extensions>=0.1.0,<0.2",
     "psycopg[binary]>=3.2",
-    "pydantic>=2.12,<3",
     "pygments>=2.19",
     "stripe==13.0.1",
-    "uvicorn>=0.34,<1",
 ]
 
 [dependency-groups]
 dev = [
     "coverage>=7.11",
     "djade>=1.6",
-    "httpx>=0.28,<0.29",
     "ruff>=0.14",
 ]
 

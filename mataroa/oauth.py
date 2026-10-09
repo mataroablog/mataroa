@@ -12,7 +12,6 @@ import secrets
 from datetime import timedelta
 from urllib.parse import unquote_plus, urlencode, urlsplit, urlunsplit
 
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.views import redirect_to_login
@@ -25,7 +24,6 @@ from django.views import View
 from django.views.debug import SafeExceptionReporterFilter
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_post_parameters
-from mcp.server.auth.provider import AccessToken
 
 from main.models import OAuthClient, OAuthGrant, OAuthToken
 
@@ -415,43 +413,28 @@ class MataroaResourceMetadataView(OAuthView):
         )
 
 
-class DjangoTokenVerifier:
-    def __init__(self, resource_url=None):
-        self.resource_url = resource_url or settings.MATAROA_MCP_RESOURCE_URL
-
-    async def verify_token(self, token):
-        if not token or len(token) > 4096:
-            return None
-        return await sync_to_async(self._verify_token, thread_sensitive=True)(token)
-
-    def _verify_token(self, token):
-        access = (
-            OAuthToken.objects.select_related("grant__client", "grant__user")
-            .filter(access_hash=token_hash(token))
-            .first()
-        )
-        if access is None:
-            return None
-        grant = access.grant
-        if (
-            access.revoked
-            or grant.revoked
-            or not grant.consumed
-            or access.access_expires <= timezone.now()
-            or not grant.user.is_active
-            or not client_is_allowed(grant.client)
-            or grant.resource != self.resource_url
-            or self.resource_url != settings.MATAROA_MCP_RESOURCE_URL
-            or not valid_scope(access.scope)
-            or not set(access.scope.split()).issubset(grant.scope.split())
-        ):
-            return None
-        return AccessToken(
-            token=token,
-            client_id=grant.client.client_id,
-            scopes=access.scope.split(),
-            expires_at=int(access.access_expires.timestamp()),
-            resource=self.resource_url,
-            subject=str(grant.user_id),
-            claims={"iss": settings.MATAROA_MCP_ISSUER_URL},
-        )
+def verify_access_token(token):
+    """Return the valid token and its owner; no SDK or process-wide auth context."""
+    if not token or len(token) > 4096:
+        return None
+    access = (
+        OAuthToken.objects.select_related("grant__client", "grant__user")
+        .filter(access_hash=token_hash(token))
+        .first()
+    )
+    if access is None:
+        return None
+    grant = access.grant
+    if (
+        access.revoked
+        or grant.revoked
+        or not grant.consumed
+        or access.access_expires <= timezone.now()
+        or not grant.user.is_active
+        or not client_is_allowed(grant.client)
+        or grant.resource != settings.MATAROA_MCP_RESOURCE_URL
+        or not valid_scope(access.scope)
+        or not set(access.scope.split()).issubset(grant.scope.split())
+    ):
+        return None
+    return access

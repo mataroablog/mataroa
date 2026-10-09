@@ -24,9 +24,12 @@ urlpatterns = [
 ]
 
 if settings.MATAROA_CHATGPT_ENABLED:
+    from main.views.mcp import endpoint
+
     from .oauth import MataroaResourceMetadataView, MataroaServerMetadataView
 
     urlpatterns = [
+        path("mcp", endpoint, name="mcp"),
         path("oauth/", include("mataroa.oauth_urls")),
         path(
             ".well-known/oauth-authorization-server",

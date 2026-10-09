@@ -14,13 +14,13 @@ No delete, unpublish, live-post edits, page writes, moderation, image upload, or
 
 ## Architecture
 
-ChatGPT → OAuth-protected Streamable HTTP `/mcp` → verified token subject → owner-scoped Django ORM.
+ChatGPT → ordinary Django view at `/mcp` → verified OAuth token → owner-scoped Django ORM. The endpoint uses stateless MCP Streamable HTTP with JSON responses and runs through the existing Gunicorn/WSGI deployment. No ASGI server or MCP SDK is required.
 
 Mataroa’s own Django views and three models handle authorization code + S256 PKCE, consent, opaque hashed tokens, refresh rotation, and revocation. The implementation supports explicitly allowlisted, pre-registered clients and one exact MCP resource. There is no OAuth framework dependency. It does not store users' Mataroa API keys, pass MCP tokens to the REST API, or share a global blog account.
 
 Permissions are independent: `blog:read`, `drafts:write`, and `posts:publish`. Every operation enforces scopes in code. OAuth consent grants access, not permission to publish arbitrary content. ChatGPT's tool approval and the packaged workflow handle the user's authorization for each publication; tool annotations and a fingerprint are not proof of human approval by themselves.
 
-The implementation lives in `main/mcp/`: `server.py` defines the tools, `backend.py` uses Django models, and the UI is a Django template (`main/templates/main/mcp_library.html`) with plain JavaScript and CSS in `main/static/mcp/`. OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
+The implementation lives in `main/mcp/`: `server.py` defines the tools and validates their arguments, `backend.py` uses Django models, and the UI is a Django template (`main/templates/main/mcp_library.html`) with plain JavaScript and CSS in `main/static/mcp/`. The HTTP endpoint is `main/views/mcp.py`; OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
 
 This directory contains the ChatGPT manifests, skills, frontend tests/preview, and integration documentation. Python dependencies and tests belong to the main Mataroa project; there is no separately installed plugin server.
 
@@ -56,7 +56,7 @@ Tests use disposable SQLite databases and fabricated credentials only. They do n
 
 See [Deployment and registration](docs/deployment.md), [Security model](docs/security.md), and [Acceptance checks](docs/acceptance.md). The integration is disabled by default and fails closed until the operator registers and allowlists a client.
 
-This plugin's `plugin.json`, `mcp.json`, skills, and assets follow the portable Agent Plugins layout. UI and mentions use [OpenAI MCP Extensions](https://github.com/openai/mcp-extensions) 0.1.0 with MCP Python 2.3. Dependencies are locked. Public-directory submission additionally requires the deployed endpoint, verified developer details, privacy/terms URLs, screenshots, and review; those are not fabricated in this package.
+This plugin's `plugin.json`, `mcp.json`, skills, and assets follow the portable Agent Plugins layout. UI and mention metadata follow [OpenAI MCP Extensions](https://github.com/openai/mcp-extensions) directly; the implementation uses Django and the Python standard library. Public-directory submission additionally requires the deployed endpoint, verified developer details, privacy/terms URLs, screenshots, and review; those are not fabricated in this package.
 
 ## Sources
 

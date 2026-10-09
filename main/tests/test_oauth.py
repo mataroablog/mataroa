@@ -13,7 +13,6 @@ from unittest import SkipTest, skipUnless
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlencode, urlsplit
 
-from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection
@@ -31,7 +30,7 @@ if not settings.MATAROA_CHATGPT_ENABLED:
     raise SkipTest("Enable the ChatGPT integration to run OAuth tests.")
 
 from main.models import OAuthClient, OAuthGrant, OAuthToken  # noqa: E402
-from mataroa.oauth import DjangoTokenVerifier, token_hash  # noqa: E402
+from mataroa.oauth import token_hash, verify_access_token  # noqa: E402
 
 RESOURCE = "https://mataroa.blog/mcp"
 REDIRECT = "https://chatgpt.com/connector_platform/oauth/callback"
@@ -56,7 +55,6 @@ class OAuthTestHelpers:
             redirect_uris=REDIRECT,
         )
         self.client.force_login(self.user)
-        self.verifier = DjangoTokenVerifier()
 
     def auth_parameters(self, **overrides):
         values = {
@@ -121,7 +119,7 @@ class OAuthTestHelpers:
         return response.json()
 
     def verify(self, token):
-        return async_to_sync(self.verifier.verify_token)(token)
+        return verify_access_token(token)
 
 
 @override_settings(MATAROA_CHATGPT_CLIENT_IDS=("test-chatgpt",))
@@ -129,12 +127,11 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
     def test_end_to_end_consent_pkce_and_opaque_user_bound_token(self):
         tokens = self.issue()
         verified = self.verify(tokens["access_token"])
-        self.assertEqual(verified.subject, str(self.user.pk))
-        self.assertEqual(verified.resource, RESOURCE)
-        self.assertEqual(verified.scopes, SCOPES.split())
-        self.assertEqual(verified.claims, {"iss": "https://mataroa.blog"})
-        self.assertEqual(verified.client_id, "test-chatgpt")
-        self.assertGreater(verified.expires_at, timezone.now().timestamp())
+        self.assertEqual(verified.grant.user_id, self.user.pk)
+        self.assertEqual(verified.grant.resource, RESOURCE)
+        self.assertEqual(verified.scope.split(), SCOPES.split())
+        self.assertEqual(verified.grant.client.client_id, "test-chatgpt")
+        self.assertGreater(verified.access_expires, timezone.now())
         self.assertEqual(OAuthToken.objects.get().grant.resource, RESOURCE)
         record = OAuthToken.objects.get()
         self.assertEqual(record.access_hash, token_hash(tokens["access_token"]))
@@ -148,8 +145,8 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         bob = get_user_model().objects.create_user("oauthbob", password="test-password")
         self.client.force_login(bob)
         bob_tokens = self.issue()
-        self.assertEqual(self.verify(alice["access_token"]).subject, str(self.user.pk))
-        self.assertEqual(self.verify(bob_tokens["access_token"]).subject, str(bob.pk))
+        self.assertEqual(self.verify(alice["access_token"]).grant.user_id, self.user.pk)
+        self.assertEqual(self.verify(bob_tokens["access_token"]).grant.user_id, bob.pk)
 
     def test_discovery_is_canonical_and_minimal(self):
         metadata = self.get("/.well-known/oauth-authorization-server").json()
@@ -298,7 +295,7 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         tokens = self.exchange(code)
         self.assertEqual(tokens.status_code, 200, tokens.content)
         self.assertEqual(
-            self.verify(tokens.json()["access_token"]).subject, str(self.user.pk)
+            self.verify(tokens.json()["access_token"]).grant.user_id, self.user.pk
         )
 
     def test_authorization_rejects_missing_or_non_s256_pkce(self):
@@ -399,7 +396,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
 
     def test_read_only_consent_stays_read_only(self):
         token = self.issue(scope="blog:read")
-        self.assertEqual(self.verify(token["access_token"]).scopes, ["blog:read"])
+        self.assertEqual(
+            self.verify(token["access_token"]).scope.split(), ["blog:read"]
+        )
 
     def test_refresh_rotates_and_inherits_exact_resource(self):
         token = self.issue()
@@ -415,7 +414,7 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         rotated = response.json()
         self.assertNotEqual(rotated["refresh_token"], token["refresh_token"])
         self.assertIsNone(self.verify(token["access_token"]))
-        self.assertEqual(self.verify(rotated["access_token"]).resource, RESOURCE)
+        self.assertEqual(self.verify(rotated["access_token"]).grant.resource, RESOURCE)
         self.assertEqual(OAuthToken.objects.get(revoked=False).grant.resource, RESOURCE)
         replay = self.post(
             "/oauth/token/",
@@ -565,7 +564,7 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(
-            self.verify(response.json()["access_token"]).subject, str(self.user.pk)
+            self.verify(response.json()["access_token"]).grant.user_id, self.user.pk
         )
 
     def test_confidential_client_basic_auth(self):
@@ -667,7 +666,9 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
         narrowed = response.json()
-        self.assertEqual(self.verify(narrowed["access_token"]).scopes, ["blog:read"])
+        self.assertEqual(
+            self.verify(narrowed["access_token"]).scope.split(), ["blog:read"]
+        )
         response = self.post(
             "/oauth/token/",
             {

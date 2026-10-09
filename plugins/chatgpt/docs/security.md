@@ -59,4 +59,30 @@ SQLite tests validate guards and rollback, but cannot prove PostgreSQL row-lock 
 - No third-party frontend dependencies; scripts and styles load from the configured Django static origin, explicitly allowed by the resource CSP
 - Host messages must come from the parent frame; pending requests time out and are cleared on teardown
 
-Before release: add concurrent different-user requests through one long-lived MCP worker (the current HTTP isolation tests create fresh app instances), repeat the verified database concurrency tests on staging, and check trusted reverse-proxy behavior, rate limiting, TLS, production log redaction, real ChatGPT OAuth/reconnect behavior, browser sandbox rendering, and revocation. Do not treat offline tests as a production security certification. Operator admin security, account recovery, data retention, and general Mataroa infrastructure remain upstream responsibilities.
+The HTTP tests exercise the ordinary Django request lifecycle, including two concurrent owners through the same WSGI application on PostgreSQL. Each request creates its own owner-scoped tool service; there is no SDK session or shared mutable current user.
+
+Before release: repeat the verified database concurrency tests on staging, and check trusted reverse-proxy behavior, rate limiting, TLS, production log redaction, real ChatGPT OAuth/reconnect behavior, browser sandbox rendering, and revocation. Do not treat offline tests as a production security certification. Operator admin security, account recovery, data retention, and general Mataroa infrastructure remain upstream responsibilities.
+
+## MCP transport
+
+`main/views/mcp.py` implements only our fixed tool/resource surface, using the
+JSON-response form of Streamable HTTP. It supports the 2025-03-26, 2025-06-18,
+and 2025-11-25 initialization handshake and the 2026-07-28 per-request metadata
+format. Modern requests validate protocol/method/name headers against the body,
+including encoded names. Discovery advertises only tools, resources, and the UI
+and mention extensions we use. Sessions, subscriptions, SSE, background tasks,
+and server-initiated requests are not provided.
+
+Requests require bearer authentication even when the browser has a Django login
+session. The view alone is CSRF-exempt; OAuth consent keeps Django's CSRF checks.
+Canonical HTTPS and Origin validation precede dispatch. The host middleware lets
+this endpoint validate its own host so blog redirects cannot forward a bearer
+request to another domain. Bodies are limited to 2 MiB, JSON batches and duplicate
+keys are rejected, and notifications never execute tool calls. Tool schemas and
+validation share the same small set of scalar constraints; unknown fields and
+type coercion are rejected. Responses are not cached. Unexpected exceptions
+return a generic error without logging private arguments or credentials.
+
+Protocol references: [2025 Streamable HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports),
+[2026 Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http),
+and [discovery](https://modelcontextprotocol.io/specification/2026-07-28/server/discover).

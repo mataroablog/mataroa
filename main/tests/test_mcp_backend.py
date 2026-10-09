@@ -5,7 +5,6 @@ from datetime import date, timedelta
 from threading import Barrier
 from unittest.mock import patch
 
-from asgiref.sync import async_to_sync
 from django.db import close_old_connections, connection
 from django.db.models.query import QuerySet
 from django.test import SimpleTestCase, TransactionTestCase, skipUnlessDBFeature
@@ -37,7 +36,7 @@ class DjangoBlogBackendTests(TransactionTestCase):
         )
 
     def call(self, method, *args, **kwargs):
-        return async_to_sync(getattr(self.backend, method))(*args, **kwargs)
+        return getattr(self.backend, method)(*args, **kwargs)
 
     def fingerprint(self):
         return self.call("get_post", self.draft.slug)["content_sha256"]
@@ -81,9 +80,9 @@ class DjangoBlogBackendTests(TransactionTestCase):
     def test_foreign_only_posts_are_not_found_for_read_and_writes(self):
         self.other_draft.slug = "bob-only"
         self.other_draft.save()
-        foreign_hash = async_to_sync(DjangoBlogBackend(self.other.pk).get_post)(
-            "bob-only"
-        )["content_sha256"]
+        foreign_hash = DjangoBlogBackend(self.other.pk).get_post("bob-only")[
+            "content_sha256"
+        ]
         for method, kwargs in (
             ("get_post", {}),
             (
@@ -104,9 +103,9 @@ class DjangoBlogBackendTests(TransactionTestCase):
         self.assertIsNone(self.other_draft.published_at)
 
     def test_other_tenant_fingerprint_cannot_overwrite_same_slug(self):
-        foreign_hash = async_to_sync(DjangoBlogBackend(self.other.pk).get_post)(
-            "same-slug"
-        )["content_sha256"]
+        foreign_hash = DjangoBlogBackend(self.other.pk).get_post("same-slug")[
+            "content_sha256"
+        ]
         self.assert_error(
             "content_changed",
             "update_draft",
@@ -546,7 +545,7 @@ class DjangoBlogBackendTests(TransactionTestCase):
             close_old_connections()
             try:
                 gate.wait(timeout=10)
-                receipt = async_to_sync(DjangoBlogBackend(owner_id).publish_post)(
+                receipt = DjangoBlogBackend(owner_id).publish_post(
                     "same-slug",
                     expected_content_sha256=fingerprint,
                     published_at=publication_date,
