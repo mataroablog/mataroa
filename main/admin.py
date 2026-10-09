@@ -1,3 +1,4 @@
+from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjUserAdmin
@@ -219,3 +220,56 @@ class OnboardAdmin(admin.ModelAdmin):
         "created_at",
     )
     ordering = ["-id"]
+
+
+class OAuthClientForm(forms.ModelForm):
+    new_secret = forms.CharField(
+        required=False,
+        min_length=32,
+        max_length=4096,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="For confidential clients, enter a random secret of at least 32 characters. Leave blank to keep the existing secret.",
+    )
+
+    class Meta:
+        model = models.OAuthClient
+        fields = ["name", "client_id", "client_type", "redirect_uris"]
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("client_type") == "confidential" and not (
+            cleaned.get("new_secret") or self.instance.secret_hash
+        ):
+            self.add_error("new_secret", "Confidential clients require a secret.")
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.cleaned_data.get("new_secret"):
+            instance.set_secret(self.cleaned_data["new_secret"])
+        if commit:
+            instance.save()
+        return instance
+
+
+@admin.register(models.OAuthClient)
+class OAuthClientAdmin(admin.ModelAdmin):
+    form = OAuthClientForm
+    list_display = ["name", "client_id", "client_type"]
+
+
+@admin.action(description="Revoke selected OAuth grants and all their tokens")
+def revoke_oauth_grants(modeladmin, request, queryset):
+    # Updating the grant takes the same row lock used by renewal and code exchange.
+    queryset.update(revoked=True)
+
+
+@admin.register(models.OAuthGrant)
+class OAuthGrantAdmin(admin.ModelAdmin):
+    list_display = ["id", "user", "client", "scope", "revoked", "created_at"]
+    list_filter = ["revoked", "client"]
+    readonly_fields = [field.name for field in models.OAuthGrant._meta.fields]
+    actions = [revoke_oauth_grants]
+
+    def has_add_permission(self, request):
+        return False

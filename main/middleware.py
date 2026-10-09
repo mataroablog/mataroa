@@ -38,6 +38,11 @@ def _retired_blog_path(path):
 
 def host_middleware(get_response):
     def middleware(request):
+        # The bearer endpoint validates its own canonical host. Do not redirect
+        # authenticated MCP requests through blog/custom-domain routing.
+        if settings.MATAROA_CHATGPT_ENABLED and request.path == "/mcp":
+            return get_response(request)
+
         host = request.META.get("HTTP_HOST")
 
         # no http Host header in testing
