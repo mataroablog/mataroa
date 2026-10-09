@@ -20,7 +20,7 @@ Mataroa’s own Django views and three models handle authorization code + S256 P
 
 Permissions are independent: `blog:read`, `drafts:write`, and `posts:publish`. Every operation enforces scopes in code. OAuth consent grants access, not permission to publish arbitrary content. ChatGPT's tool approval and the packaged workflow handle the user's authorization for each publication; tool annotations and a fingerprint are not proof of human approval by themselves.
 
-The implementation lives in `main/mcp/`: `server.py` defines the tools and validates their arguments, `backend.py` uses Django models, and the UI is a Django template (`main/templates/main/mcp_library.html`) with plain JavaScript and CSS in `main/static/mcp/`. The HTTP endpoint is `main/views/mcp.py`; OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
+The implementation lives in `main/mcp/`: `server.py` defines the tools and validates their arguments, `backend.py` uses Django models, and the UI is a Django template (`main/templates/main/mcp_posts.html`) with plain JavaScript and CSS in `main/static/mcp/`. The HTTP endpoint is `main/views/mcp.py`; OAuth issuance and verification live in `mataroa/oauth.py`. Draft mutations verify a content fingerprint while holding the PostgreSQL row lock.
 
 This directory contains the ChatGPT manifests, skills, frontend tests/preview, and integration documentation. Python dependencies and tests belong to the main Mataroa project; there is no separately installed plugin server.
 

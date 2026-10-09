@@ -13,7 +13,7 @@ function textElement(tag, className, text) {
   node.textContent = text;
   return node;
 }
-class Library {
+class Posts {
   bridge;
   connected = false;
   initialReceived = false;
@@ -89,7 +89,7 @@ class Library {
     try {
       const data = parseList(result);
       this.errorMessage = null;
-      element('library-notice').hidden = true;
+      element('posts-notice').hidden = true;
       this.posts = data.posts;
       this.offset = data.posts.length;
       this.total = data.total;
@@ -131,7 +131,7 @@ class Library {
     const offset = append ? this.offset : 0;
     this.listLoading = true;
     this.errorMessage = null;
-    element('library-notice').hidden = true;
+    element('posts-notice').hidden = true;
     element('empty-state').hidden = true;
     element('post-list').setAttribute('aria-busy', 'true');
     element('refresh').disabled = true;
@@ -223,7 +223,7 @@ class Library {
     element('count').textContent = 'Posts unavailable';
     element('refresh').disabled = !this.connected;
     element('load-more').disabled = !this.connected;
-    this.notice('library-notice', message, retry ?? (this.connected ? () => void this.load(false) : undefined));
+    this.notice('posts-notice', message, retry ?? (this.connected ? () => void this.load(false) : undefined));
   }
   notice(id, message, retry) {
     const notice = element(id);
@@ -251,7 +251,7 @@ class Library {
     const epoch = ++this.postEpoch;
     this.selected = summary;
     this.currentPost = null;
-    element('library').hidden = true;
+    element('posts').hidden = true;
     element('reader').hidden = false;
     element('reader-notice').hidden = true;
     element('reader-content').setAttribute('aria-busy', 'true');
@@ -297,9 +297,9 @@ class Library {
     ++this.postEpoch; // A late response cannot reopen a dismissed post.
     this.currentPost = null;
     element('reader').hidden = true;
-    element('library').hidden = false;
+    element('posts').hidden = false;
     const selectedRow = [...document.querySelectorAll('.post-row')].find(row => row.dataset.slug === this.selected?.slug);
-    (selectedRow ?? element('library-title')).focus();
+    (selectedRow ?? element('posts-title')).focus();
   }
   async openPublicPost() {
     if (!this.currentPost)
@@ -325,5 +325,5 @@ class Library {
   }
 }
 
-Object.assign(globalThis.Mataroa ??= {}, { Library });
+Object.assign(globalThis.Mataroa ??= {}, { Posts });
 })();

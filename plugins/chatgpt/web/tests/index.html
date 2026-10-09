@@ -25,7 +25,7 @@
   <script type="module">
     try {
       const { run } = await import('./runner.js');
-      for (const name of ['model', 'library', 'bridge', 'app']) await import(`./${name}.test.js`);
+      for (const name of ['model', 'posts', 'bridge', 'app']) await import(`./${name}.test.js`);
       document.getElementById('run').addEventListener('click', run);
       await run();
     } catch (error) {

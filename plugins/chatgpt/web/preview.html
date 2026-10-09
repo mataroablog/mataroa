@@ -8,7 +8,7 @@
     const params = new URLSearchParams(location.search);
     const frame = document.querySelector('iframe');
     fixtureHost(frame, { mode: params.get('mode') || 'normal', theme: params.get('theme') || 'light', opaque: true });
-    frame.src = '/library.html';
+    frame.src = '/posts.html';
   </script>
 </body>
 </html>

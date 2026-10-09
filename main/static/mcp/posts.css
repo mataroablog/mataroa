@@ -52,7 +52,7 @@ input::placeholder { color: var(--quiet); }
 .row-excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
 .row-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; color: var(--quiet); font-size: .875rem; }
 .row-slug { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.library-footer, .reader-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin: 32px 0 16px; color: var(--quiet); font-size: .875rem; }
+.posts-footer, .reader-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin: 32px 0 16px; color: var(--quiet); font-size: .875rem; }
 .notice { border: 1px dashed var(--foreground); padding: 8px; margin: 16px 0; }
 .notice button { display: block; margin-top: 8px; }
 .empty-state { margin: 24px 0; }

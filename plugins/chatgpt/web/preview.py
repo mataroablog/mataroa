@@ -11,7 +11,7 @@ from django.template import Context, Engine
 WEB = Path(__file__).resolve().parent
 ROOT = WEB.parents[2]
 ASSETS = ROOT / "main/static/mcp"
-TEMPLATE = Engine(dirs=[ROOT / "main/templates"]).get_template("main/mcp_library.html")
+TEMPLATE = Engine(dirs=[ROOT / "main/templates"]).get_template("main/mcp_posts.html")
 FILES = {
     "/tests/": WEB / "tests/index.html",
     "/preview/": WEB / "preview.html",
@@ -35,13 +35,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/tests/")
             self.end_headers()
             return
-        if path in {"/library.html", "/unit.html", "/opaque.html"}:
+        if path in {"/posts.html", "/unit.html", "/opaque.html"}:
             assets = {
                 name: f"{origin}/static/mcp/{filename}"
                 for name, filename in {
-                    "style": "library.css",
+                    "style": "posts.css",
                     "model": "model.js",
-                    "library": "library.js",
+                    "posts": "posts.js",
                     "bridge": "bridge.js",
                     "main": "main.js",
                 }.items()

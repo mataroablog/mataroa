@@ -278,9 +278,9 @@ def posts_resource():
     assets = {
         name: urljoin(settings.MATAROA_MCP_ISSUER_URL + "/", static(f"mcp/{filename}"))
         for name, filename in {
-            "style": "library.css",
+            "style": "posts.css",
             "model": "model.js",
-            "library": "library.js",
+            "posts": "posts.js",
             "bridge": "bridge.js",
             "main": "main.js",
         }.items()
@@ -288,7 +288,7 @@ def posts_resource():
     origins = sorted(
         {f"{urlsplit(url).scheme}://{urlsplit(url).netloc}" for url in assets.values()}
     )
-    return render_to_string("main/mcp_library.html", {"assets": assets}), origins
+    return render_to_string("main/mcp_posts.html", {"assets": assets}), origins
 
 
 class ToolService:

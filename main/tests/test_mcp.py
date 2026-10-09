@@ -201,7 +201,7 @@ class MCPServerTests(SimpleTestCase):
             server.call_tool("get_post", {"slug": "missing"})
 
 
-class LibraryAssetTests(SimpleTestCase):
+class PostsAssetTests(SimpleTestCase):
     def test_collected_assets_and_csp_match_the_resource(self):
         """A sandbox can load the exact deployed files without a JS build or CORS."""
         import re

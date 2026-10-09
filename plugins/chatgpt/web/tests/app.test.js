@@ -7,7 +7,7 @@ async function open(options = {}) {
   frame.title = 'Posts integration test';
   frame.onload = () => watchFrame(frame);
   host = fixtureHost(frame, options);
-  frame.src = '/library.html';
+  frame.src = '/posts.html';
   document.getElementById('fixture').append(frame);
   await eventually(() => frame.contentDocument?.getElementById('refresh')?.disabled === false, 'Posts did not initialize');
   doc = frame.contentDocument;
@@ -62,7 +62,7 @@ test('app: late post responses cannot reopen dismissed content', async () => {
   assert.equal(byId('post-body').textContent, 'Loading post…');
   click('#back'); host.releasePosts(); await tick(50);
   assert.equal(byId('reader').hidden, true);
-  assert.equal(byId('library').hidden, false);
+  assert.equal(byId('posts').hidden, false);
 });
 test('app: latest query wins over slow earlier results', async () => {
   await open(); await rows(5);
@@ -76,8 +76,8 @@ test('app: latest query wins over slow earlier results', async () => {
 test('app: list and post failures offer working retries', async () => {
   await open(); await rows(5);
   host.failNext = 'list_posts'; click('#refresh');
-  await eventually(() => !byId('library-notice').hidden);
-  click('#library-notice button'); await rows(5);
+  await eventually(() => !byId('posts-notice').hidden);
+  click('#posts-notice button'); await rows(5);
   host.failNext = 'get_post'; await read();
   assert.equal(byId('reader-notice').hidden, false);
   click('#reader-notice button');
@@ -102,7 +102,7 @@ test('app: untrusted title, excerpt and Markdown stay inert; unsafe links stay h
   assert.equal(frame.contentWindow.hacked, undefined);
   assert.equal(doc.querySelectorAll('#reader img, #reader script').length, 0);
 });
-test('app: empty libraries and searches show helpful empty states', async () => {
+test('app: empty post lists and searches show helpful empty states', async () => {
   await open({ mode: 'empty' });
   await eventually(() => !byId('empty-state').hidden);
   assert.equal(byId('empty-title').textContent, 'A little room for words');
@@ -113,7 +113,7 @@ test('app: empty libraries and searches show helpful empty states', async () => 
 });
 test('app: initial error can recover without reconnecting', async () => {
   await open({ mode: 'error' });
-  await eventually(() => !byId('library-notice').hidden);
+  await eventually(() => !byId('posts-notice').hidden);
   click('#refresh'); await rows(5);
 });
 test('app: pagination appends without duplication and uses the server offset', async () => {

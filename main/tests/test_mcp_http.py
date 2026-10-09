@@ -223,7 +223,7 @@ class HTTPIntegrationTests(TransactionTestCase):
         ui = self.rpc("alice", "resources/read", {"uri": POSTS_URI}).json()["result"][
             "contents"
         ][0]
-        self.assertIn('id="library-title"', ui["text"])
+        self.assertIn('id="posts-title"', ui["text"])
         self.assertEqual(
             ui["_meta"]["ui"]["csp"]["resourceDomains"], ["https://mataroa.blog"]
         )

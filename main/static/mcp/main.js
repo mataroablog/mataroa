@@ -1,11 +1,11 @@
 (() => {
 'use strict';
-const { HostBridge, Library } = globalThis.Mataroa;
+const { HostBridge, Posts } = globalThis.Mataroa;
 const bridge = new HostBridge({
-  result: result => library.receiveInitial(result),
-  cancelled: () => library.cancelled(),
-  closed: () => library.dispose(),
+  result: result => posts.receiveInitial(result),
+  cancelled: () => posts.cancelled(),
+  closed: () => posts.dispose(),
 });
-const library = new Library(bridge);
-bridge.connect().then(() => library.ready(), () => library.connectionError());
+const posts = new Posts(bridge);
+bridge.connect().then(() => posts.ready(), () => posts.connectionError());
 })();

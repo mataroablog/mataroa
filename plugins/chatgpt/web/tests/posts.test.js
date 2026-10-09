@@ -10,9 +10,9 @@ async function setup(bridge = {}) {
   frame = await createFrame('/unit.html');
   window = frame.contentWindow;
   document = window.document;
-  const { Library } = window.Mataroa;
+  const { Posts } = window.Mataroa;
   const calls = [];
-  app = new Library({ callTool: async (name, args) => { calls.push({ name, args }); return name === 'list_posts' ? envelope() : complete([base, draft, scheduled].find(post => post.slug === args.slug)); }, openLink: async () => ({}), ...bridge });
+  app = new Posts({ callTool: async (name, args) => { calls.push({ name, args }); return name === 'list_posts' ? envelope() : complete([base, draft, scheduled].find(post => post.slug === args.slug)); }, openLink: async () => ({}), ...bridge });
   return { app, calls };
 }
 const byId = id => document.getElementById(id);
@@ -84,18 +84,18 @@ test('list failure provides a working retry and hides misleading empty state', a
   let fail = true;
   const { app } = await setup({ callTool: async () => { if (fail) throw Error('Private raw error'); return envelope(); } });
   app.ready(); app.receiveInitial(envelope()); click('#refresh'); await tick();
-  assert.equal(byId('library-notice').hidden, false);
+  assert.equal(byId('posts-notice').hidden, false);
   assert.equal(byId('empty-state').hidden, true);
-  assert.doesNotMatch(byId('library-notice').textContent, /Private raw error/);
-  fail = false; click('#library-notice button'); await tick();
+  assert.doesNotMatch(byId('posts-notice').textContent, /Private raw error/);
+  fail = false; click('#posts-notice button'); await tick();
   assert.equal(document.querySelectorAll('.post-row').length, 3);
-  assert.equal(byId('library-notice').hidden, true);
+  assert.equal(byId('posts-notice').hidden, true);
 });
 test('initial error remains clear after handshake and can be retried', async () => {
   const { app } = await setup(); app.receiveInitial({ isError: true }); app.ready();
   assert.equal(byId('count').textContent, 'Posts unavailable');
   assert.equal(byId('empty-state').hidden, true);
-  click('#library-notice button'); await tick();
+  click('#posts-notice button'); await tick();
   assert.equal(document.querySelectorAll('.post-row').length, 3);
 });
 test('post failure can be retried, and mismatched returned slugs are rejected', async () => {

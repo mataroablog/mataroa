@@ -12,9 +12,9 @@
     <header class="masthead">
       <span class="wordmark">Mataroa blog</span>
     </header>
-    <section id="library" class="library" aria-labelledby="library-title">
+    <section id="posts" class="posts" aria-labelledby="posts-title">
       <div class="heading-row">
-        <h1 id="library-title">Posts</h1>
+        <h1 id="posts-title">Posts</h1>
         <button id="refresh" class="text-button cursor-interaction" aria-label="Refresh posts" disabled>Refresh</button>
       </div>
       <form id="search-form" role="search" class="search-form">
@@ -27,10 +27,10 @@
         <button class="filter cursor-interaction" data-status="published" aria-pressed="false" disabled>Published</button>
       </div>
       <div class="list-meta"><span id="count" role="status" aria-live="polite">Loading posts…</span><span id="search-hint" hidden>Search results</span></div>
-      <div id="library-notice" class="notice" role="alert" hidden></div>
+      <div id="posts-notice" class="notice" role="alert" hidden></div>
       <div id="post-list" class="post-list" aria-label="Posts" aria-busy="true"></div>
       <div id="empty-state" class="empty-state" hidden><h2 id="empty-title">A little room for words</h2><p id="empty-description">Your posts will appear here.</p><button id="reset-search" class="text-button cursor-interaction" hidden>Show all posts</button></div>
-      <footer class="library-footer"><span id="footer-label"></span><button id="load-more" class="text-button cursor-interaction" hidden>Load more</button></footer>
+      <footer class="posts-footer"><span id="footer-label"></span><button id="load-more" class="text-button cursor-interaction" hidden>Load more</button></footer>
     </section>
     <section id="reader" class="reader" aria-labelledby="post-title" hidden>
       <nav class="reader-nav" aria-label="Post navigation"><button id="back" class="text-button cursor-interaction"><span aria-hidden="true">←</span> All posts</button><button id="open-post" class="text-button cursor-interaction" hidden>View on blog <span aria-hidden="true">↗</span></button></nav>
@@ -46,7 +46,7 @@
     </section>
   </main>
   <script defer src="{{ assets.model }}"></script>
-  <script defer src="{{ assets.library }}"></script>
+  <script defer src="{{ assets.posts }}"></script>
   <script defer src="{{ assets.bridge }}"></script>
   <script defer src="{{ assets.main }}"></script>
 </body>
