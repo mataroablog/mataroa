@@ -252,7 +252,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bleach", extras = ["css"], specifier = ">=6.2.0" },
-    { name = "django", specifier = ">=6.0.9,<6.1" },
+    { name = "django", specifier = ">=6.0.9" },
     { name = "gunicorn", specifier = ">=23.0" },
     { name = "markdown", specifier = ">=3.9" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
