@@ -2,10 +2,10 @@
 
 ## Checked locally
 
-- Django suite with the integration enabled: **460 tests on PostgreSQL 17**, all passing, including six concurrency tests
-- The same **460 tests on SQLite**, with six PostgreSQL-only tests skipped
-- Integration disabled: **386 tests on SQLite**, passing with three skips
-- Official MCP Python client 2.3 successfully initialized/discovered the Django endpoint over real HTTP with both 2025-11-25 and 2026-07-28 protocols, listed all 11 tools, opened Posts, searched mentions, and read post/UI resources (one-off compatibility check; the SDK is not a project dependency)
+- Django suite with the integration enabled: **467 tests on PostgreSQL 17**, all passing, including seven concurrency tests
+- The same **467 tests on SQLite**, with seven PostgreSQL-only tests skipped
+- Integration disabled: **391 tests on SQLite**, passing with four skips
+- Official MCP Python client 2.3 successfully initialized/discovered the Django endpoint over real HTTP with both 2025-11-25 and 2026-07-28 protocols, listed the tool catalog, opened Posts, searched mentions, and read post/UI resources (one-off compatibility check; the SDK is not a project dependency)
 - **40 checks on the browser test page**, using the production scripts and rendered Django template
 - Includes real DOM interactions, narrow layout, and an opaque-origin sandbox check
 - Manifest-hashed static URLs and matching resource CSP verified for same-site and CDN static hosting
@@ -26,7 +26,7 @@ uv run ruff check
 uv run ruff format --check
 ```
 
-The test settings enable OAuth and use an isolated SQLite test database by default. The suite covers owner isolation, scopes, PKCE, audience binding, consent, revocation, token rotation, error redaction, and draft revision guards. SQLite cannot establish PostgreSQL row-lock behavior.
+The test settings enable OAuth and use an isolated SQLite test database by default. The suite covers owner isolation, scopes, PKCE, audience binding, consent, revocation, token rotation, error redaction, draft revision guards, and scoped deletion with cascade rollback. SQLite cannot establish PostgreSQL row-lock behavior.
 
 For the frontend, run `uv run python chatgpt/web/preview.py` from the repository root and open `http://127.0.0.1:4173/tests/`. The page displays pass/fail results. Run this page manually; it does not provide automatic browser launch, CI exit codes, real input automation, or screenshots. Use `/preview/` for manual interaction and appearance checks. See [the frontend README](../web/README.md).
 
@@ -34,7 +34,7 @@ For the frontend, run `uv run python chatgpt/web/preview.py` from the repository
 
 Use a dedicated disposable server. Set `MATAROA_TEST_POSTGRES_DB`, `MATAROA_TEST_POSTGRES_HOST`, `MATAROA_TEST_POSTGRES_PORT`, and `MATAROA_TEST_POSTGRES_USER` (plus `MATAROA_TEST_POSTGRES_PASSWORD` through secure environment configuration), then run the same Django test command above. Django creates a separate test database. CI runs this configuration as well.
 
-This enables six concurrent-operation tests: two owners using one WSGI application, exactly-once publication, single-use authorization codes, refresh-token replay, replay across different token generations, and revocation racing with renewal. Do not point the test configuration at a production server.
+This enables seven concurrent-operation tests: edit racing with deletion, two owners using one WSGI application, exactly-once publication, single-use authorization codes, refresh-token replay, replay across different token generations, and revocation racing with renewal. Do not point the test configuration at a production server.
 
 ## Still requires staging verification
 

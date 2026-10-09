@@ -21,6 +21,8 @@ Run with disposable staging users Alice and Bob; never publish to a real user's 
 | Missing/wrong resource on authorization or code exchange | Rejected |
 | Wrong PKCE verifier or stale/reused code | Rejected without issuing a usable token |
 | Revoked/expired token or inactive user | Next MCP call rejected |
+| Delete a reviewed post with `posts:delete` | Only the owned post and its related comments/page views are removed |
+| Delete without `posts:delete`, or after the reviewed post changes | Refused without mutation; obtain fresh approval for changes |
 | Read-only OAuth grant | Reads work, all mutations fail |
 | Narrow a refresh grant, then attempt scope escalation | Original scope ceiling preserved |
 | Empty blog | Successful connection and useful empty state |

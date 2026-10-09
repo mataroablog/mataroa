@@ -40,7 +40,7 @@ CHALLENGE = (
     .rstrip(b"=")
     .decode()
 )
-SCOPES = "blog:read drafts:write posts:publish"
+SCOPES = "blog:read drafts:write posts:publish posts:delete"
 
 
 class OAuthTestHelpers:
@@ -139,6 +139,27 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         self.assertNotIn(tokens["access_token"], str(record.__dict__))
         self.assertNotIn(tokens["refresh_token"], str(record.__dict__))
         self.assertEqual(OAuthGrant.objects.filter(consumed=False).count(), 0)
+
+    def test_delete_permission_is_disclosed_and_cannot_be_added_by_refresh(self):
+        response = self.get(
+            "/oauth/authorize/", self.auth_parameters(scope="blog:read posts:delete")
+        )
+        self.assertContains(
+            response, "Permanently delete posts, their comments and page-view records"
+        )
+        tokens = self.issue(scope="blog:read posts:publish")
+        response = self.post(
+            "/oauth/token/",
+            {
+                "grant_type": "refresh_token",
+                "client_id": "test-chatgpt",
+                "refresh_token": tokens["refresh_token"],
+                "scope": "blog:read posts:publish posts:delete",
+                "resource": RESOURCE,
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"], "invalid_scope")
 
     def test_two_accounts_have_different_subjects(self):
         alice = self.issue()

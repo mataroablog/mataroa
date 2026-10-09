@@ -72,7 +72,7 @@ Discovery supports issuer identification and exposes only code/refresh grants. C
 
 In [ChatGPT Plugins](https://chatgpt.com/plugins), choose the plus button, then **Add custom MCP server**. Enter the staging HTTPS endpoint including `/mcp`, configure OAuth with the pre-registered client, review the permissions, and choose **Create as a plugin**. This step establishes persistent access and must be done with the user's approval.
 
-Verify the discovered tool list. Start with `blog:read`, then test separately granting `drafts:write` and `posts:publish`. Each user signs in to their own Mataroa account on Mataroa's OAuth screen. Real passwords and tokens must never be passed to an assistant.
+Verify the discovered tool list. Start with `blog:read`, then test separately granting `drafts:write`, `posts:publish`, and `posts:delete`. Each user signs in to their own Mataroa account on Mataroa's OAuth screen. Real passwords and tokens must never be passed to an assistant.
 
 After changing server metadata, refresh the custom MCP connection and start a new chat. Test the [acceptance cases](acceptance.md), especially denied consent, reconnecting, stale drafts, and account switching.
 

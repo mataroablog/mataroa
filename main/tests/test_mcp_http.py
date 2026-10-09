@@ -133,6 +133,30 @@ class HTTPIntegrationTests(TransactionTestCase):
         self.assertEqual(self.alice_post.published_at.isoformat(), "2026-10-08")
         self.assertIsNone(self.bob_post.published_at)
 
+    def test_delete_requires_explicit_scope_then_only_removes_the_owned_post(self):
+        fingerprint = self.call("alice", "get_post", {"slug": "shared"})[
+            "structuredContent"
+        ]["post"]["content_sha256"]
+        args = {"slug": "shared", "expected_content_sha256": fingerprint}
+        # Alice has draft and publish scopes, but neither grants deletion.
+        denied = self.call("alice", "delete_post", args)
+        self.assertTrue(denied["isError"])
+        self.assertEqual(Post.objects.count(), 2)
+        OAuthGrant.objects.filter(user=self.alice).update(
+            scope="blog:read posts:delete"
+        )
+        OAuthToken.objects.filter(grant__user=self.alice).update(
+            scope="blog:read posts:delete"
+        )
+        for invalid in ({"slug": "shared"}, {**args, "expected_content_sha256": "bad"}):
+            self.assertTrue(self.call("alice", "delete_post", invalid)["isError"])
+        self.assertEqual(Post.objects.count(), 2)
+        deleted = self.call("alice", "delete_post", args)
+        self.assertEqual(deleted["structuredContent"], {"ok": True, "slug": "shared"})
+        self.assertFalse(Post.objects.filter(pk=self.alice_post.pk).exists())
+        self.assertTrue(Post.objects.filter(pk=self.bob_post.pk).exists())
+        self.assertTrue(self.call("alice", "delete_post", args)["isError"])
+
     def test_revocation_blocks_next_http_request(self):
         OAuthGrant.objects.filter(user=self.alice).delete()
         result = self.request("alice", "list_posts", {})
@@ -195,7 +219,7 @@ class HTTPIntegrationTests(TransactionTestCase):
             tool["name"]: tool
             for tool in self.rpc("alice", "tools/list").json()["result"]["tools"]
         }
-        self.assertEqual(len(tools), 11)
+        self.assertEqual(len(tools), 12)
         self.assertTrue(tools["list_posts"]["annotations"]["readOnlyHint"])
         self.assertEqual(tools["open_posts"]["_meta"]["ui"]["resourceUri"], POSTS_URI)
         self.assertEqual(tools["search_mentions"]["_meta"]["ui"]["visibility"], ["app"])

@@ -323,6 +323,24 @@ class DjangoBlogBackend:
             post.save(update_fields=["published_at", "updated_at"])
             return _receipt(post)
 
+    def delete_post(self, slug: str, *, expected_content_sha256: str) -> dict[str, Any]:
+        _validate_slug(slug)
+        _validate_fingerprint(expected_content_sha256)
+        with transaction.atomic():
+            try:
+                post = self._posts().select_for_update(of=("self",)).get(slug=slug)
+            except models.Post.DoesNotExist:
+                raise _not_found() from None
+            if not hmac.compare_digest(
+                _post(post)["content_sha256"], expected_content_sha256
+            ):
+                raise MataroaError(
+                    "content_changed",
+                    "The post changed. Read it again and obtain approval before deleting.",
+                )
+            post.delete()
+            return {"ok": True, "slug": slug}
+
     def list_pages(self) -> list[Page]:
         return [_page(page) for page in self._pages()]
 

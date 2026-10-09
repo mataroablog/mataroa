@@ -2,14 +2,14 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "mataroa",
   "version": "0.1.0",
-  "description": "Read your Mataroa blog, work on drafts, and publish approved posts.",
+  "description": "Read your Mataroa blog, work on drafts, and publish or delete approved posts.",
   "extensions": {
     "com.openai": {
       "onboardingSkill": "./skills/connect-blog/SKILL.md",
       "interface": {
         "displayName": "Mataroa",
-        "shortDescription": "Read posts, write drafts, and publish",
-        "longDescription": "Browse posts and drafts, read pages and comments, save unpublished drafts, and publish only the version you approve.",
+        "shortDescription": "Manage posts and drafts",
+        "longDescription": "Browse posts and drafts, read pages and comments, save unpublished drafts, and publish or delete posts with your approval.",
         "developerName": "Mataroa",
         "category": "Productivity",
         "capabilities": ["Interactive", "Read", "Write"],

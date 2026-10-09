@@ -478,6 +478,139 @@ class DjangoBlogBackendTests(TransactionTestCase):
         self.assertEqual(comment["post_url"], post["url"])
         self.assertEqual(comment["url"], post["url"] + f"#comment-{own.pk}")
 
+    def test_delete_owned_posts_in_every_state_and_cascade_related_records(self):
+        for published_at in (None, date(2020, 1, 1), date.today() + timedelta(days=5)):
+            with self.subTest(published_at=published_at):
+                post = models.Post.objects.create(
+                    owner=self.owner,
+                    slug="delete-me",
+                    title="Delete me",
+                    body="Reviewed",
+                    published_at=published_at,
+                )
+                comment = models.Comment.objects.create(post=post, body="Comment")
+                analytic = models.AnalyticPost.objects.create(post=post)
+                notification = models.NotificationRecord.objects.create(post=post)
+                fingerprint = self.call("get_post", post.slug)["content_sha256"]
+                result = self.call(
+                    "delete_post", post.slug, expected_content_sha256=fingerprint
+                )
+                self.assertEqual(result, {"ok": True, "slug": "delete-me"})
+                self.assertFalse(models.Post.objects.filter(pk=post.pk).exists())
+                self.assertFalse(models.Comment.objects.filter(pk=comment.pk).exists())
+                self.assertFalse(
+                    models.AnalyticPost.objects.filter(pk=analytic.pk).exists()
+                )
+                notification.refresh_from_db()
+                self.assertIsNone(notification.post_id)
+                self.assert_error(
+                    "not_found",
+                    "delete_post",
+                    post.slug,
+                    expected_content_sha256=fingerprint,
+                )
+        self.assertTrue(models.Post.objects.filter(pk=self.other_draft.pk).exists())
+
+    def test_delete_rejects_foreign_posts_and_stale_or_invalid_revisions(self):
+        foreign_hash = DjangoBlogBackend(self.other.pk).get_post("same-slug")[
+            "content_sha256"
+        ]
+        self.assert_error(
+            "content_changed",
+            "delete_post",
+            "same-slug",
+            expected_content_sha256=foreign_hash,
+        )
+        self.other_draft.slug = "bob-only"
+        self.other_draft.save()
+        self.assert_error(
+            "not_found", "delete_post", "bob-only", expected_content_sha256=foreign_hash
+        )
+        for field, value in (
+            ("title", "Changed"),
+            ("body", "Changed"),
+            ("published_at", date.today()),
+        ):
+            fingerprint = self.fingerprint()
+            setattr(self.draft, field, value)
+            self.draft.save()
+            self.assert_error(
+                "content_changed",
+                "delete_post",
+                "same-slug",
+                expected_content_sha256=fingerprint,
+            )
+        for fingerprint in (None, "", "not-a-hash", "a" * 63):
+            self.assert_error(
+                "invalid_argument",
+                "delete_post",
+                "same-slug",
+                expected_content_sha256=fingerprint,
+            )
+        self.assert_error(
+            "invalid_argument",
+            "delete_post",
+            "../same-slug",
+            expected_content_sha256=self.fingerprint(),
+        )
+        self.assertEqual(models.Post.objects.count(), 2)
+
+    def test_delete_rolls_back_post_and_cascades_on_failure(self):
+        comment = models.Comment.objects.create(post=self.draft, body="Keep")
+        delete = models.Post.delete
+
+        def fail_after_delete(post, *args, **kwargs):
+            delete(post, *args, **kwargs)
+            raise RuntimeError("simulated failure")
+
+        with (
+            patch.object(models.Post, "delete", fail_after_delete),
+            self.assertRaisesRegex(RuntimeError, "simulated failure"),
+        ):
+            self.call(
+                "delete_post",
+                "same-slug",
+                expected_content_sha256=self.fingerprint(),
+            )
+        self.assertTrue(models.Post.objects.filter(pk=self.draft.pk).exists())
+        self.assertTrue(models.Comment.objects.filter(pk=comment.pk).exists())
+
+    @skipUnlessDBFeature("has_select_for_update")
+    def test_concurrent_edit_and_delete_cannot_both_use_the_same_revision(self):
+        fingerprint = self.fingerprint()
+        gate = Barrier(2)
+        owner_id = self.owner.pk
+
+        def mutate(method):
+            close_old_connections()
+            try:
+                gate.wait(timeout=10)
+                backend = DjangoBlogBackend(owner_id)
+                kwargs = {"expected_content_sha256": fingerprint}
+                if method == "update_draft":
+                    kwargs["body"] = "Changed"
+                return getattr(backend, method)("same-slug", **kwargs)
+            except MataroaError as exc:
+                return exc.code
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [
+                executor.submit(mutate, method)
+                for method in ("update_draft", "delete_post")
+            ]
+            edit, deletion = [future.result(timeout=15) for future in futures]
+        if isinstance(edit, dict):
+            self.assertEqual(deletion, "content_changed")
+            self.draft.refresh_from_db()
+            self.assertEqual(self.draft.body, "Changed")
+        else:
+            self.assertEqual(edit, "not_found")
+            self.assertEqual(deletion, {"ok": True, "slug": "same-slug"})
+            self.assertFalse(models.Post.objects.filter(pk=self.draft.pk).exists())
+        self.assertTrue(models.Post.objects.filter(pk=self.other_draft.pk).exists())
+
     def test_inactive_or_deleted_owner_cannot_create_draft(self):
         self.owner.is_active = False
         self.owner.save()

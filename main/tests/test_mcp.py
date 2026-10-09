@@ -8,7 +8,15 @@ from unittest.mock import Mock
 from django.test import SimpleTestCase
 
 from main.mcp.backend import MataroaError
-from main.mcp.server import DRAFTS, PUBLISH, READ, TOOLS, ToolService, posts_resource
+from main.mcp.server import (
+    DELETE,
+    DRAFTS,
+    PUBLISH,
+    READ,
+    TOOLS,
+    ToolService,
+    posts_resource,
+)
 
 POSTS = [
     {
@@ -81,7 +89,13 @@ class MCPServerTests(SimpleTestCase):
             tools["search_mentions"]["_meta"]["openai/extensions"],
             {"mentions/search": {}},
         )
-        self.assertFalse(any("delete" in name or "approve" in name for name in tools))
+        self.assertIs(tools["delete_post"]["annotations"]["destructiveHint"], True)
+        self.assertIs(tools["delete_post"]["annotations"]["readOnlyHint"], False)
+        self.assertEqual(
+            tools["delete_post"]["_meta"]["securitySchemes"][0]["scopes"],
+            [READ, DELETE],
+        )
+        self.assertFalse(any("approve" in name for name in tools))
         self.assertNotIn("api_key", str([t["inputSchema"] for t in tools.values()]))
         self.assertNotIn("user_id", str([t["inputSchema"] for t in tools.values()]))
 
@@ -192,6 +206,24 @@ class MCPServerTests(SimpleTestCase):
         )
         self.assertIs(result["structuredContent"]["ok"], True)
         service.get_post.assert_not_called()
+
+    def test_deletion_requires_its_own_scope_and_preserves_reviewed_fingerprint(self):
+        args = {"slug": "draft", "expected_content_sha256": "d" * 64}
+        for scopes in ([READ], [READ, DRAFTS], [READ, PUBLISH], [DELETE]):
+            with self.subTest(scopes=scopes):
+                server, backend, seen = make_tool_service(token(scopes=scopes))
+                with self.assertRaisesRegex(MataroaError, "permission"):
+                    server.call_tool("delete_post", args)
+                self.assertFalse(seen)
+                backend.delete_post.assert_not_called()
+        server, backend, _ = make_tool_service(token(scopes=[READ, DELETE]))
+        backend.delete_post.return_value = {"ok": True, "slug": "draft"}
+        result = server.call_tool("delete_post", args)
+        self.assertEqual(result["structuredContent"], {"ok": True, "slug": "draft"})
+        backend.delete_post.assert_called_once_with(
+            "draft", expected_content_sha256="d" * 64
+        )
+        backend.get_post.assert_not_called()
 
     def test_expected_errors_are_safe_tool_errors(self):
         server, service, _ = make_tool_service(token())

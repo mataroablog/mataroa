@@ -31,6 +31,7 @@ SCOPES = {
     "blog:read": "Read your posts, drafts, pages, and blog comments",
     "drafts:write": "Create and edit unpublished drafts",
     "posts:publish": "Publish or schedule approved drafts",
+    "posts:delete": "Permanently delete posts, their comments and page-view records",
 }
 CLIENT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
 

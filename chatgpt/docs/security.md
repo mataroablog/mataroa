@@ -11,8 +11,9 @@ Scopes:
 - `blog:read`: owned posts/drafts/pages/comments
 - `drafts:write`: create or edit unpublished drafts
 - `posts:publish`: publish/schedule approved drafts
+- `posts:delete`: permanently delete approved posts, including their comments and page-view records
 
-Read permission is required at transport and tool level. Write permissions are independent and checked in the handler before reaching storage. Server instructions and packaged skills require actual user approval before publishing. OAuth grants and tool annotations alone do not establish approval for specific content.
+Read permission is required at transport and tool level. Write permissions are independent and checked in the handler before reaching storage. Server instructions and packaged skills require actual user approval before publishing or deleting. OAuth grants and tool annotations alone do not establish approval for specific content.
 
 ## OAuth storage and lifetime
 
@@ -45,9 +46,9 @@ The MCP tools use the owner-scoped Django ORM backend directly. No API keys or R
 
 New posts are always unpublished. Updates and publication accept a content fingerprint binding slug, title, body, and publication date. On PostgreSQL, they read and compare under a row lock in one transaction. Already published or scheduled posts are refused. Conflicts are not retried with a silently refreshed fingerprint.
 
-Neither deletion nor general published-content modification is exposed. Publication sets the upstream model's publication date and preserves its subscriber-notification eligibility. Actual mailing remains Mataroa's existing scheduled process; this plugin does not independently send mail.
+Deletion accepts the same reviewed content fingerprint and checks it under the post row lock before deleting. It works for drafts, scheduled posts, and published posts; it uses Django’s normal cascading deletion of related comments and page-view records. A changed post requires renewed approval. Published-content editing is not exposed. Publication sets the upstream model's publication date and preserves its subscriber-notification eligibility. Actual mailing remains Mataroa's existing scheduled process; this plugin does not independently send mail.
 
-SQLite tests validate guards and rollback, but cannot prove PostgreSQL row-lock concurrency. PostgreSQL race tests cover publication, single-use codes, refresh replay, old/new refresh generations, and revocation racing with renewal. Repeat them on the staging database before release.
+SQLite tests validate guards and rollback, but cannot prove PostgreSQL row-lock concurrency. PostgreSQL race tests cover edit-versus-delete, publication, single-use codes, refresh replay, old/new refresh generations, and revocation racing with renewal. Repeat them on the staging database before release.
 
 ## Deployment controls and remaining release gates
 
