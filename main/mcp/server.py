@@ -169,14 +169,14 @@ TOOLS = [
         required=("comment_id",),
     ),
 ]
-TOOLS[0]["title"] = "Posts"
+TOOLS[0]["title"] = "Mataroa"
 TOOL_BY_NAME = {item["name"]: item for item in TOOLS}
 
 
-def icons():
+def icons(filename="logo.svg"):
     return [
         {
-            "src": urljoin(settings.MATAROA_MCP_ISSUER_URL + "/", static("logo.svg")),
+            "src": urljoin(settings.MATAROA_MCP_ISSUER_URL + "/", static(filename)),
             "mimeType": "image/svg+xml",
         }
     ]
@@ -184,7 +184,12 @@ def icons():
 
 def tool_catalog():
     return [
-        {**item, **({"icons": icons()} if item["name"] == "open_posts" else {})}
+        {
+            **item,
+            **(
+                {"icons": icons("mcp/icon.svg")} if item["name"] == "open_posts" else {}
+            ),
+        }
         for item in TOOLS
     ]
 
