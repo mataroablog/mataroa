@@ -28,7 +28,7 @@ uv run ruff format --check
 
 The test settings enable OAuth and use an isolated SQLite test database by default. The suite covers owner isolation, scopes, PKCE, audience binding, consent, revocation, token rotation, error redaction, and draft revision guards. SQLite cannot establish PostgreSQL row-lock behavior.
 
-For the frontend, run `uv run python plugins/chatgpt/web/preview.py` from the repository root and open `http://127.0.0.1:4173/tests/`. The page displays pass/fail results. Run this page manually; it does not provide automatic browser launch, CI exit codes, real input automation, or screenshots. Use `/preview/` for manual interaction and appearance checks. See [the frontend README](../web/README.md).
+For the frontend, run `uv run python chatgpt/web/preview.py` from the repository root and open `http://127.0.0.1:4173/tests/`. The page displays pass/fail results. Run this page manually; it does not provide automatic browser launch, CI exit codes, real input automation, or screenshots. Use `/preview/` for manual interaction and appearance checks. See [the frontend README](../web/README.md).
 
 ## PostgreSQL concurrency checks
 

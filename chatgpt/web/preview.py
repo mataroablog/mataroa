@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 from django.template import Context, Engine
 
 WEB = Path(__file__).resolve().parent
-ROOT = WEB.parents[2]
+ROOT = WEB.parents[1]
 ASSETS = ROOT / "main/static/mcp"
 TEMPLATE = Engine(dirs=[ROOT / "main/templates"]).get_template("main/mcp_posts.html")
 FILES = {

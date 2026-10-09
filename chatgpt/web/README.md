@@ -19,7 +19,7 @@ From the repository root:
 
 ```sh
 uv sync --all-groups
-uv run python plugins/chatgpt/web/preview.py
+uv run python chatgpt/web/preview.py
 ```
 
 Open **http://127.0.0.1:4173/tests/** in your browser. It runs 40 checks and shows

@@ -36,7 +36,7 @@ uv run python manage.py check
 The native UI has no build step or runtime JavaScript dependencies. Django’s normal `collectstatic` publishes its files. Run the browser tests and fictional preview without Node:
 
 ```sh
-uv run python plugins/chatgpt/web/preview.py
+uv run python chatgpt/web/preview.py
 ```
 
 Open `http://127.0.0.1:4173/tests/` to run the checks, or `/preview/` to explore the posts. See [the frontend README](web/README.md) for coverage and the limits of manual browser testing.
