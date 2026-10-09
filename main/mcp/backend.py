@@ -1,8 +1,7 @@
 """Owner-scoped ORM backend for the official, multi-user Mataroa service.
 
 Construct this backend with the authenticated OAuth subject's user primary key,
-never a tool argument, slug owner, or process-wide API key. ORM work stays in a
-thread-sensitive synchronous context. On a database with row-lock support
+never a tool argument, slug owner, or process-wide API key. ORM work runs synchronously on Django's request thread. On a database with row-lock support
 (production PostgreSQL), checking the reviewed fingerprint and writing the draft
 happen under the same row lock and transaction. SQLite is for development only.
 """
@@ -17,7 +16,6 @@ from collections.abc import Mapping
 from datetime import date
 from typing import Any, TypedDict
 
-from asgiref.sync import sync_to_async
 from django.db import IntegrityError, transaction
 
 from main import forms, models, scheme, text_processing
@@ -230,11 +228,9 @@ class DjangoBlogBackend:
             )
         return post
 
-    @sync_to_async(thread_sensitive=True)
     def list_posts(self) -> list[Post]:
         return [_post(post) for post in self._posts()]
 
-    @sync_to_async(thread_sensitive=True)
     def get_post(self, slug: str) -> Post:
         _validate_slug(slug)
         try:
@@ -242,7 +238,6 @@ class DjangoBlogBackend:
         except models.Post.DoesNotExist:
             raise _not_found() from None
 
-    @sync_to_async(thread_sensitive=True)
     def create_draft(self, title: str, body: str = "") -> MutationReceipt:
         if not isinstance(title, str) or not isinstance(body, str):
             raise _invalid("A draft requires string title and body fields.")
@@ -277,7 +272,6 @@ class DjangoBlogBackend:
                 "The draft could not be saved. Read current posts before retrying.",
             ) from None
 
-    @sync_to_async(thread_sensitive=True)
     def update_draft(
         self,
         slug: str,
@@ -311,7 +305,6 @@ class DjangoBlogBackend:
             post.save(update_fields=[*cleaned, "updated_at"])
             return _receipt(post)
 
-    @sync_to_async(thread_sensitive=True)
     def publish_post(
         self, slug: str, *, published_at: str, expected_content_sha256: str
     ) -> MutationReceipt:
@@ -334,11 +327,9 @@ class DjangoBlogBackend:
             post.save(update_fields=["published_at", "updated_at"])
             return _receipt(post)
 
-    @sync_to_async(thread_sensitive=True)
     def list_pages(self) -> list[Page]:
         return [_page(page) for page in self._pages()]
 
-    @sync_to_async(thread_sensitive=True)
     def get_page(self, slug: str) -> Page:
         _validate_slug(slug)
         try:
@@ -346,7 +337,6 @@ class DjangoBlogBackend:
         except models.Page.DoesNotExist:
             raise _not_found() from None
 
-    @sync_to_async(thread_sensitive=True)
     def list_comments(
         self,
         *,
@@ -366,7 +356,6 @@ class DjangoBlogBackend:
             comments = comments.filter(is_approved=False)
         return [_comment(comment, include_email=include_email) for comment in comments]
 
-    @sync_to_async(thread_sensitive=True)
     def get_comment(
         self, comment_id: int, *, include_email: bool = False
     ) -> dict[str, Any]:
