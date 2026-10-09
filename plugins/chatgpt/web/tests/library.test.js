@@ -130,7 +130,7 @@ test('empty and no-match states explain the next step', async () => {
 });
 
 for (const body of [null, '']) {
-  test(`legacy draft with ${body === null ? 'null' : 'empty'} body opens as an empty read-only post`, async () => {
+  test(`draft with ${body === null ? 'null' : 'empty'} body opens as an empty read-only post`, async () => {
     const { app } = await setup({ callTool: async () => ({ structuredContent: { post: { ...draft, body, content_sha256: body === null ? 'null-hash' : 'empty-hash' } } }) });
     app.ready(); app.receiveInitial(envelope([draft])); click('.post-row'); await tick();
     assert.equal(byId('post-body').textContent, 'This post is empty.');

@@ -200,7 +200,7 @@ class DjangoBlogBackendTests(TransactionTestCase):
         self.assertEqual(self.draft.body, "Reviewed")
         self.assertEqual(self.draft.title, "Alice draft")
 
-    def test_body_can_be_cleared_and_null_legacy_bodies_remain_distinct(self):
+    def test_body_can_be_cleared_and_null_bodies_remain_distinct(self):
         self.call(
             "update_draft",
             "same-slug",

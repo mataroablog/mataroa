@@ -33,7 +33,7 @@ function parsePost(result) {
     typeof data.post.content_sha256 !== 'string') {
     throw new Error('Invalid post response');
   }
-  // Normalize nullable legacy content only for this read-only view. The server's
+  // Normalize nullable post content only for this read-only view. The server's
   // fingerprint stays untouched: null and an empty string have distinct hashes.
   return { ...summary(data.post), body: data.post.body ?? '', content_sha256: data.post.content_sha256 };
 }

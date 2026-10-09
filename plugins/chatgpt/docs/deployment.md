@@ -26,7 +26,7 @@ The resource identifier is derived as the exact issuer plus `/mcp`. There is no 
 
 For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. There are no additional MCP Python dependencies. The enable flag defaults to `0`.
 
-OAuth uses `main.OAuthClient`, `main.OAuthGrant`, and `main.OAuthToken`. Their migration runs with the normal Django app even when the integration is disabled. Run these commands before starting or reloading the service:
+OAuth uses `main.OAuthClient`, `main.OAuthGrant`, and `main.OAuthToken`. The initial schema migration creates these three tables with the normal Django app, even when the integration is disabled. Run these commands before starting or reloading the service:
 
 ```sh
 uv run python manage.py migrate
@@ -35,8 +35,6 @@ uv run python manage.py check
 ```
 
 The consent screen uses the normal Mataroa layout. Static collection includes the library UI independently of the enable flag.
-
-This replaces the undeployed Toolkit-based implementation. Existing experimental Toolkit registrations and tokens are not imported: register clients in the new admin screen and reconnect test accounts. Old Toolkit tables are left untouched and unused; reverting code does not migrate new credentials back into them.
 
 Keep the existing Gunicorn command targeting `mataroa.wsgi:application` and the
 existing HTTPS reverse proxy. The proxy must preserve the Host header and set
@@ -88,7 +86,7 @@ Follow the current [upload and submission flow](https://developers.openai.com/pl
 
 The prepared code is not evidence of a successful live connection, production deployment, or public-directory approval.
 
-## Operation and rollback
+## Operation
 
 - Use Django admin’s **OAuth grants** screen to revoke selected grants and all their tokens. Each request rechecks the grant, token expiry, active user, allowed client, resource, and scopes. Grant fields are read-only.
 - Set `MATAROA_CHATGPT_ENABLED=0` and restart to remove MCP/OAuth routes. This does not delete existing data or grants; explicitly revoke grants if retiring the service.

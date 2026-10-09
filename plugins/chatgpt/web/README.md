@@ -11,8 +11,7 @@ timeouts, and teardown.
 Django's production filename hashes. The resource CSP permits just the static
 asset origin (or the configured static CDN). Data travels through the host;
 `connectDomains` stays empty. Classic deferred scripts work inside the host's
-sandbox without requiring cross-origin module headers. Bump `LIBRARY_URI` when
-making incompatible resource changes, since hosts cache UI resources by URI.
+sandbox without requiring cross-origin module headers.
 
 ## Browser tests and preview
 
@@ -93,8 +92,8 @@ All responses must provide `structuredContent`:
 }
 ```
 
-Legacy `body: null` is displayed as an empty post with zero words. This is a
-view-only normalization: the returned `content_sha256` is retained verbatim,
+Mataroa’s post model allows `body: null`, which is displayed as an empty post
+with zero words. This is a view-only normalization: the returned `content_sha256` is retained verbatim,
 and the server must keep null distinct from an empty string when hashing.
 A missing or non-string/non-null body is rejected.
 

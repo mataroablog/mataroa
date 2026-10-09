@@ -528,7 +528,7 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             )
             self.assertIn(response.status_code, (400, 401))
 
-    def test_unbound_legacy_refresh_token_cannot_acquire_resource_binding(self):
+    def test_unbound_refresh_token_cannot_acquire_resource_binding(self):
         tokens = self.issue()
         OAuthGrant.objects.update(resource="")
         response = self.post(
@@ -608,7 +608,7 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
             )
         self.assertEqual(OAuthToken.objects.count(), 0)
 
-    def test_expired_code_and_unbound_legacy_grant_cannot_be_exchanged(self):
+    def test_expired_code_and_unbound_grant_cannot_be_exchanged(self):
         code = self.authorize()
         OAuthGrant.objects.filter(code_hash=token_hash(code)).update(
             code_expires=timezone.now() - timedelta(seconds=1)

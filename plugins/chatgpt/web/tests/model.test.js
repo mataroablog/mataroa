@@ -13,7 +13,7 @@ test('validates full posts and requires body and version hash', () => {
   assert.throws(() => parsePost({ structuredContent: { post } }));
   assert.throws(() => parsePost({ structuredContent: { post: { ...post, body: 42, content_sha256: 'abc' } } }));
 });
-test('nullable legacy bodies display as empty while preserving the server fingerprint', () => {
+test('nullable post bodies display as empty while preserving the server fingerprint', () => {
   const original = { ...post, published_at: null, body: null, content_sha256: 'null-body-hash' };
   const empty = { ...original, body: '', content_sha256: 'empty-body-hash' };
   const normalized = parsePost({ structuredContent: { post: original } });
