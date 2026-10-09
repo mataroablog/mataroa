@@ -9,7 +9,7 @@
       "interface": {
         "displayName": "Mataroa",
         "shortDescription": "Your blog, thoughtfully written",
-        "longDescription": "Browse posts and drafts in the Blog Library, read pages and comments, save unpublished drafts, and publish only the version you approve.",
+        "longDescription": "Browse posts and drafts, read pages and comments, save unpublished drafts, and publish only the version you approve.",
         "developerName": "Mataroa",
         "category": "Productivity",
         "capabilities": ["Interactive", "Read", "Write"],
@@ -17,7 +17,7 @@
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/icon.svg",
         "defaultPrompt": [
-          "@Mataroa open my Blog Library.",
+          "@Mataroa show my posts.",
           "@Mataroa show my unpublished drafts.",
           "@Mataroa help me turn this outline into a draft."
         ]

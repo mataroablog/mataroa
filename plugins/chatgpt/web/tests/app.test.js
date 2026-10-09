@@ -4,12 +4,12 @@ let frame, host, doc;
 afterEach(() => { host?.close(); host = null; frame = null; doc = null; });
 async function open(options = {}) {
   frame = document.createElement('iframe');
-  frame.title = 'Library integration test';
+  frame.title = 'Posts integration test';
   frame.onload = () => watchFrame(frame);
   host = fixtureHost(frame, options);
   frame.src = '/library.html';
   document.getElementById('fixture').append(frame);
-  await eventually(() => frame.contentDocument?.getElementById('refresh')?.disabled === false, 'Library did not initialize');
+  await eventually(() => frame.contentDocument?.getElementById('refresh')?.disabled === false, 'Posts did not initialize');
   doc = frame.contentDocument;
   return host;
 }
@@ -28,7 +28,7 @@ async function read(selector = '.post-row') {
 
 test('app: served scripts initialize and render initial results without a redundant call', async () => {
   await open(); await rows(5);
-  assert.equal(byId('count').textContent, '5 posts in your library');
+  assert.equal(byId('count').textContent, '5 posts');
   assert.equal(doc.querySelector('.badge-scheduled').textContent, 'Scheduled');
   assert.deepEqual(host.calls, []);
   assert.equal(doc.querySelectorAll('script:not([src])').length, 0);

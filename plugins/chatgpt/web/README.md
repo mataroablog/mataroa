@@ -1,4 +1,4 @@
-# Mataroa post library
+# Mataroa posts
 
 A native, read-only MCP App for the ChatGPT plugin sidebar. Production uses a
 Django template and ordinary JavaScript/CSS in `main/static/mcp/`. There is no
@@ -47,12 +47,12 @@ visual checks. The JavaScript tests are a manual browser check, separate from
 `manage.py test`. Results are also exposed as `window.testResults` for future
 automation. Live ChatGPT compatibility still requires a real host check.
 
-Open **http://127.0.0.1:4173/preview/** for the fictional library in a sandboxed
+Open **http://127.0.0.1:4173/preview/** for the fictional posts view in a sandboxed
 iframe. Public links are recorded by the simulated host instead of navigating.
 Useful preview parameters:
 
 - `?theme=dark` starts with the dark host theme.
-- `?mode=empty` shows an empty library.
+- `?mode=empty` shows an empty posts view.
 - `?mode=error` returns an initial failure, recoverable with Refresh.
 - `?mode=injection` checks HTML-like text and an unsafe URL.
 - `?mode=pagination` provides 59 fictional posts.
@@ -60,14 +60,14 @@ Useful preview parameters:
 ## Server contract
 
 Register the initial result handler **before** calling `bridge.connect()`. The app
-renders `open_library`'s initial tool result without a redundant `list_posts`
+renders `open_posts`'s initial tool result without a redundant `list_posts`
 request. Once the user navigates, correlated tool-call responses take precedence
 over uncorrelated host notifications.
 
 All responses must provide `structuredContent`:
 
 ```ts
-// open_library and list_posts
+// open_posts and list_posts
 {
   posts: Array<{
     title: string;

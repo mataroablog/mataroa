@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ assets.style }}">
 </head>
 <body>
-  <main id="app" class="app-shell" aria-label="Mataroa post library">
+  <main id="app" class="app-shell" aria-label="Mataroa posts">
     <header class="masthead">
       <span class="wordmark">Mataroa blog</span>
     </header>
@@ -26,7 +26,7 @@
         <button class="filter cursor-interaction" data-status="draft" aria-pressed="false" disabled>Drafts</button>
         <button class="filter cursor-interaction" data-status="published" aria-pressed="false" disabled>Published</button>
       </div>
-      <div class="list-meta"><span id="count" role="status" aria-live="polite">Connecting to your library…</span><span id="search-hint" hidden>Search results</span></div>
+      <div class="list-meta"><span id="count" role="status" aria-live="polite">Loading posts…</span><span id="search-hint" hidden>Search results</span></div>
       <div id="library-notice" class="notice" role="alert" hidden></div>
       <div id="post-list" class="post-list" aria-label="Posts" aria-busy="true"></div>
       <div id="empty-state" class="empty-state" hidden><h2 id="empty-title">A little room for words</h2><p id="empty-description">Your posts will appear here.</p><button id="reset-search" class="text-button cursor-interaction" hidden>Show all posts</button></div>

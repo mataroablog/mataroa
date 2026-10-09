@@ -4,7 +4,7 @@ An **official-integration candidate**, built into Mataroa's Django application. 
 
 ## What it does
 
-- Native **Blog Library** sidebar/thread view: search, filter, paginate, and read posts safely.
+- Native **Posts** sidebar/thread view: search, filter, paginate, and read posts safely.
 - Read owned posts, drafts, static pages, and comments; comment email addresses are excluded.
 - Save and edit unpublished drafts, with revision checks.
 - Publish or schedule an explicitly approved draft, with a separate permission.
@@ -39,7 +39,7 @@ The native UI has no build step or runtime JavaScript dependencies. Django’s n
 uv run python plugins/chatgpt/web/preview.py
 ```
 
-Open `http://127.0.0.1:4173/tests/` to run the checks, or `/preview/` to explore the library. See [the frontend README](web/README.md) for coverage and the limits of manual browser testing.
+Open `http://127.0.0.1:4173/tests/` to run the checks, or `/preview/` to explore the posts. See [the frontend README](web/README.md) for coverage and the limits of manual browser testing.
 
 For isolated Python tests, from the **Mataroa repository root**:
 

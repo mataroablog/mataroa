@@ -22,7 +22,7 @@ function parseList(result) {
   const data = result.structuredContent;
   if (result.isError || !object(data) || !Array.isArray(data.posts) ||
     !Number.isSafeInteger(data.total) || data.total < 0) {
-    throw new Error('Invalid library response');
+    throw new Error('Invalid posts response');
   }
   return { posts: data.posts.map(summary), total: data.total };
 }

@@ -93,7 +93,7 @@ test('list failure provides a working retry and hides misleading empty state', a
 });
 test('initial error remains clear after handshake and can be retried', async () => {
   const { app } = await setup(); app.receiveInitial({ isError: true }); app.ready();
-  assert.equal(byId('count').textContent, 'Library unavailable');
+  assert.equal(byId('count').textContent, 'Posts unavailable');
   assert.equal(byId('empty-state').hidden, true);
   click('#library-notice button'); await tick();
   assert.equal(document.querySelectorAll('.post-row').length, 3);

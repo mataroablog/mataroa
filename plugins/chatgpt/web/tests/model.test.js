@@ -2,7 +2,7 @@ import { test, assert } from './runner.js';
 import '/static/mcp/model.js';
 const { parseList, parsePost, publicationState, publicPostUrl, wordCount } = globalThis.Mataroa;
 const post = { title: 'Title', slug: 'title', published_at: '2024-01-01', url: 'https://example.mataroa.blog/blog/title/', excerpt: '' };
-test('validates library envelopes and retains text literally', () => {
+test('validates posts envelopes and retains text literally', () => {
   const unsafe = { ...post, title: '<script>alert(1)</script>' };
   assert.equal(parseList({ structuredContent: { posts: [unsafe], total: 1 } }).posts[0].title, unsafe.title);
   for (const data of [{}, { posts: 'bad', total: 1 }, { posts: [null], total: 1 }, { posts: [], total: -1 }, { posts: [], total: 1.5 }]) assert.throws(() => parseList({ structuredContent: data }));

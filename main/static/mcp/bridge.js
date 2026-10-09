@@ -36,7 +36,7 @@ class HostBridge {
   async connect(timeout = 15000) {
     try {
       const result = await this.request('ui/initialize', {
-        appInfo: { name: 'Mataroa post library', version: '0.1.0' },
+        appInfo: { name: 'Mataroa posts', version: '0.1.0' },
         appCapabilities: {},
         protocolVersion: '2026-01-26',
       }, timeout);

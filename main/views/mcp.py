@@ -19,13 +19,13 @@ from main.mcp.backend import MataroaError
 from main.mcp.server import (
     APP_MIME_TYPE,
     INSTRUCTIONS,
-    LIBRARY_URI,
+    POSTS_URI,
     READ,
     TOOL_BY_NAME,
     ToolService,
     _status,
     icons,
-    library_resource,
+    posts_resource,
     tool_catalog,
 )
 from mataroa.oauth import verify_access_token
@@ -48,9 +48,9 @@ SERVER_INFO = {
 }
 MAX_BODY = 2 * 1024 * 1024
 RESOURCE = {
-    "uri": LIBRARY_URI,
-    "name": "mataroa-library",
-    "title": "Blog Library",
+    "uri": POSTS_URI,
+    "name": "mataroa-posts",
+    "title": "Posts",
     "mimeType": APP_MIME_TYPE,
 }
 
@@ -206,8 +206,8 @@ def dispatch(method, params, service, modern=False):
             }
     if method == "resources/read":
         uri = params.get("uri")
-        if uri == LIBRARY_URI:
-            html, origins = library_resource()
+        if uri == POSTS_URI:
+            html, origins = posts_resource()
             return {
                 "contents": [
                     {

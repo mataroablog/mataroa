@@ -2,7 +2,7 @@
 
 These are operator steps, not actions already performed by the build. Use a staging deployment and disposable blogs first. Production hosting, OAuth client registration, and public submission each need the owner's approval.
 
-The library UI has no frontend build step. Deploy its plain JavaScript/CSS with
+The posts UI has no frontend build step. Deploy its plain JavaScript/CSS with
 the normal Django `collectstatic` command before reloading the Django workers.
 The MCP resource uses absolute, manifest-hashed static URLs and declares their
 origin in its CSP. Ensure those static files are publicly reachable over HTTPS;
@@ -34,7 +34,7 @@ uv run python manage.py collectstatic --no-input
 uv run python manage.py check
 ```
 
-The consent screen uses the normal Mataroa layout. Static collection includes the library UI independently of the enable flag.
+The consent screen uses the normal Mataroa layout. Static collection includes the posts UI independently of the enable flag.
 
 Keep the existing Gunicorn command targeting `mataroa.wsgi:application` and the
 existing HTTPS reverse proxy. The proxy must preserve the Host header and set

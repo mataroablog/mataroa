@@ -71,7 +71,7 @@ class Library {
     if (!this.initialReceived) {
       this.waitingTimer = setTimeout(() => {
         if (!this.initialReceived)
-          this.listError('Your library is taking a little longer to arrive. Try refreshing it.');
+          this.listError('Posts are taking longer to load. Try refreshing.');
       }, 15000);
     }
     if (this.errorMessage)
@@ -97,11 +97,11 @@ class Library {
       this.renderRows();
     }
     catch {
-      this.listError('Your library could not be loaded. Try refreshing it.');
+      this.listError('Posts could not be loaded. Try refreshing.');
     }
   }
   connectionError() {
-    this.listError('The connection to ChatGPT could not be established. Close this library and open it again.');
+    this.listError('The connection to ChatGPT could not be established. Close the posts view and open it again.');
   }
   cancelled() {
     if (!this.initialReceived) {
@@ -201,7 +201,7 @@ class Library {
       list.append(row);
     }
     const filtered = Boolean(this.query || this.status !== 'all');
-    element('count').textContent = `${this.total.toLocaleString()} ${this.total === 1 ? 'post' : 'posts'}${filtered ? ' found' : ' in your library'}`;
+    element('count').textContent = `${this.total.toLocaleString()} ${this.total === 1 ? 'post' : 'posts'}${filtered ? ' found' : ''}`;
     element('empty-state').hidden = this.posts.length !== 0;
     element('empty-title').textContent = filtered ? 'No matching words, yet' : 'A little room for words';
     element('empty-description').textContent = filtered ? 'Try another search or show all your posts.' : 'When you write on Mataroa, your posts will appear here.';
@@ -220,7 +220,7 @@ class Library {
       element('post-list').replaceChildren();
       element('empty-state').hidden = true;
     }
-    element('count').textContent = 'Library unavailable';
+    element('count').textContent = 'Posts unavailable';
     element('refresh').disabled = !this.connected;
     element('load-more').disabled = !this.connected;
     this.notice('library-notice', message, retry ?? (this.connected ? () => void this.load(false) : undefined));

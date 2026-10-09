@@ -8,7 +8,7 @@ from unittest.mock import Mock
 from django.test import SimpleTestCase
 
 from main.mcp.backend import MataroaError
-from main.mcp.server import DRAFTS, PUBLISH, READ, TOOLS, ToolService, library_resource
+from main.mcp.server import DRAFTS, PUBLISH, READ, TOOLS, ToolService, posts_resource
 
 RESOURCE = "https://mataroa.blog/mcp"
 POSTS = [
@@ -75,7 +75,7 @@ class MCPServerTests(SimpleTestCase):
             PUBLISH, tools["publish_post"]["_meta"]["securitySchemes"][0]["scopes"]
         )
         self.assertEqual(
-            tools["open_library"]["_meta"]["openai/ui"]["entrypoints"],
+            tools["open_posts"]["_meta"]["openai/ui"]["entrypoints"],
             [{"type": "global"}, {"type": "thread"}],
         )
         self.assertEqual(
@@ -232,7 +232,7 @@ class LibraryAssetTests(SimpleTestCase):
                 ),
             ):
                 call_command("collectstatic", interactive=False, verbosity=0)
-                html, origins = library_resource()
+                html, origins = posts_resource()
                 self.assertEqual(origins, [origin])
                 urls = re.findall(r'(?:src|href)="([^"]+)"', html)
                 self.assertEqual(len(urls), 5)

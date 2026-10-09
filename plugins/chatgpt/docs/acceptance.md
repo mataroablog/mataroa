@@ -4,7 +4,7 @@ Run with disposable staging users Alice and Bob; never publish to a real user's 
 
 | Request or event | Expected result |
 | --- | --- |
-| Open Blog Library | Initial result renders without a duplicate list call |
+| Open Posts | Initial result renders without a duplicate list call |
 | Show my drafts | Draft summaries only; full body requires get_post |
 | Read a same-slug post using Alice then Bob | Each receives only their own version |
 | Find another user's private slug | Generic not-found; no title/body leak |

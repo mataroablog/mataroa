@@ -189,7 +189,7 @@ class HTTPIntegrationTests(TransactionTestCase):
         )
 
     def test_tools_resources_and_mentions_over_http(self):
-        from main.mcp.server import APP_MIME_TYPE, LIBRARY_URI
+        from main.mcp.server import APP_MIME_TYPE, POSTS_URI
 
         tools = {
             tool["name"]: tool
@@ -197,11 +197,9 @@ class HTTPIntegrationTests(TransactionTestCase):
         }
         self.assertEqual(len(tools), 11)
         self.assertTrue(tools["list_posts"]["annotations"]["readOnlyHint"])
-        self.assertEqual(
-            tools["open_library"]["_meta"]["ui"]["resourceUri"], LIBRARY_URI
-        )
+        self.assertEqual(tools["open_posts"]["_meta"]["ui"]["resourceUri"], POSTS_URI)
         self.assertEqual(tools["search_mentions"]["_meta"]["ui"]["visibility"], ["app"])
-        opened = self.call("alice", "open_library", {})
+        opened = self.call("alice", "open_posts", {})
         self.assertEqual(
             opened["structuredContent"]["posts"][0]["title"], "Alice private"
         )
@@ -222,7 +220,7 @@ class HTTPIntegrationTests(TransactionTestCase):
             "resourceTemplates"
         ]
         self.assertEqual(templates[0]["uriTemplate"], "mataroa://posts/{slug}")
-        ui = self.rpc("alice", "resources/read", {"uri": LIBRARY_URI}).json()["result"][
+        ui = self.rpc("alice", "resources/read", {"uri": POSTS_URI}).json()["result"][
             "contents"
         ][0]
         self.assertIn('id="library-title"', ui["text"])
