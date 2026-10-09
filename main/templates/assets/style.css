@@ -374,7 +374,8 @@ textarea {
     }
 }
 
-input[type="submit"] {
+input[type="submit"],
+button.btn {
     cursor: pointer;
     background: var(--link-color);
     color: #fff;
@@ -383,11 +384,14 @@ input[type="submit"] {
 }
 
 input[type="submit"]:hover,
-input[type="submit"]:active {
+input[type="submit"]:active,
+button.btn:hover,
+button.btn:active {
     background: var(--ascent-color);
 }
 
-input[type="submit"]:disabled {
+input[type="submit"]:disabled,
+button.btn:disabled {
     pointer-events: none;
     background: var(--ascent-color);
 }

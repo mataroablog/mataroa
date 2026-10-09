@@ -18,8 +18,8 @@
         {% for name, value in fields.items %}
         <input type="hidden" name="{{ name }}" value="{{ value }}">
         {% endfor %}
-        <button type="submit" name="allow" value="true">Allow access</button>
-        <button type="submit" name="allow" value="false">Cancel</button>
+        <button type="submit" name="allow" value="true" class="btn">Allow access</button>
+        <button type="submit" name="allow" value="false" class="btn">Cancel</button>
     </form>
 </main>
 {% endblock content %}
