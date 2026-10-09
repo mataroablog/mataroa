@@ -492,6 +492,10 @@ class OAuthClient(models.Model):
         help_text="Exact HTTPS callback URLs, one per line."
     )
 
+    class Meta:
+        verbose_name = "OAuth client"
+        verbose_name_plural = "OAuth clients"
+
     def __str__(self):
         return self.name
 
@@ -547,6 +551,10 @@ class OAuthGrant(models.Model):
     consumed = models.BooleanField(default=False)
     revoked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "OAuth grant"
+        verbose_name_plural = "OAuth grants"
 
 
 class OAuthToken(models.Model):
