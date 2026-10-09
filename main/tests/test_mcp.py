@@ -10,7 +10,6 @@ from django.test import SimpleTestCase
 from main.mcp.backend import MataroaError
 from main.mcp.server import DRAFTS, PUBLISH, READ, TOOLS, ToolService, posts_resource
 
-RESOURCE = "https://mataroa.blog/mcp"
 POSTS = [
     {
         "slug": "draft",
@@ -45,7 +44,7 @@ def token(subject=1, scopes=None):
     )
 
 
-def make_server(principal=None):
+def make_tool_service(principal=None):
     service = Mock()
     service.list_posts.return_value = deepcopy(POSTS)
     service.get_post.return_value = deepcopy(POSTS[0])
@@ -65,7 +64,7 @@ def make_server(principal=None):
 
 class MCPServerTests(SimpleTestCase):
     def test_metadata_read_write_scopes_and_native_entrypoint(self):
-        server, _, _ = make_server(token())
+        server, _, _ = make_tool_service(token())
         tools = {t["name"]: t for t in TOOLS}
         self.assertIs(tools["list_posts"]["annotations"]["readOnlyHint"], True)
         self.assertIs(tools["create_draft"]["annotations"]["readOnlyHint"], False)
@@ -95,14 +94,14 @@ class MCPServerTests(SimpleTestCase):
             token(scopes=[]),
         ]:
             with self.subTest(principal=principal):
-                server, service, seen = make_server(principal)
+                server, service, seen = make_tool_service(principal)
                 with self.assertRaises(MataroaError):
                     server.call_tool("list_posts", {})
                 self.assertFalse(seen)
                 service.list_posts.assert_not_called()
 
     def test_scope_enforced_before_write(self):
-        server, service, _ = make_server(token())
+        server, service, _ = make_tool_service(token())
         for name, args in [
             ("create_draft", {"title": "Test"}),
             (
@@ -125,7 +124,7 @@ class MCPServerTests(SimpleTestCase):
         service.publish_post.assert_not_called()
 
     def test_draft_permission_does_not_grant_publish(self):
-        server, _, _ = make_server(token(scopes=[READ, DRAFTS]))
+        server, _, _ = make_tool_service(token(scopes=[READ, DRAFTS]))
         with self.assertRaisesRegex(MataroaError, "permission"):
             server.call_tool(
                 "publish_post",
@@ -137,7 +136,7 @@ class MCPServerTests(SimpleTestCase):
             )
 
     def test_search_status_pagination_and_null_bodies(self):
-        server, _, seen = make_server(token(subject=42))
+        server, _, seen = make_tool_service(token(subject=42))
         result = server.call_tool("list_posts", {"query": "hello", "limit": 1})
         self.assertEqual(result["structuredContent"]["total"], 1)
         self.assertEqual(result["structuredContent"]["posts"][0]["slug"], "draft")
@@ -159,13 +158,13 @@ class MCPServerTests(SimpleTestCase):
             {"status": "private"},
         ]:
             with self.subTest(args=args):
-                server, service, _ = make_server(token())
+                server, service, _ = make_tool_service(token())
                 with self.assertRaises(MataroaError):
                     server.call_tool("list_posts", args)
                 service.list_posts.assert_not_called()
 
     def test_comments_never_expose_email_even_if_backend_does(self):
-        server, service, _ = make_server(token())
+        server, service, _ = make_tool_service(token())
         service.list_comments.return_value = [
             {"id": 1, "body": "hi", "email": "private@example.com"}
         ]
@@ -176,7 +175,7 @@ class MCPServerTests(SimpleTestCase):
         self.assertNotIn("email", result["structuredContent"]["comment"])
 
     def test_publish_preserves_exact_reviewed_fingerprint_and_date(self):
-        server, service, _ = make_server(token(scopes=[READ, PUBLISH]))
+        server, service, _ = make_tool_service(token(scopes=[READ, PUBLISH]))
         service.publish_post.return_value = {
             "ok": True,
             "slug": "draft",
@@ -195,7 +194,7 @@ class MCPServerTests(SimpleTestCase):
         service.get_post.assert_not_called()
 
     def test_expected_errors_are_safe_tool_errors(self):
-        server, service, _ = make_server(token())
+        server, service, _ = make_tool_service(token())
         service.get_post.side_effect = MataroaError("not_found", "Post not found.")
         with self.assertRaisesRegex(MataroaError, "Post not found"):
             server.call_tool("get_post", {"slug": "missing"})

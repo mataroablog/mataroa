@@ -136,7 +136,7 @@ class Posts {
     element('post-list').setAttribute('aria-busy', 'true');
     element('refresh').disabled = true;
     element('load-more').disabled = true;
-    element('count').textContent = append ? 'Loading more posts…' : 'Finding your words…';
+    element('count').textContent = append ? 'Loading more posts…' : 'Loading posts…';
     this.renderFilters();
     if (!append)
       this.skeleton();
@@ -203,7 +203,7 @@ class Posts {
     const filtered = Boolean(this.query || this.status !== 'all');
     element('count').textContent = `${this.total.toLocaleString()} ${this.total === 1 ? 'post' : 'posts'}${filtered ? ' found' : ''}`;
     element('empty-state').hidden = this.posts.length !== 0;
-    element('empty-title').textContent = filtered ? 'No matching words, yet' : 'A little room for words';
+    element('empty-title').textContent = filtered ? 'No matching posts' : 'No posts yet';
     element('empty-description').textContent = filtered ? 'Try another search or show all your posts.' : 'When you write on Mataroa, your posts will appear here.';
     element('reset-search').hidden = !filtered;
     element('refresh').disabled = !this.connected;

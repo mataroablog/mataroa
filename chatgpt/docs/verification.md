@@ -2,9 +2,9 @@
 
 ## Checked locally
 
-- Django suite with the integration enabled: **461 tests on PostgreSQL 17**, all passing, including six concurrency tests
-- The same **461 tests on SQLite**, with six PostgreSQL-only tests skipped
-- Integration disabled: **387 tests on SQLite**, passing with three skips
+- Django suite with the integration enabled: **460 tests on PostgreSQL 17**, all passing, including six concurrency tests
+- The same **460 tests on SQLite**, with six PostgreSQL-only tests skipped
+- Integration disabled: **386 tests on SQLite**, passing with three skips
 - Official MCP Python client 2.3 successfully initialized/discovered the Django endpoint over real HTTP with both 2025-11-25 and 2026-07-28 protocols, listed all 11 tools, opened Posts, searched mentions, and read post/UI resources (one-off compatibility check; the SDK is not a project dependency)
 - **40 checks on the browser test page**, using the production scripts and rendered Django template
 - Includes real DOM interactions, narrow layout, and an opaque-origin sandbox check

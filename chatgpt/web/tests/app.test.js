@@ -105,10 +105,10 @@ test('app: untrusted title, excerpt and Markdown stay inert; unsafe links stay h
 test('app: empty post lists and searches show helpful empty states', async () => {
   await open({ mode: 'empty' });
   await eventually(() => !byId('empty-state').hidden);
-  assert.equal(byId('empty-title').textContent, 'A little room for words');
+  assert.equal(byId('empty-title').textContent, 'No posts yet');
   host.mode = 'normal'; click('#refresh'); await rows(5);
   search('no-such-post'); await eventually(() => !byId('empty-state').hidden);
-  assert.equal(byId('empty-title').textContent, 'No matching words, yet');
+  assert.equal(byId('empty-title').textContent, 'No matching posts');
   click('#reset-search'); await rows(5);
 });
 test('app: initial error can recover without reconnecting', async () => {

@@ -8,7 +8,7 @@
       "onboardingSkill": "./skills/connect-blog/SKILL.md",
       "interface": {
         "displayName": "Mataroa",
-        "shortDescription": "Your blog, thoughtfully written",
+        "shortDescription": "Read posts, write drafts, and publish",
         "longDescription": "Browse posts and drafts, read pages and comments, save unpublished drafts, and publish only the version you approve.",
         "developerName": "Mataroa",
         "category": "Productivity",

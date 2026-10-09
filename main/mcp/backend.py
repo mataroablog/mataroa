@@ -1,7 +1,8 @@
 """Owner-scoped ORM backend for the official, multi-user Mataroa service.
 
 Construct this backend with the authenticated OAuth subject's user primary key,
-never a tool argument, slug owner, or process-wide API key. ORM work runs synchronously on Django's request thread. On a database with row-lock support
+never a tool argument, slug owner, or process-wide API key. ORM work runs
+synchronously on Django's request thread. On a database with row-lock support
 (production PostgreSQL), checking the reviewed fingerprint and writing the draft
 happen under the same row lock and transaction. SQLite is for development only.
 """
@@ -51,12 +52,9 @@ class MutationReceipt(TypedDict):
 class MataroaError(Exception):
     """A sanitized error safe to expose in MCP tool results."""
 
-    def __init__(
-        self, code: str, message: str, *, status_code: int | None = None
-    ) -> None:
+    def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
-        self.status_code = status_code
 
 
 def post_fingerprint(post: Mapping[str, Any]) -> str:
@@ -97,7 +95,7 @@ def _invalid(message: str) -> MataroaError:
 
 def _not_found() -> MataroaError:
     # Never disclose whether another tenant owns the requested resource.
-    return MataroaError("not_found", "Mataroa resource was not found.", status_code=404)
+    return MataroaError("not_found", "Mataroa resource was not found.")
 
 
 def _validate_slug(slug: str) -> None:
@@ -168,7 +166,7 @@ def _receipt(post: models.Post) -> MutationReceipt:
     }
 
 
-def _comment(comment: models.Comment, *, include_email: bool) -> dict[str, Any]:
+def _comment(comment: models.Comment) -> dict[str, Any]:
     result = {
         "id": comment.pk,
         "post_slug": comment.post.slug,
@@ -181,8 +179,6 @@ def _comment(comment: models.Comment, *, include_email: bool) -> dict[str, Any]:
         "is_approved": comment.is_approved,
         "is_author": comment.is_author,
     }
-    if include_email:
-        result["email"] = comment.email
     return result
 
 
@@ -204,12 +200,12 @@ class DjangoBlogBackend:
             "owner"
         )
 
-    def _comments(self, *, include_email: bool):
+    def _comments(self):
         comments = models.Comment.objects.filter(
             post__owner_id=self._user_id
         ).select_related("post__owner")
-        # Do not even retrieve commenters' email addresses unless explicitly requested.
-        return comments if include_email else comments.defer("email")
+        # Commenter email addresses are never exposed by this integration.
+        return comments.defer("email")
 
     def _locked_draft(self, slug: str, fingerprint: str) -> models.Post:
         try:
@@ -342,11 +338,10 @@ class DjangoBlogBackend:
         *,
         post_slug: str | None = None,
         pending_only: bool = False,
-        include_email: bool = False,
     ) -> list[dict[str, Any]]:
-        if not isinstance(pending_only, bool) or not isinstance(include_email, bool):
-            raise _invalid("Comment filters must be booleans.")
-        comments = self._comments(include_email=include_email)
+        if not isinstance(pending_only, bool):
+            raise _invalid("pending_only must be a boolean.")
+        comments = self._comments()
         if post_slug is not None:
             _validate_slug(post_slug)
             if not self._posts().filter(slug=post_slug).exists():
@@ -354,17 +349,13 @@ class DjangoBlogBackend:
             comments = comments.filter(post__slug=post_slug)
         if pending_only:
             comments = comments.filter(is_approved=False)
-        return [_comment(comment, include_email=include_email) for comment in comments]
+        return [_comment(comment) for comment in comments]
 
-    def get_comment(
-        self, comment_id: int, *, include_email: bool = False
-    ) -> dict[str, Any]:
+    def get_comment(self, comment_id: int) -> dict[str, Any]:
         if type(comment_id) is not int or comment_id < 1:
             raise _invalid("Comment ID must be a positive integer.")
-        if not isinstance(include_email, bool):
-            raise _invalid("include_email must be a boolean.")
         try:
-            comment = self._comments(include_email=include_email).get(pk=comment_id)
+            comment = self._comments().get(pk=comment_id)
         except models.Comment.DoesNotExist:
             raise _not_found() from None
-        return _comment(comment, include_email=include_email)
+        return _comment(comment)

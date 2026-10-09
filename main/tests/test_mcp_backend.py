@@ -96,7 +96,6 @@ class DjangoBlogBackendTests(TransactionTestCase):
         ):
             with self.subTest(method=method):
                 error = self.assert_error("not_found", method, "bob-only", **kwargs)
-                self.assertEqual(error.status_code, 404)
                 self.assertNotIn("Bob", str(error))
         self.other_draft.refresh_from_db()
         self.assertEqual(self.other_draft.body, "Do not reveal")
@@ -416,18 +415,17 @@ class DjangoBlogBackendTests(TransactionTestCase):
         )
         return own, approved, other
 
-    def test_comments_are_scoped_through_post_owner_and_hide_email_by_default(self):
+    def test_comments_are_scoped_through_post_owner_and_exclude_email(self):
         own, approved, other = self.create_comments()
         comments = self.call("list_comments")
         self.assertEqual({comment["id"] for comment in comments}, {own.pk, approved.pk})
         self.assertTrue(all("email" not in comment for comment in comments))
         self.assertEqual(self.call("get_comment", own.pk), comments[0])
         self.assert_error("not_found", "get_comment", other.pk)
-        self.assert_error("not_found", "get_comment", other.pk, include_email=True)
         self.assertFalse(hasattr(self.backend, "approve_comment"))
         self.assertFalse(hasattr(self.backend, "delete_comment"))
 
-    def test_default_comments_do_not_query_email_column(self):
+    def test_comments_do_not_query_email_column(self):
         own, _, _ = self.create_comments()
         with CaptureQueriesContext(connection) as queries:
             self.call("list_comments")
@@ -437,14 +435,6 @@ class DjangoBlogBackendTests(TransactionTestCase):
         self.assertTrue(
             all('"main_comment"."email"' not in row["sql"] for row in queries)
         )
-
-    def test_comments_email_is_explicit_opt_in_for_owner_only(self):
-        own, _, other = self.create_comments()
-        comment = self.call("get_comment", own.pk, include_email=True)
-        self.assertEqual(comment["email"], "reader@example.test")
-        comments = self.call("list_comments", include_email=True)
-        self.assertTrue(all("email" in item for item in comments))
-        self.assertNotIn(other.pk, {item["id"] for item in comments})
 
     def test_combined_post_and_pending_comment_filters_remain_owner_scoped(self):
         own, _, _ = self.create_comments()
@@ -463,7 +453,6 @@ class DjangoBlogBackendTests(TransactionTestCase):
 
     def test_invalid_comments_filters_and_ids_are_refused(self):
         for fields in (
-            {"include_email": "yes"},
             {"pending_only": 1},
             {"post_slug": "../x"},
         ):
@@ -472,7 +461,6 @@ class DjangoBlogBackendTests(TransactionTestCase):
         for comment_id in (True, 0, -1, "1", None):
             with self.subTest(comment_id=comment_id):
                 self.assert_error("invalid_argument", "get_comment", comment_id)
-        self.assert_error("invalid_argument", "get_comment", 1, include_email="yes")
 
     def test_invalid_slugs_are_refused_without_unscoped_lookup(self):
         for slug in ("../x", "a/b", "", "é", "x" * 301, None):

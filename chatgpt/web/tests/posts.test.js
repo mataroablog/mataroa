@@ -125,7 +125,7 @@ test('empty and no-match states explain the next step', async () => {
   app.ready(); app.receiveInitial(envelope([])); assert.equal(byId('empty-state').hidden, false);
   assert.equal(byId('reset-search').hidden, true);
   byId('search').value = 'nothing'; byId('search-form').dispatchEvent(new window.Event('submit', { cancelable: true })); await tick();
-  assert.equal(byId('empty-title').textContent, 'No matching words, yet');
+  assert.equal(byId('empty-title').textContent, 'No matching posts');
   assert.equal(byId('reset-search').hidden, false);
 });
 

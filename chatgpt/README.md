@@ -66,4 +66,4 @@ This plugin's `plugin.json`, `mcp.json`, skills, and assets follow the portable 
 - [Connect and test a ChatGPT plugin](https://developers.openai.com/plugins/deploy/connect-chatgpt)
 - [OpenAI MCP Extensions specification](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md)
 
-The parent repository's [AGPL-3.0 license](../../LICENSE) applies.
+The parent repository's [AGPL-3.0 license](../LICENSE) applies.

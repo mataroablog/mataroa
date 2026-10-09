@@ -27,4 +27,4 @@ Run with disposable staging users Alice and Bob; never publish to a real user's 
 | Double-click, Back, search during a pending fetch | No stale result overwrites the current view |
 | Body contains script/HTML or unsafe links | Displayed as text; no execution or unsafe navigation |
 
-Automated coverage lives in `main/tests/test_mcp*.py`, `main/tests/test_oauth.py`, and `chatgpt/web/tests/`. See the build report for executed vs skipped checks. Real ChatGPT installation, browser sandbox appearance, and public submission are manual release gates after hosting and account-connection approval.
+Automated coverage lives in `main/tests/test_mcp*.py`, `main/tests/test_oauth.py`, and `chatgpt/web/tests/`. See [Verification](verification.md) for executed vs skipped checks. Real ChatGPT installation, browser sandbox appearance, and public submission are manual release gates after hosting and account-connection approval.

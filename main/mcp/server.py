@@ -320,19 +320,15 @@ class ToolService:
         return _post_list(self.invoke("list_posts"), "", "all", 50, 0)
 
     def list_posts(self, query="", status="all", limit=50, offset=0):
-        """Search your blog posts and drafts. Returns summaries; use get_post for full text."""
         return _post_list(self.invoke("list_posts"), query, status, limit, offset)
 
     def get_post(self, slug):
-        """Read one owned post or draft and its content_sha256 revision fingerprint."""
         return {"post": self.invoke("get_post", slug)}
 
     def create_draft(self, title, body=""):
-        """Save a new unpublished draft in the user's Mataroa account. Never publishes."""
         return self.invoke("create_draft", title, body)
 
     def update_draft(self, slug, expected_content_sha256, title=None, body=None):
-        """Edit an unpublished draft only if its reviewed fingerprint still matches."""
         return self.invoke(
             "update_draft",
             slug,
@@ -342,12 +338,6 @@ class ToolService:
         )
 
     def publish_post(self, slug, published_at, expected_content_sha256):
-        """Publish or schedule an approved draft on an explicit YYYY-MM-DD date.
-
-        Requires explicit user authorization for this exact draft, blog, and date.
-        Makes the post public when due and may trigger Mataroa subscriber emails.
-        Rejects stale fingerprints and posts that are already published or scheduled.
-        """
         return self.invoke(
             "publish_post",
             slug,
@@ -356,7 +346,6 @@ class ToolService:
         )
 
     def list_pages(self, query="", limit=50, offset=0):
-        """List your static pages. A hidden page is unlisted, not private or a draft."""
         pages = self.invoke("list_pages")
         needle = query.casefold().strip()
         matches = [
@@ -375,11 +364,9 @@ class ToolService:
         }
 
     def get_page(self, slug):
-        """Read a static Mataroa page, including unlisted pages owned by your account."""
         return {"page": self.invoke("get_page", slug)}
 
     def list_comments(self, post_slug=None, pending_only=False, limit=50, offset=0):
-        """Review comments on your blog. Omits commenters' private email addresses."""
         comments = self.invoke(
             "list_comments", post_slug=post_slug, pending_only=pending_only
         )
@@ -392,7 +379,6 @@ class ToolService:
         }
 
     def get_comment(self, comment_id):
-        """Read one comment on your blog, omitting its private email address."""
         comment = self.invoke("get_comment", comment_id)
         return {"comment": {k: v for k, v in comment.items() if k != "email"}}
 
