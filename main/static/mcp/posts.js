@@ -55,6 +55,10 @@ class Posts {
     element('load-more').addEventListener('click', () => void this.load(true));
     element('back').addEventListener('click', () => this.back());
     element('open-post').addEventListener('click', () => void this.openPublicPost());
+    element('post-link').addEventListener('click', event => {
+      event.preventDefault();
+      void this.openPublicPost();
+    });
   }
   dispose() {
     this.connected = false;
@@ -256,6 +260,8 @@ class Posts {
     element('reader-notice').hidden = true;
     element('reader-content').setAttribute('aria-busy', 'true');
     element('open-post').hidden = true;
+    element('post-link').hidden = true;
+    element('post-link').removeAttribute('href');
     this.renderPostMeta(summary);
     element('post-body').textContent = 'Loading post…';
     element('word-count').textContent = '';
@@ -269,10 +275,35 @@ class Posts {
         throw new Error('Unexpected post');
       this.currentPost = data;
       this.renderPostMeta(data);
-      element('post-body').textContent = data.body || 'This post is empty.';
+      const body = element('post-body');
+      if (data.body_html) {
+        // Only the server-rendered, sanitized field is HTML; never raw Markdown.
+        body.innerHTML = data.body_html;
+        body.querySelectorAll('a[href]').forEach(link => {
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          try {
+            const url = new URL(link.getAttribute('href'), data.url || undefined);
+            if (['https:', 'http:', 'mailto:'].includes(url.protocol))
+              link.href = url.href;
+            else
+              link.removeAttribute('href');
+          } catch {
+            link.removeAttribute('href');
+          }
+        });
+      } else {
+        body.textContent = data.body || 'This post is empty.';
+      }
       const count = wordCount(data.body);
       element('word-count').textContent = `${count.toLocaleString()} ${count === 1 ? 'word' : 'words'}`;
-      element('open-post').hidden = publicPostUrl(data) === null;
+      const url = publicPostUrl(data);
+      element('open-post').hidden = url === null;
+      if (url) {
+        element('post-link').href = url;
+        element('post-link').textContent = url;
+        element('post-link').hidden = false;
+      }
     }
     catch {
       if (epoch !== this.postEpoch)

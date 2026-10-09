@@ -71,6 +71,37 @@ def make_tool_service(principal=None):
 
 
 class MCPServerTests(SimpleTestCase):
+    def test_reader_html_formats_markdown_without_active_content_or_app_attributes(
+        self,
+    ):
+        server, backend, _ = make_tool_service(token())
+        body = (
+            "## Heading\n\nA **bold** paragraph.\n\n- One\n- Two\n\n"
+            '<script>alert(1)</script><img src=x onerror="alert(1)">'
+            '<iframe src="https://example.com"></iframe>'
+            '<p id="open-post" class="reader" style="position:fixed">Text</p>'
+            '<a href="javascript:alert(1)">Unsafe</a>'
+        )
+        backend.get_post.return_value = {**POSTS[0], "body": body}
+        post = server.get_post("draft")["post"]
+        self.assertEqual(post["body"], body)
+        self.assertEqual(post["content_sha256"], POSTS[0]["content_sha256"])
+        html = post["body_html"]
+        self.assertIn("<h2>Heading</h2>", html)
+        self.assertIn("<strong>bold</strong>", html)
+        self.assertIn("<li>One</li>", html)
+        for forbidden in (
+            "<script",
+            "<img",
+            "<iframe",
+            "onerror=",
+            'id="',
+            'class="',
+            'style="',
+            'href="javascript:',
+        ):
+            self.assertNotIn(forbidden, html)
+
     def test_metadata_read_write_scopes_and_native_entrypoint(self):
         server, _, _ = make_tool_service(token())
         tools = {t["name"]: t for t in TOOLS}

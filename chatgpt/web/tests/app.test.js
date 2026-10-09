@@ -47,13 +47,17 @@ test('app: search debounce, filters and refresh use the server contract', async 
 });
 test('app: reader, host-mediated public link, drafts and back navigation', async () => {
   await open(); await rows(5); await read('[data-slug="small-things"]');
-  assert.match(byId('post-body').textContent, /## Making room/);
+  assert.equal(byId('post-body').querySelector('h2').textContent, 'Making room');
   click('#open-post'); await eventually(() => host.links.length === 1);
   assert.deepEqual(host.links, ['https://example.mataroa.blog/blog/small-things/']);
+  assert.equal(byId('post-link').hidden, false);
+  click('#post-link'); await eventually(() => host.links.length === 2);
+  assert.equal(host.links[1], 'https://example.mataroa.blog/blog/small-things/');
   click('#back'); assert.equal(byId('reader').hidden, true);
   await read('[data-slug="slower-internet"]');
   assert.match(byId('post-body').textContent, /unfinished thought/);
   assert.equal(byId('open-post').hidden, true);
+  assert.equal(byId('post-link').hidden, true);
 });
 test('app: late post responses cannot reopen dismissed content', async () => {
   await open(); await rows(5);

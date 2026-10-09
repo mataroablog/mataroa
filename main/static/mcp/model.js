@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-// Validate untrusted tool data before rendering it with textContent.
+// Validate tool data. body_html is sanitized by the server for the reader.
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -35,7 +35,7 @@ function parsePost(result) {
   }
   // Normalize nullable post content only for this read-only view. The server's
   // fingerprint stays untouched: null and an empty string have distinct hashes.
-  return { ...summary(data.post), body: data.post.body ?? '', content_sha256: data.post.content_sha256 };
+  return { ...summary(data.post), body: data.post.body ?? '', body_html: typeof data.post.body_html === 'string' ? data.post.body_html : null, content_sha256: data.post.content_sha256 };
 }
 function publicationState(post, now = Date.now()) {
   if (!post.published_at)

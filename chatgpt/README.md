@@ -48,6 +48,9 @@ uv run python chatgpt/web/preview.py
 
 The Posts UI is read-only. It needs no frontend build step or third-party JavaScript dependencies. The preview and browser tests run without Node.
 
+The reader uses server-rendered, sanitized Markdown and shows published post links
+at the top and bottom. Embedded media remain available on the original blog.
+
 `bridge.js` implements the MCP Apps JSON-RPC host connection: initialization, tool calls,
 links, initial-result/cancellation notifications, theme/cursor changes, resizing,
 timeouts, and teardown.

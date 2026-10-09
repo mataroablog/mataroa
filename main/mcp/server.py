@@ -6,9 +6,12 @@ from datetime import date
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
+import bleach
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.templatetags.static import static
+
+from main.text_processing import md_to_html
 
 from .backend import DjangoBlogBackend, MataroaError
 
@@ -336,7 +339,48 @@ class ToolService:
         return _post_list(self.invoke("list_posts"), query, status, limit, offset)
 
     def get_post(self, slug):
-        return {"post": self.invoke("get_post", slug)}
+        post = self.invoke("get_post", slug)
+        # The reader shares a document with app controls: omit embeds, styles,
+        # IDs and classes even though the blog itself allows them.
+        body_html = bleach.clean(
+            md_to_html(post["body"]),
+            tags=[
+                "p",
+                "br",
+                "hr",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "strong",
+                "em",
+                "b",
+                "i",
+                "s",
+                "del",
+                "blockquote",
+                "pre",
+                "code",
+                "ul",
+                "ol",
+                "li",
+                "a",
+                "table",
+                "thead",
+                "tbody",
+                "tr",
+                "th",
+                "td",
+                "sup",
+                "sub",
+            ],
+            attributes={"a": ["href", "title"], "ol": ["start"]},
+            protocols=["https", "http", "mailto"],
+            strip=True,
+        )
+        return {"post": {**post, "body_html": body_html}}
 
     def create_draft(self, title, body=""):
         return self.invoke("create_draft", title, body)

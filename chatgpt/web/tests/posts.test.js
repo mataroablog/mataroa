@@ -3,7 +3,7 @@ const base = { title: 'A quiet place', slug: 'quiet', published_at: '2024-01-01'
 const draft = { ...base, title: 'An unfinished page', slug: 'draft', published_at: null };
 const scheduled = { ...base, title: 'Coming soon', slug: 'soon', published_at: '2999-01-01' };
 const envelope = (posts = [base, draft, scheduled], total = posts.length) => ({ content: [], structuredContent: { posts, total } });
-const complete = summary => ({ content: [], structuredContent: { post: { ...summary, body: '# A heading\n\nSome words.', content_sha256: 'a'.repeat(64) } } });
+const complete = summary => ({ content: [], structuredContent: { post: { ...summary, body: '# A heading\n\nSome words.', body_html: '<h1>A heading</h1><p>Some words.</p>', content_sha256: 'a'.repeat(64) } } });
 let frame, app, document, window;
 afterEach(() => { app?.dispose(); frame?.remove(); app = null; frame = null; });
 async function setup(bridge = {}) {
@@ -55,13 +55,23 @@ test('reader renders markdown as inert text and back restores row focus', async 
 test('draft and future-dated posts do not expose public links', async () => {
   const { app } = await setup(); app.ready(); app.receiveInitial(envelope());
   click('[data-slug="draft"]'); await tick(); assert.equal(byId('open-post').hidden, true);
+  assert.equal(byId('post-link').hidden, true);
   click('#back'); click('[data-slug="soon"]'); await tick(); assert.equal(byId('open-post').hidden, true);
+  assert.equal(byId('post-link').hidden, true);
 });
 test('published link requests use only the verified HTTPS URL', async () => {
   const links = [];
   const { app } = await setup({ openLink: async url => { links.push(url); return {}; } });
   app.ready(); app.receiveInitial(envelope()); click('.post-row'); await tick();
   click('#open-post'); await tick(); assert.deepEqual(links, [base.url]);
+  assert.equal(byId('post-body').querySelector('h1').textContent, 'A heading');
+  assert.equal(byId('post-body').querySelector('p').textContent, 'Some words.');
+  assert.equal(byId('post-link').href, base.url);
+  assert.equal(byId('post-link').textContent, base.url);
+  click('#post-link'); await tick(); assert.deepEqual(links, [base.url, base.url]);
+  click('#back'); click('[data-slug="draft"]'); await tick();
+  assert.equal(byId('post-link').hidden, true);
+  assert.equal(byId('post-link').hasAttribute('href'), false);
 });
 test('late post response cannot reopen a dismissed reader or overwrite a newer selection', async () => {
   const old = deferred();

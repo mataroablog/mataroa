@@ -25,7 +25,8 @@ body { margin: 0; background: var(--background); color: var(--foreground); }
 button, input { font: inherit; color: inherit; }
 button { cursor: var(--cursor-interaction, pointer); }
 button:disabled { opacity: .45; cursor: default; }
-button:focus-visible, input:focus-visible { outline: 2px solid var(--link-color); outline-offset: 3px; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--link-color); outline-offset: 3px; }
+a { color: var(--link-color); }
 h1, h2, h3 { font-weight: 500; margin: 16px 0; }
 h1 { font-size: 1.5rem; }
 p { margin: 16px 0; }
@@ -58,11 +59,16 @@ input::placeholder { color: var(--quiet); }
 .empty-state { margin: 24px 0; }
 .empty-state p { margin: 8px 0; }
 .reader-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin: 16px 0; }
-.reader h1 { font-size: 1.8rem; padding-bottom: 4px; border-bottom: 2px solid var(--border); overflow-wrap: anywhere; }
-.reader h1:focus { outline: 0; }
+#post-title { font-size: 1.8rem; padding-bottom: 4px; border-bottom: 2px solid var(--border); overflow-wrap: anywhere; }
+#post-title:focus { outline: 0; }
 .post-slug { color: var(--quiet); overflow-wrap: anywhere; }
 .source-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 16px 0 8px; color: var(--quiet); font-size: .875rem; }
-.post-body { font: 1rem/1.5 monospace; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 8px; background: var(--soft); }
+.post-body { overflow-wrap: anywhere; }
+.post-body pre { padding: 8px; background: var(--soft); white-space: pre-wrap; }
+.post-body blockquote { margin: 16px 0; padding-left: 16px; border-left: 2px solid var(--border); }
+.post-body table { display: block; overflow-x: auto; border-collapse: collapse; }
+.post-body th, .post-body td { padding: 8px; border: 1px solid var(--border); }
+#post-link { overflow-wrap: anywhere; }
 .skeleton { padding: 16px 0; }
 .skeleton span { display: block; height: 12px; background: var(--border); margin-bottom: 12px; width: 45%; }
 .skeleton span:nth-child(2) { width: 80%; height: 20px; }
