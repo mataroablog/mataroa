@@ -273,6 +273,79 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
 
+    def test_consent_referrer_policy_allows_same_origin_form_submission(self):
+        for allow in ("true", "false"):
+            for sends_origin in (True, False):
+                with self.subTest(allow=allow, sends_origin=sends_origin):
+                    browser = Client(enforce_csrf_checks=True)
+                    browser.force_login(self.user)
+                    response = self.get(
+                        "/oauth/authorize/", self.auth_parameters(), client=browser
+                    )
+                    self.assertEqual(response["Referrer-Policy"], "same-origin")
+                    headers = {"HTTP_REFERER": "https://mataroa.blog/oauth/authorize/"}
+                    if sends_origin:
+                        headers["HTTP_ORIGIN"] = "https://mataroa.blog"
+                    response = browser.post(
+                        "/oauth/authorize/",
+                        urlencode(
+                            {
+                                **response.context["fields"],
+                                "csrfmiddlewaretoken": browser.cookies[
+                                    "csrftoken"
+                                ].value,
+                                "allow": allow,
+                            }
+                        ),
+                        content_type="application/x-www-form-urlencoded",
+                        secure=True,
+                        HTTP_HOST="mataroa.blog",
+                        **headers,
+                    )
+                    self.assertEqual(response.status_code, 302, response.content)
+                    callback = parse_qs(urlsplit(response.url).query)
+                    if allow == "true":
+                        self.assertIn("code", callback)
+                    else:
+                        self.assertEqual(callback["error"], ["access_denied"])
+
+    def test_consent_rejects_untrusted_origins_with_valid_csrf_token(self):
+        browser = Client(enforce_csrf_checks=True)
+        browser.force_login(self.user)
+        self.get("/oauth/authorize/", self.auth_parameters(), client=browser)
+        values = {
+            **self.auth_parameters(),
+            "allow": "true",
+            "csrfmiddlewaretoken": browser.cookies["csrftoken"].value,
+        }
+        for headers in (
+            {"HTTP_ORIGIN": "null"},
+            {"HTTP_ORIGIN": "https://example.org"},
+            {"HTTP_REFERER": "https://example.org/"},
+            {},
+        ):
+            with self.subTest(headers=headers):
+                response = browser.post(
+                    "/oauth/authorize/",
+                    urlencode(values),
+                    content_type="application/x-www-form-urlencoded",
+                    secure=True,
+                    HTTP_HOST="mataroa.blog",
+                    **headers,
+                )
+                self.assertEqual(response.status_code, 403)
+        values.pop("csrfmiddlewaretoken")
+        response = browser.post(
+            "/oauth/authorize/",
+            urlencode(values),
+            content_type="application/x-www-form-urlencoded",
+            secure=True,
+            HTTP_HOST="mataroa.blog",
+            HTTP_ORIGIN="https://mataroa.blog",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(OAuthGrant.objects.exists())
+
     def test_password_login_and_consent_succeed_with_real_csrf_checks(self):
         browser = Client(enforce_csrf_checks=True)
         response = self.get("/oauth/authorize/", self.auth_parameters(), client=browser)
@@ -1071,8 +1144,10 @@ class OAuthFlowTests(OAuthTestHelpers, TestCase):
     def test_security_headers_and_untrusted_redirects(self):
         response = self.get("/oauth/authorize/", self.auth_parameters())
         self.assertEqual(response["Cache-Control"], "no-store")
-        self.assertEqual(response["Referrer-Policy"], "no-referrer")
+        self.assertEqual(response["Referrer-Policy"], "same-origin")
         self.assertEqual(response["X-Frame-Options"], "DENY")
+        metadata = self.get("/.well-known/oauth-authorization-server")
+        self.assertEqual(metadata["Referrer-Policy"], "no-referrer")
         for uri in (
             "http://example.org/",
             "https://user:secret@example.org/",

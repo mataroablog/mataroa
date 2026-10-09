@@ -161,6 +161,7 @@ class OAuthExceptionReporterFilter(SafeExceptionReporterFilter):
 @method_decorator(sensitive_post_parameters(), name="dispatch")
 class OAuthView(View):
     http_method_names = ["get", "post", "head", "options"]
+    referrer_policy = "no-referrer"
 
     def dispatch(self, request, *args, **kwargs):
         request.exception_reporter_filter = OAuthExceptionReporterFilter()
@@ -176,11 +177,14 @@ class OAuthView(View):
             response = super().dispatch(request, *args, **kwargs)
         response["Cache-Control"] = "no-store"
         response["Pragma"] = "no-cache"
-        response["Referrer-Policy"] = "no-referrer"
+        response["Referrer-Policy"] = self.referrer_policy
         return response
 
 
 class MataroaAuthorizationView(OAuthView):
+    # HTTPS consent POSTs need same-origin headers for Django's CSRF checks.
+    referrer_policy = "same-origin"
+
     def get(self, request):
         values = parameters(request)
         if values is None:
