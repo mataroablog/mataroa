@@ -13,8 +13,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-24.04
-    env:
-      MATAROA_CHATGPT_ENABLED: ${{ vars.MATAROA_CHATGPT_ENABLED == '1' && '1' || '0' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -43,12 +41,12 @@ jobs:
       - name: Run database migrations
         run: |
           ssh -i ~/.ssh/id_ed25519 -S ~/.ssh/deploy-control ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
-            "sudo -u deploy bash -c 'cd /var/www/mataroa && export DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" MATAROA_CHATGPT_ENABLED=$MATAROA_CHATGPT_ENABLED && /home/deploy/.local/bin/uv run python manage.py migrate --no-input'"
+            "sudo -u deploy bash -c 'cd /var/www/mataroa && export DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" && /home/deploy/.local/bin/uv run python manage.py migrate --no-input'"
 
       - name: Collect static files
         run: |
           ssh -i ~/.ssh/id_ed25519 -S ~/.ssh/deploy-control ${{ secrets.SERVER_USER }}@${{ vars.SERVER_IP }} \
-            "sudo -u deploy bash -c 'cd /var/www/mataroa && export MATAROA_CHATGPT_ENABLED=$MATAROA_CHATGPT_ENABLED && /home/deploy/.local/bin/uv run python manage.py collectstatic --no-input'"
+            "sudo -u deploy bash -c 'cd /var/www/mataroa && /home/deploy/.local/bin/uv run python manage.py collectstatic --no-input'"
 
       - name: Reload mataroa service
         run: |

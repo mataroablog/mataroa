@@ -24,7 +24,7 @@ Set these deployment variables through the deployment's normal configuration sys
 
 The resource identifier is derived as the exact issuer plus `/mcp`. There is no Mataroa API key variable. Normal Mataroa database/session/email settings still apply. Never put real credentials into source files, sample manifests, chat, or build artifacts.
 
-For the repository's GitHub Actions deployment, also set the repository variable `MATAROA_CHATGPT_ENABLED=1` to match the service configuration. The workflow passes this flag to migrations and static collection; the service's environment is configured separately. There are no additional MCP Python dependencies. The enable flag defaults to `0`.
+Set these variables in the Django service's environment. Migrations and static collection do not require the enable flag or a GitHub Actions variable. There are no additional MCP Python dependencies. The enable flag defaults to `0`.
 
 OAuth uses `main.OAuthClient`, `main.OAuthGrant`, and `main.OAuthToken`. The initial schema migration creates these three tables with the normal Django app, even when the integration is disabled. Run these commands before starting or reloading the service:
 
