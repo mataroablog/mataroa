@@ -289,34 +289,3 @@ LOGGING = {
         },
     },
 }
-
-
-# Optional first-party ChatGPT/MCP integration. Nothing is registered or granted
-# on startup. Enable only after migrations and explicit OAuth client registration.
-MATAROA_CHATGPT_ENABLED = os.getenv("MATAROA_CHATGPT_ENABLED", "0") == "1"
-MATAROA_MCP_ISSUER_URL = os.getenv(
-    "MATAROA_MCP_ISSUER_URL", f"https://{CANONICAL_HOST}"
-).rstrip("/")
-MATAROA_MCP_RESOURCE_URL = f"{MATAROA_MCP_ISSUER_URL}/mcp"
-MATAROA_CHATGPT_CLIENT_IDS = tuple(
-    value.strip()
-    for value in os.getenv("MATAROA_CHATGPT_CLIENT_IDS", "").split(",")
-    if value.strip()
-)
-
-if MATAROA_CHATGPT_ENABLED:
-    from django.core.exceptions import ImproperlyConfigured
-
-    _mcp_issuer = parse.urlsplit(MATAROA_MCP_ISSUER_URL)
-    if (
-        _mcp_issuer.scheme != "https"
-        or _mcp_issuer.netloc != CANONICAL_HOST
-        or _mcp_issuer.path
-        or _mcp_issuer.query
-        or _mcp_issuer.fragment
-        or _mcp_issuer.username
-        or _mcp_issuer.password
-    ):
-        raise ImproperlyConfigured(
-            "MATAROA_MCP_ISSUER_URL must be the canonical HTTPS origin, without a path."
-        )
