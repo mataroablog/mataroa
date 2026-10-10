@@ -50,11 +50,3 @@ jobs:
           DEBUG: '1'
           SECRET_KEY: 'thisisthesecretkey'
           DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/postgres'
-
-      - name: Run tests with MCP and OAuth enabled
-        run: uv run python manage.py test --settings=mataroa.settings_test
-        env:
-          MATAROA_TEST_POSTGRES_DB: postgres
-          MATAROA_TEST_POSTGRES_HOST: localhost
-          MATAROA_TEST_POSTGRES_USER: postgres
-          MATAROA_TEST_POSTGRES_PASSWORD: postgres

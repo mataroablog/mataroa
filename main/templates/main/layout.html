@@ -69,8 +69,8 @@
         {% if not request.subdomain %}
         <nav>
             <a href="{{ request.host }}{% url 'index' %}">Home</a>
-            | <a href="{{ request.host }}{% url 'user_create' %}{% if next %}?next={{ next|urlencode:"" }}{% endif %}">Sign up</a>
-            | <a href="{{ request.host }}{% url 'login' %}{% if next %}?next={{ next|urlencode:"" }}{% endif %}">Log in</a>
+            | <a href="{{ request.host }}{% url 'user_create' %}">Sign up</a>
+            | <a href="{{ request.host }}{% url 'login' %}">Log in</a>
         </nav>
         {% endif %}
         {% endif %}
