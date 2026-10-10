@@ -145,6 +145,15 @@ After changing server metadata, refresh the custom MCP connection and start a ne
 
 ### 4. Package and submit
 
+From the repository root, run:
+
+```sh
+./chatgpt/package.sh
+```
+
+This creates `mataroa-plugin.zip` in the repository root, replacing any previous
+archive. It includes the manifests, assets, and skills.
+
 The `chatgpt/` directory follows the portable Agent Plugins layout:
 
 - `plugin.json`: plugin manifest

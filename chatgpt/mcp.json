@@ -3,7 +3,28 @@
   "mcpServers": {
     "mataroa": {
       "type": "streamable-http",
-      "url": "https://mataroa.blog/mcp"
+      "url": "https://mataroa.blog/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "provided",
+              "clientId": "mataroa-chatgpt",
+              "tokenEndpointAuthMethod": "none"
+            },
+            "baseScopes": [
+              "blog:read"
+            ],
+            "defaultScopes": [
+              "blog:read",
+              "drafts:write",
+              "posts:publish",
+              "posts:delete"
+            ]
+          }
+        }
+      }
     }
   }
 }

@@ -22,3 +22,6 @@ docker-compose.override.yml
 
 # deployment generated files
 /deploy/generated/
+
+# packaged ChatGPT plugin
+/mataroa-plugin.zip
