@@ -89,3 +89,47 @@ class APIPage(forms.Form):
     slug = forms.SlugField(max_length=300, required=False)
     body = forms.CharField(widget=forms.Textarea, required=False)
     is_hidden = forms.BooleanField(required=False)
+
+
+class ModerationPostFilterForm(forms.Form):
+    q = forms.CharField(label="Search posts", max_length=200, required=False)
+    start = forms.DateField(
+        label="Created from",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    end = forms.DateField(
+        label="Created through",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    status = forms.ChoiceField(
+        required=False,
+        choices=[
+            ("", "All posts"),
+            ("published", "Published"),
+            ("draft", "Drafts"),
+            ("scheduled", "Scheduled"),
+        ],
+    )
+    view = forms.ChoiceField(
+        required=False,
+        choices=[
+            ("sample", "12 samples across history"),
+            ("newest", "Browse newest first"),
+            ("oldest", "Browse oldest first"),
+            ("edited", "Browse recently edited"),
+        ],
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if (
+            cleaned.get("start")
+            and cleaned.get("end")
+            and cleaned["start"] > cleaned["end"]
+        ):
+            raise forms.ValidationError(
+                "The start date must be on or before the end date."
+            )
+        return cleaned

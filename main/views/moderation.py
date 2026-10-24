@@ -15,6 +15,8 @@ from django.db.models.functions import (
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 
 from main import models
 
@@ -131,6 +133,11 @@ def user_delete(request, user_id):
 
     user = get_object_or_404(models.User, id=user_id)
     if request.method == "POST":
+        if user.is_staff or user.is_superuser:
+            return JsonResponse(
+                {"ok": False, "error": "Staff accounts cannot be deleted here."},
+                status=400,
+            )
         user.delete()
         return JsonResponse({"ok": True})
 
@@ -253,12 +260,14 @@ def images_leaderboard(request):
     )
 
 
+@never_cache
+@require_GET
 def posts_leaderboard(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
         raise Http404()
 
     if hasattr(request, "subdomain"):
-        return redirect(f"//{settings.CANONICAL_HOST}{request.path}")
+        return redirect(f"//{settings.CANONICAL_HOST}{request.get_full_path()}")
 
     # sort modes
     mode_param = request.GET.get("mode")
@@ -272,12 +281,27 @@ def posts_leaderboard(request):
         sort_key = "bydrafts"
     reverse = "reverse" in current_modes
 
-    users_with_post_stats = models.User.objects.annotate(
-        posts_total=Count("post"),
-        posts_published=Count("post", filter=Q(post__published_at__isnull=False)),
-        posts_drafts=Count("post", filter=Q(post__published_at__isnull=True)),
-        last_post_date=Max("post__published_at"),
-    ).filter(posts_total__gt=0)
+    today = timezone.now().date()
+    largest_counts = list(
+        models.Post.objects.order_by()
+        .values("owner_id")
+        .annotate(total=Count("pk"))
+        .order_by("-total", "owner_id")
+        .values_list("total", flat=True)[:5]
+    )
+    users_with_post_stats = (
+        models.User.objects.only("id", "username", "custom_domain")
+        .annotate(
+            posts_total=Count("post"),
+            posts_published=Count("post", filter=Q(post__published_at__lte=today)),
+            posts_scheduled=Count("post", filter=Q(post__published_at__gt=today)),
+            posts_drafts=Count("post", filter=Q(post__published_at__isnull=True)),
+            last_post_date=Max(
+                "post__published_at", filter=Q(post__published_at__lte=today)
+            ),
+        )
+        .filter(posts_total__gt=0)
+    )
 
     if sort_key == "bypublished":
         ordering = ["posts_published", "id"] if reverse else ["-posts_published", "-id"]
@@ -296,11 +320,12 @@ def posts_leaderboard(request):
         top_limit = default_limit
     if top_limit <= 0:
         top_limit = default_limit
+    top_limit = min(top_limit, 5000)
     user_list = list(users_with_post_stats[:top_limit])
 
     # filters
     def link_for_modes(modes_list: list[str]) -> str:
-        query: dict[str, str] = {}
+        query: dict[str, str] = {"limit": str(top_limit)}
         if modes_list:
             query["mode"] = ",".join(modes_list)
         from urllib.parse import urlencode as _urlencode  # local alias
@@ -377,6 +402,8 @@ def posts_leaderboard(request):
             "top_limit": top_limit,
             "filters": filters,
             "clear_filters_url": clear_filters_url,
+            "largest_count": len(largest_counts),
+            "largest_total": sum(largest_counts),
         },
     )
 

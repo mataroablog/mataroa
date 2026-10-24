@@ -38,9 +38,9 @@
             <a href="{% url 'moderation_inbox' %}">Clear</a>
         </p>
     </form>
-    <p class="inbox-note">Images stay hidden until you choose to show them.</p>
 </main>
 <section class="moderation-content moderation-inbox">
+    <p id="inbox-action-status" role="status"></p>
     {% include 'partials/moderation_inbox_pagination.html' %}
     {% for user in users %}
     <article class="inbox-blog">
@@ -53,11 +53,16 @@
             </p>
             <p>{{ user.content_counts.posts|intcomma }} post{{ user.content_counts.posts|pluralize }} · {{ user.content_counts.pages|intcomma }} page{{ user.content_counts.pages|pluralize }} · {{ user.content_counts.images|intcomma }} uploaded image{{ user.content_counts.images|pluralize }} · {{ user.posts_today|intcomma }} post{{ user.posts_today|pluralize }} in 24 hours</p>
             <p class="inbox-actions">
+                <a href="{% url 'moderation_post_inspect' user.id %}">Inspect posts</a>
                 <a href="{% url 'admin:main_user_change' user.id %}" target="_blank" rel="noopener">Manage account</a>
                 <a href="{% url 'admin:main_post_changelist' %}?owner__id__exact={{ user.id }}" target="_blank" rel="noopener">All posts</a>
                 <a href="{% url 'admin:main_page_changelist' %}?owner__id__exact={{ user.id }}" target="_blank" rel="noopener">All pages</a>
+                {% if not user.is_staff and not user.is_superuser %}
+                <button type="button" class="button-delete" data-delete-url="{% url 'moderation_user_delete' user.id %}" data-username="{{ user.username }}">Delete blog</button>
+                {% endif %}
             </p>
         </header>
+        <p class="form-error inbox-action-error" role="alert" hidden></p>
         {% if user.signals %}
         <ul class="inbox-signals">
             {% for signal in user.signals %}<li>{{ signal }}</li>{% endfor %}
@@ -100,39 +105,34 @@
 {% endblock content %}
 
 {% block scripts %}
+{% include 'partials/moderation_preview_script.html' %}
 <script>
-    document.addEventListener('toggle', async (event) => {
-        const details = event.target;
-        if (!details.matches('details[data-preview-url]') || !details.open || details.dataset.loaded) return;
-        const content = details.querySelector('.inbox-preview-content');
-        details.dataset.loaded = 'loading';
-        content.textContent = 'Loading preview…';
-        try {
-            const response = await fetch(details.dataset.previewUrl);
-            if (!response.ok) throw new Error('Preview unavailable');
-            content.innerHTML = await response.text();
-            details.dataset.loaded = 'true';
-        } catch (error) {
-            content.textContent = 'Could not load preview. Close and reopen to retry.';
-            delete details.dataset.loaded;
-        }
-    }, true);
+    document.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-delete-url]');
+        if (!button || button.disabled) return;
+        const username = button.dataset.username;
+        if (!window.confirm(`Permanently delete ${username} and all its posts, pages, images, and comments? This cannot be undone.`)) return;
 
-    document.addEventListener('click', (event) => {
-        const button = event.target.closest('button[data-image-url]');
-        if (!button) return;
-        const image = document.createElement('img');
-        image.alt = 'Content image';
-        image.referrerPolicy = 'no-referrer';
-        image.src = button.dataset.imageUrl;
-        image.addEventListener('error', () => {
-            button.textContent = 'Image failed to load. Retry';
-            button.disabled = false;
-            image.remove();
-        });
+        const row = button.closest('.inbox-blog');
+        const errorMessage = row.querySelector('.inbox-action-error');
+        errorMessage.hidden = true;
         button.disabled = true;
-        button.textContent = 'Image requested';
-        button.after(image);
+        button.textContent = 'Deleting…';
+        try {
+            const response = await fetch(button.dataset.deleteUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error('Delete failed');
+            row.remove();
+            document.getElementById('inbox-action-status').textContent = `Deleted blog ${username}.`;
+        } catch (error) {
+            errorMessage.textContent = 'Could not confirm deletion. Reload to check the account before trying again.';
+            errorMessage.hidden = false;
+            button.disabled = false;
+            button.textContent = 'Delete blog';
+        }
     });
 </script>
 {% endblock scripts %}

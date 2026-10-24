@@ -253,7 +253,6 @@ button {
     margin: 24px 0;
     padding: 16px;
     border: 1px solid var(--light-grey-color);
-    border-left: 3px solid var(--dark-grey-color);
 }
 
 .inbox-blog h2 {
@@ -268,7 +267,6 @@ button {
 
 .inbox-signals {
     padding-left: 24px;
-    border-left: 3px solid var(--link-color);
 }
 
 .inbox-sample {

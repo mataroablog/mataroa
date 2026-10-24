@@ -1,0 +1,96 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — {{ owner.username }} posts{% endblock %}
+
+{% block content %}
+<main>
+    <p><a href="{% url 'moderation_posts' %}?limit=5">Largest blogs</a> / Inspect posts</p>
+    <h1>{{ owner.username }}</h1>
+    <p>{{ owner.blog_title|default:'' }}</p>
+    <p>{{ stats.total|intcomma }} posts: {{ stats.published|intcomma }} published, {{ stats.drafts|intcomma }} drafts, {{ stats.scheduled|intcomma }} scheduled.</p>
+    <p>
+        Joined {{ owner.date_joined|date:'Y-m-d' }} · {% if owner.is_approved %}Approved{% else %}Unapproved{% endif %}{% if owner.is_premium %} · Premium{% endif %}
+        {% if stats.first_created %}<br>Posts created {{ stats.first_created|date:'Y-m-d' }} to {{ stats.last_created|date:'Y-m-d' }}.{% endif %}
+    </p>
+    <p class="inbox-actions">
+        <a href="{{ owner.blog_absolute_url }}" target="_blank" rel="noopener noreferrer">Visit blog</a>
+        <a href="{% url 'admin:main_user_change' owner.id %}" target="_blank" rel="noopener">Manage account</a>
+    </p>
+
+    {% if busiest_days %}
+    <details>
+        <summary>Busiest posting days</summary>
+        <div>
+            <p>Top 10 days across this account, counted by creation time. Choose a day to examine its posts.</p>
+            <table>
+                <thead><tr><th scope="col">Created on</th><th scope="col">Posts</th><th scope="col">Relative volume</th></tr></thead>
+                <tbody>
+                    {% for day in busiest_days %}
+                    <tr>
+                        <td><a href="{{ day.url }}">{{ day.day|date:'Y-m-d' }}</a></td>
+                        <td>{{ day.total|intcomma }}</td>
+                        <td><meter min="0" max="100" value="{{ day.percent }}" aria-label="{{ day.total }} posts, {{ day.percent }} percent of the busiest day">{{ day.percent }}%</meter></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    <form method="get">
+        {{ form.as_p }}
+        <p class="inbox-actions">
+            <input type="submit" value="Examine posts">
+            <a href="{% url 'moderation_post_inspect' owner.id %}">Reset</a>
+        </p>
+    </form>
+    {% endif %}
+</main>
+
+<section class="moderation-content moderation-inbox">
+    <h2>{% if mode == 'sample' %}Across the posting history{% else %}Browse posts{% endif %}</h2>
+    {% if mode == 'sample' %}
+    <p>{{ posts|length }} samples from {{ matching_count|intcomma }} matching posts, spaced evenly from oldest to newest. <a href="{{ browse_url }}">Browse all matching posts</a>.</p>
+    {% else %}
+    <p>{{ matching_count|intcomma }} matching posts. Showing up to 25 per page.</p>
+    {% endif %}
+    {% if domains %}
+    <details>
+        <summary>Link destinations in these excerpts</summary>
+        <div>
+            <p>Counts are posts mentioning each domain in the excerpts shown below. Choose a domain to search the whole account.</p>
+            <ul>
+                {% for domain, count in domains %}
+                <li><a href="?q={{ domain|urlencode }}&amp;view=newest">{{ domain }}</a> — {{ count }} post{{ count|pluralize }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </details>
+    {% endif %}
+    {% include 'partials/moderation_post_pagination.html' %}
+    {% for post in posts %}
+    <article class="inbox-blog">
+        <h3>{{ post.title }}</h3>
+        <p class="inbox-note">
+            {% if mode == 'sample' %}Post {{ post.position|intcomma }} of {{ matching_count|intcomma }} · {% endif %}
+            Created {{ post.created_at|date:'Y-m-d H:i' }} · Updated {{ post.updated_at|date:'Y-m-d H:i' }}
+            · {% if post.is_draft %}Draft{% elif post.is_published %}Published {{ post.published_at|date:'Y-m-d' }}{% else %}Scheduled {{ post.published_at|date:'Y-m-d' }}{% endif %}
+        </p>
+        <p>{{ post.excerpt|default:'No text content.' }}</p>
+        <details class="inbox-preview" data-preview-url="{% url 'moderation_inbox_preview' 'post' post.id %}">
+            <summary>Expand text and image options</summary>
+            <div class="inbox-preview-content" aria-live="polite"></div>
+        </details>
+        <p class="inbox-actions">
+            <a href="{% url 'admin:main_post_change' post.id %}" target="_blank" rel="noopener">Manage post</a>
+            {% if post.is_published %}<a href="{{ post.get_absolute_url }}" target="_blank" rel="noopener noreferrer">View published post</a>{% endif %}
+        </p>
+    </article>
+    {% empty %}<p>No matching posts.</p>{% endfor %}
+    {% include 'partials/moderation_post_pagination.html' %}
+</section>
+{% endblock content %}
+
+{% block scripts %}
+{% include 'partials/moderation_preview_script.html' %}
+{% endblock scripts %}

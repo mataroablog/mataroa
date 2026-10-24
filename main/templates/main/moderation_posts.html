@@ -1,10 +1,14 @@
 {% extends 'main/layout.html' %}
+{% load humanize %}
 
 {% block title %}Moderation Posts{% endblock %}
 
 {% block content %}
 <main>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Posts leaderboard</p>
     <h1>Moderation Posts</h1>
+    <p>The {{ largest_count }} largest blogs hold <strong>{{ largest_total|intcomma }} posts</strong>. <a href="?limit=5">Show the five largest</a>.</p>
+    <p>Choose <strong>Inspect posts</strong> to sample a blog's history, find posting bursts, and read its content here.</p>
 </main>
 
 <section class="moderation-content" style="max-width: 800px;">
@@ -33,26 +37,22 @@
 
     <p>Top {{ user_list|length }} users.</p>
 
-    <div style="display: grid; grid-template-columns: 80px 1fr 110px 110px 110px 140px; gap: 8px; align-items: center;">
-        <div><strong>ID</strong></div>
-        <div><strong>User</strong></div>
-        <div style="text-align: right;"><strong>Total</strong></div>
-        <div style="text-align: right;"><strong>Published</strong></div>
-        <div style="text-align: right;"><strong>Drafts</strong></div>
-        <div style="text-align: right;"><strong>Last Published</strong></div>
-
+    <table>
+        <thead><tr><th>Blog</th><th>Total</th><th>Published</th><th>Drafts</th><th>Scheduled</th><th>Last published</th><th>Review</th></tr></thead>
+        <tbody>
         {% for user in user_list %}
-            <div>
-                <a href="{% url 'admin:main_user_change' user.id %}" target="_blank" title="{{ user.date_joined }}">{{ user.id }}</a>
-            </div>
-            <div>
-                <a href="{{ user.blog_url }}" target="_blank" rel="noopener">{{ user.username }}</a>
-            </div>
-            <div style="text-align: right;">{{ user.posts_total }}</div>
-            <div style="text-align: right;">{{ user.posts_published }}</div>
-            <div style="text-align: right;">{{ user.posts_drafts }}</div>
-            <div style="text-align: right;">{{ user.last_post_date|date:'Y-m-d' }}</div>
+        <tr>
+            <td><a href="{{ user.blog_url }}" target="_blank" rel="noopener noreferrer">{{ user.username }}</a></td>
+            <td>{{ user.posts_total|intcomma }}</td>
+            <td>{{ user.posts_published|intcomma }}</td>
+            <td>{{ user.posts_drafts|intcomma }}</td>
+            <td>{{ user.posts_scheduled|intcomma }}</td>
+            <td>{{ user.last_post_date|date:'Y-m-d'|default:'—' }}</td>
+            <td><a href="{% url 'moderation_post_inspect' user.id %}">Inspect posts</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="7">No blogs with posts.</td></tr>
         {% endfor %}
-    </div>
+        </tbody>
+    </table>
 </section>
 {% endblock content %}

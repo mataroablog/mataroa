@@ -1,0 +1,35 @@
+<script>
+    document.addEventListener('toggle', async (event) => {
+        const details = event.target;
+        if (!details.matches('details[data-preview-url]') || !details.open || details.dataset.loaded) return;
+        const content = details.querySelector('.inbox-preview-content');
+        details.dataset.loaded = 'loading';
+        content.textContent = 'Loading preview…';
+        try {
+            const response = await fetch(details.dataset.previewUrl);
+            if (!response.ok) throw new Error('Preview unavailable');
+            content.innerHTML = await response.text();
+            details.dataset.loaded = 'true';
+        } catch (error) {
+            content.textContent = 'Could not load preview. Close and reopen to retry.';
+            delete details.dataset.loaded;
+        }
+    }, true);
+
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-image-url]');
+        if (!button) return;
+        const image = document.createElement('img');
+        image.alt = 'Content image';
+        image.referrerPolicy = 'no-referrer';
+        image.src = button.dataset.imageUrl;
+        image.addEventListener('error', () => {
+            button.textContent = 'Image failed to load. Retry';
+            button.disabled = false;
+            image.remove();
+        });
+        button.disabled = true;
+        button.textContent = 'Image requested';
+        button.after(image);
+    });
+</script>
