@@ -1,0 +1,26 @@
+{% for section in sections %}
+<section>
+    <h4>{{ section.name }}</h4>
+    <pre class="inbox-source">{{ section.body|default:'No text content.' }}</pre>
+    {% if section.truncated %}<p>Preview limited to the first 50,000 characters. Use the account admin to inspect the rest.</p>{% endif %}
+    <p><strong>Link domains in this preview:</strong>
+        {% for domain in section.domains %}{{ domain }}{% if not forloop.last %}, {% endif %}{% empty %}None.{% endfor %}
+    </p>
+    {% if section.images %}
+    <p>First 20 referenced images. Showing an external image contacts its host.</p>
+    <ul class="inbox-images">
+        {% for url in section.images %}
+        <li><code>{{ url }}</code> <button type="button" data-image-url="{{ url }}">Show image</button></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+{% endfor %}
+{% if kind == 'profile' %}
+<h4>Recent uploads (up to 12)</h4>
+<ul class="inbox-images">
+    {% for upload in uploads %}
+    <li>{{ upload.name }} · {{ upload.uploaded_at|date:'Y-m-d' }} <button type="button" data-image-url="{{ upload.raw_url_absolute }}">Show image</button></li>
+    {% empty %}<li>No uploaded images.</li>{% endfor %}
+</ul>
+{% endif %}

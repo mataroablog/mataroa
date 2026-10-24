@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 
 from main import feeds
-from main.views import api, billing, export, general, moderation
+from main.views import api, billing, export, general, moderation, moderation_inbox
 
 admin.site.site_header = "mataroa admin"
 
@@ -49,6 +49,12 @@ urlpatterns += [
 # moderation
 urlpatterns += [
     path("moderation/index/", moderation.index, name="moderation_index"),
+    path("moderation/inbox/", moderation_inbox.inbox, name="moderation_inbox"),
+    path(
+        "moderation/inbox/<str:kind>/<int:object_id>/",
+        moderation_inbox.preview,
+        name="moderation_inbox_preview",
+    ),
     path("moderation/users/", moderation.user_list, name="moderation_user_list"),
     path("moderation/images/", moderation.images_leaderboard, name="moderation_images"),
     path("moderation/posts/", moderation.posts_leaderboard, name="moderation_posts"),

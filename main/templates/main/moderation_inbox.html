@@ -1,0 +1,129 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — Content inbox{% endblock %}
+
+{% block content %}
+<main class="moderation-inbox">
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Content inbox</p>
+    <h1>Content inbox</h1>
+    <p>Blogs with content, newest activity first. Signals help prioritize review; they do not establish abuse. Drafts and hidden pages are included.</p>
+    <form method="get" class="inbox-filters">
+        <label for="inbox-query">Search blog names, posts, pages, bylines, footers, and URLs</label>
+        <input id="inbox-query" type="search" name="q" value="{{ query }}" maxlength="200" placeholder="Text or destination domain">
+        <div class="inbox-filter-options">
+            <label>Approval
+                <select name="approval">
+                    <option value="all" {% if approval == 'all' %}selected{% endif %}>All</option>
+                    <option value="unapproved" {% if approval == 'unapproved' %}selected{% endif %}>Unapproved</option>
+                    <option value="approved" {% if approval == 'approved' %}selected{% endif %}>Approved</option>
+                </select>
+            </label>
+            <label>Activity
+                <select name="activity">
+                    <option value="all" {% if activity == 'all' %}selected{% endif %}>All activity</option>
+                    <option value="new" {% if activity == 'new' %}selected{% endif %}>Joined in last 7 days</option>
+                    <option value="edited" {% if activity == 'edited' %}selected{% endif %}>Edited in last 7 days</option>
+                    <option value="burst" {% if activity == 'burst' %}selected{% endif %}>20+ posts in last 24 hours</option>
+                </select>
+            </label>
+            <button type="submit">Filter</button>
+            <a href="{% url 'moderation_inbox' %}">Clear</a>
+        </div>
+    </form>
+    <p class="inbox-note">Approval includes premium upgrades. Edited means an existing post or page changed, not necessarily after review. Images load only when you choose to show them.</p>
+    {% include 'partials/moderation_inbox_pagination.html' %}
+    {% for user in users %}
+    <article class="inbox-blog">
+        <header>
+            <h2><a href="{{ user.blog_absolute_url }}" target="_blank" rel="noopener noreferrer">{{ user.username }}</a>{% if user.blog_title and user.blog_title != user.username %} — {{ user.blog_title }}{% endif %}</h2>
+            <p>
+                {% if user.is_approved %}Approved{% else %}Unapproved{% endif %}{% if user.is_premium %} · Premium{% endif %}
+                · Joined {{ user.date_joined|date:'Y-m-d' }} ({{ user.date_joined|timesince }} ago)
+                · Latest activity {{ user.last_activity|date:'Y-m-d H:i' }}
+            </p>
+            <p>{{ user.content_counts.posts|intcomma }} post{{ user.content_counts.posts|pluralize }} · {{ user.content_counts.pages|intcomma }} page{{ user.content_counts.pages|pluralize }} · {{ user.content_counts.images|intcomma }} uploaded image{{ user.content_counts.images|pluralize }} · {{ user.posts_today|intcomma }} post{{ user.posts_today|pluralize }} in 24 hours</p>
+            <p class="inbox-actions">
+                <a href="{% url 'admin:main_user_change' user.id %}" target="_blank" rel="noopener">Manage account</a>
+                <a href="{% url 'admin:main_post_changelist' %}?owner__id__exact={{ user.id }}" target="_blank" rel="noopener">All posts</a>
+                <a href="{% url 'admin:main_page_changelist' %}?owner__id__exact={{ user.id }}" target="_blank" rel="noopener">All pages</a>
+            </p>
+        </header>
+        {% if user.signals %}
+        <ul class="inbox-signals">
+            {% for signal in user.signals %}<li>{{ signal }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% if user.byline_excerpt %}<p><strong>Byline:</strong> {{ user.byline_excerpt }}</p>{% endif %}
+        <p class="inbox-domains"><strong>Domains in sampled links / blog settings:</strong>
+            {% for domain in user.link_domains %}
+                <a href="?q={{ domain|urlencode }}">{{ domain }}</a>{% if not forloop.last %}, {% endif %}
+            {% empty %}None found.{% endfor %}
+        </p>
+        <details class="inbox-preview" data-preview-url="{% url 'moderation_inbox_preview' 'profile' user.id %}">
+            <summary>Byline, footer, and recent uploaded images</summary>
+            <div class="inbox-preview-content" aria-live="polite"></div>
+        </details>
+        <p class="inbox-note">Up to 3 posts and 2 pages. {% if query %}Search matches first, then latest edits.{% else %}Latest edits first.{% endif %} Link domains are sampled from this content; this is not a full blog scan.</p>
+        {% for sample in user.samples %}
+        <section class="inbox-sample">
+            <h3>{{ sample.item.title }}</h3>
+            <p class="inbox-note">
+                {{ sample.kind|capfirst }} · Updated {{ sample.item.updated_at|date:'Y-m-d H:i' }}
+                {% if sample.kind == 'post' %}
+                    {% if sample.item.is_draft %} · Draft{% elif not sample.item.is_published %} · Scheduled{% endif %}
+                {% elif sample.item.is_hidden %} · Hidden page{% endif %}
+                {% if sample.item.matches %} · Search match{% endif %}
+            </p>
+            <p>{{ sample.excerpt|default:'No text content.' }}</p>
+            <details class="inbox-preview" data-preview-url="{{ sample.url }}">
+                <summary>Expand text and image options</summary>
+                <div class="inbox-preview-content" aria-live="polite"></div>
+            </details>
+        </section>
+        {% empty %}<p>No posts or pages.</p>{% endfor %}
+    </article>
+    {% empty %}
+        <p>No blogs on this page. Try clearing the filters or returning to page 1.</p>
+    {% endfor %}
+    {% include 'partials/moderation_inbox_pagination.html' %}
+</main>
+{% endblock content %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('toggle', async (event) => {
+        const details = event.target;
+        if (!details.matches('details[data-preview-url]') || !details.open || details.dataset.loaded) return;
+        const content = details.querySelector('.inbox-preview-content');
+        details.dataset.loaded = 'loading';
+        content.textContent = 'Loading preview…';
+        try {
+            const response = await fetch(details.dataset.previewUrl);
+            if (!response.ok) throw new Error('Preview unavailable');
+            content.innerHTML = await response.text();
+            details.dataset.loaded = 'true';
+        } catch (error) {
+            content.textContent = 'Could not load preview. Close and reopen to retry.';
+            delete details.dataset.loaded;
+        }
+    }, true);
+
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-image-url]');
+        if (!button) return;
+        const image = document.createElement('img');
+        image.alt = 'Content image';
+        image.referrerPolicy = 'no-referrer';
+        image.src = button.dataset.imageUrl;
+        image.addEventListener('error', () => {
+            button.textContent = 'Image failed to load. Retry';
+            button.disabled = false;
+            image.remove();
+        });
+        button.disabled = true;
+        button.textContent = 'Image requested';
+        button.after(image);
+    });
+</script>
+{% endblock scripts %}

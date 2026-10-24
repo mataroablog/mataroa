@@ -1,0 +1,8 @@
+<nav class="pagination" aria-label="Inbox pages">
+    {% if page > 1 %}
+        <a href="?page=1&amp;{{ querystring }}">First</a>
+        <a href="?page={{ previous_page }}&amp;{{ querystring }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page }}</span>
+    {% if has_next %}<a href="?page={{ next_page }}&amp;{{ querystring }}">Next</a>{% endif %}
+</nav>
