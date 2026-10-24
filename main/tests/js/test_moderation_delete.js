@@ -5,7 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const template = fs.readFileSync(path.join(__dirname, '../../templates/main/moderation_inbox.html'), 'utf8');
+const template = fs.readFileSync(path.join(__dirname, '../../templates/partials/moderation_delete_script.html'), 'utf8');
 const script = template.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function setup(confirm, fetch) {

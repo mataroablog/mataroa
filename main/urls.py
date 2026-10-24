@@ -10,6 +10,7 @@ from main.views import (
     moderation,
     moderation_inbox,
     moderation_posts,
+    moderation_spam,
 )
 
 admin.site.site_header = "mataroa admin"
@@ -58,6 +59,12 @@ urlpatterns += [
 urlpatterns += [
     path("moderation/index/", moderation.index, name="moderation_index"),
     path("moderation/inbox/", moderation_inbox.inbox, name="moderation_inbox"),
+    path("moderation/promotional-spam/", moderation_spam.queue, name="moderation_spam"),
+    path(
+        "moderation/promotional-spam/<int:user_id>/dismiss/",
+        moderation_spam.dismiss,
+        name="moderation_spam_dismiss",
+    ),
     path(
         "moderation/inbox/<str:kind>/<int:object_id>/",
         moderation_inbox.preview,

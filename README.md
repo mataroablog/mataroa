@@ -713,6 +713,17 @@ Sends mataroa daily moderation summary.
 
 Triggers daily at 00:15 server time.
 
+#### Promotional spam
+
+```sh
+python manage.py scanpromotionalspam
+```
+
+Scans blogs for promotional spam and saves findings for review at
+`/moderation/promotional-spam/`.
+
+Triggers hourly, with up to five minutes of randomized delay.
+
 ### Database Backup
 
 We use the script [`backup-database.sh`](./deploy/backup-database.sh) to dump the database and

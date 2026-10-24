@@ -203,6 +203,46 @@ class User(AbstractUser):
         return self.username
 
 
+class PromotionalSpamScan(models.Model):
+    """Checkpoint for the single resumable scan (row pk=1)."""
+
+    started_at = models.DateTimeField(null=True)
+    completed_at = models.DateTimeField(null=True)
+    last_completed_at = models.DateTimeField(null=True)
+    cursor = models.PositiveBigIntegerField(default=0)
+    upper_bound = models.PositiveBigIntegerField(default=0)
+    checked = models.PositiveIntegerField(default=0)
+    analyzed = models.PositiveIntegerField(default=0)
+    full = models.BooleanField(default=False)
+    heartbeat_at = models.DateTimeField(null=True)
+
+
+class PromotionalSpamFinding(models.Model):
+    owner = models.OneToOneField(User, on_delete=models.CASCADE)
+    source_signature = models.CharField(max_length=64)
+    scanned_at = models.DateTimeField()
+    score = models.PositiveSmallIntegerField(default=0, db_index=True)
+    evidence = models.JSONField(default=dict)
+    dismissed_at = models.DateTimeField(null=True, blank=True)
+    dismissed_baseline = models.JSONField(default=dict)
+
+
+class PromotionalSpamGroup(models.Model):
+    finding = models.ForeignKey(
+        PromotionalSpamFinding, on_delete=models.CASCADE, related_name="groups"
+    )
+    kind = models.CharField(max_length=16)
+    key = models.CharField(max_length=253)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["finding", "kind", "key"], name="promo_group_unique"
+            )
+        ]
+        indexes = [models.Index(fields=["kind", "key"], name="promo_group_lookup")]
+
+
 class Post(models.Model):
     title = models.CharField(max_length=300)
     slug = models.CharField(max_length=300)

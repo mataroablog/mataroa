@@ -1,0 +1,10 @@
+[Unit]
+Description=Check new and changed Mataroa content hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

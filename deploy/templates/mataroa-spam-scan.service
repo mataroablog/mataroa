@@ -1,0 +1,17 @@
+[Unit]
+Description=Scan Mataroa blogs for promotional spam
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/var/www/mataroa
+EnvironmentFile=/etc/systemd/system/mataroa.env
+ExecStart=/home/deploy/.local/bin/uv run manage.py scanpromotionalspam
+TimeoutStartSec=infinity
+Nice=10
+CPUQuota=50%
+MemoryMax=768M
+
+[Install]
+WantedBy=multi-user.target

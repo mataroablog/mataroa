@@ -1,0 +1,29 @@
+<script>
+    document.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-delete-url]');
+        if (!button || button.disabled) return;
+        const username = button.dataset.username;
+        if (!window.confirm(`Permanently delete ${username} and all its posts, pages, images, and comments? This cannot be undone.`)) return;
+
+        const row = button.closest('.inbox-blog');
+        const errorMessage = row.querySelector('.inbox-action-error');
+        errorMessage.hidden = true;
+        button.disabled = true;
+        button.textContent = 'Deleting…';
+        try {
+            const response = await fetch(button.dataset.deleteUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error('Delete failed');
+            row.remove();
+            document.getElementById('inbox-action-status').textContent = `Deleted blog ${username}.`;
+        } catch (error) {
+            errorMessage.textContent = 'Could not confirm deletion. Reload to check the account before trying again.';
+            errorMessage.hidden = false;
+            button.disabled = false;
+            button.textContent = 'Delete blog';
+        }
+    });
+</script>

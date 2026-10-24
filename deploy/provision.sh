@@ -121,6 +121,8 @@ echo "==> Deploying systemd configuration files..."
     mv mataroa-dailysummary.service /etc/systemd/system/
     mv mataroa-renewal.timer /etc/systemd/system/
     mv mataroa-renewal.service /etc/systemd/system/
+    mv mataroa-spam-scan.timer /etc/systemd/system/
+    mv mataroa-spam-scan.service /etc/systemd/system/
 
     # Cleanup
     cd /
@@ -156,11 +158,13 @@ run_remote "
     systemctl enable mataroa-backup.timer
     systemctl enable mataroa-dailysummary.timer
     systemctl enable mataroa-renewal.timer
+    systemctl enable mataroa-spam-scan.timer
     systemctl start mataroa-notifications.timer
     systemctl start mataroa-exports.timer
     systemctl start mataroa-backup.timer
     systemctl start mataroa-dailysummary.timer
     systemctl start mataroa-renewal.timer
+    systemctl start mataroa-spam-scan.timer
     systemctl start mataroa
     systemctl start caddy
 "

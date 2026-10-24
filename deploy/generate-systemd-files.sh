@@ -70,6 +70,8 @@ TEMPLATE_FILES=(
     "mataroa-dailysummary.service"
     "mataroa-renewal.timer"
     "mataroa-renewal.service"
+    "mataroa-spam-scan.timer"
+    "mataroa-spam-scan.service"
 )
 
 # Process each template file
