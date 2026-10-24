@@ -1,13 +1,15 @@
 {% extends 'main/layout.html' %}
 {% load humanize %}
 
-{% block title %}Moderation — Promotional spam{% endblock %}
+{% block title %}Moderation — Blog classifications{% endblock %}
 
 {% block content %}
 <main>
-    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Promotional spam</p>
-    <h1>Promotional spam</h1>
-    <p>Blogs with patterns of automated promotion, strongest matches first. Review the evidence before deleting.</p>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Blog classifications</p>
+    <h1>Blog classifications</h1>
+    <p>Automatic categories from sampled content. A blog can have several categories. Review the evidence before deleting.</p>
+    <p class="helptext">Every scheduled pass reclassifies every blog. Categories describe signals, not certainty. Images and linked destinations are not fetched.</p>
+    {% if outdated %}<p>{{ outdated|intcomma }} older findings await reclassification and are excluded from these results.</p>{% endif %}
     {% if scan.started_at %}
     <p class="helptext">
         {% if scan.completed_at %}Last scan completed {{ scan.completed_at|date:'Y-m-d H:i' }}.
@@ -17,17 +19,42 @@
     {% else %}
     <p>No scan has run yet. Findings will appear here as the initial scan progresses.</p>
     {% endif %}
-    <p>
-        <a href="{% url 'moderation_spam' %}">Pending review</a> ·
-        <a href="{% url 'moderation_spam' %}?status=dismissed">Dismissed</a>
-    </p>
-    <p><strong>{{ page_obj.paginator.count|intcomma }} {% if status == 'dismissed' %}dismissed{% else %}pending{% endif %} blog{{ page_obj.paginator.count|pluralize }}</strong>{% if group_key %} · {% if group_kind == 'domain' %}{{ group_key }}{% else %}Shared wording{% endif %} · <a href="?status={{ status }}">Clear group</a>{% endif %}</p>
+    <form method="get">
+        <p>
+            <label for="category">Category</label>
+            <select id="category" name="category">
+                <option value="all"{% if category == 'all' %} selected{% endif %}>All categories</option>
+                {% for key, label in categories %}<option value="{{ key }}"{% if category == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </p>
+        <p>
+            <label for="status">Review status</label>
+            <select id="status" name="status">
+                <option value="pending"{% if status == 'pending' %} selected{% endif %}>Not dismissed</option>
+                <option value="dismissed"{% if status == 'dismissed' %} selected{% endif %}>Dismissed</option>
+                <option value="all"{% if status == 'all' %} selected{% endif %}>All</option>
+            </select>
+        </p>
+        <p><input type="submit" value="Filter"> <a href="?category=all&amp;status=all">All blogs</a></p>
+    </form>
+    <p><strong>{{ page_obj.paginator.count|intcomma }} blog{{ page_obj.paginator.count|pluralize }}</strong> · {{ eligible|intcomma }} eligible for deletion{% if group_key %} · {% if group_kind == 'domain' %}{{ group_key }}{% else %}Shared wording{% endif %} · <a href="?category={{ category }}&amp;status={{ status }}">Clear group</a>{% endif %}</p>
+    <p class="helptext">Premium, grandfathered, approved and staff accounts are protected from deletion.</p>
+    <form id="bulk-selection" method="post" action="{% url 'moderation_bulk_preview' %}">
+        {% csrf_token %}
+        <input type="hidden" name="category" value="{{ category }}">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input type="hidden" name="kind" value="{{ group_kind }}">
+        <input type="hidden" name="group" value="{{ group_key }}">
+        <p><button type="submit" name="scope" value="selected">Review selected for deletion</button></p>
+        {% if eligible %}<p><button type="submit" name="scope" value="matching">Review up to {{ max_batch|intcomma }} matching blogs for deletion</button></p>{% endif %}
+        <p class="helptext">Reviewing a selection does not delete anything. Matching selection includes other pages and excludes protected accounts.</p>
+    </form>
     {% if groups %}
     <details>
         <summary>Related blogs</summary>
         <ul>
             {% for group in groups %}
-            <li><a href="?status={{ status }}&amp;kind={{ group.kind }}&amp;group={{ group.key|urlencode }}">{% if group.kind == 'domain' %}{{ group.key }}{% else %}Shared wording {{ group.key|slice:':8' }}{% endif %}</a> — {{ group.blogs|intcomma }} blogs</li>
+            <li><a href="?category={{ category }}&amp;status={{ status }}&amp;kind={{ group.kind }}&amp;group={{ group.key|urlencode }}">{% if group.kind == 'domain' %}{{ group.key }}{% else %}Shared wording {{ group.key|slice:':8' }}{% endif %}</a> — {{ group.blogs|intcomma }} blogs</li>
             {% endfor %}
         </ul>
     </details>
@@ -40,8 +67,9 @@
     {% with user=finding.owner evidence=finding.evidence %}
     <article class="inbox-blog">
         <header>
+            {% if not user.moderation_protection %}<p><label><input type="checkbox" name="selected" value="{{ user.pk }}" form="bulk-selection"> Select {{ user.username }} for deletion</label></p>{% endif %}
             <h2><a href="{{ user.blog_absolute_url }}" target="_blank" rel="noopener noreferrer">{{ user.username }}</a></h2>
-            <p>{{ evidence.posts|intcomma }} posts · {{ evidence.pages|intcomma }} pages · {% if user.is_approved %}Approved{% else %}Unapproved{% endif %}{% if user.is_premium %} · Premium{% endif %} · Scanned {{ finding.scanned_at|date:'Y-m-d H:i' }}</p>
+            <p>{{ evidence.posts|intcomma }} posts · {{ evidence.pages|intcomma }} pages · {{ evidence.images|intcomma }} uploaded images · {% if user.is_approved %}Approved{% else %}Unapproved{% endif %}{% if user.is_premium %} · Premium{% endif %} · Scanned {{ finding.scanned_at|date:'Y-m-d H:i' }}</p>
             <div class="inbox-actions">
                 <a href="{% url 'moderation_post_inspect' user.pk %}">Inspect posts</a>
                 <a href="{% url 'admin:main_user_change' user.pk %}">Manage account</a>
@@ -55,28 +83,30 @@
                     <button type="submit" name="action" value="dismiss">Dismiss</button>
                     {% endif %}
                 </form>
-                {% if not user.is_staff and not user.is_superuser %}
+                {% if not user.moderation_protection %}
                 <button type="button" class="button-delete" data-delete-url="{% url 'moderation_user_delete' user.pk %}" data-username="{{ user.username }}">Delete blog</button>
+                {% else %}<span>Protected: {{ user.moderation_protection }}</span>
                 {% endif %}
             </div>
         </header>
         <p class="form-error inbox-action-error" role="alert" hidden></p>
         <ul class="inbox-signals">
+            {% for label, reason in finding.category_labels %}<li><strong>{{ label }}:</strong> {{ reason }}</li>{% endfor %}
             {% for reason in evidence.reasons %}<li>{{ reason }}</li>{% endfor %}
         </ul>
         <p class="inbox-note">{{ evidence.sampled }} sampled posts and pages across the archive and recent edits, including unpublished content. Median body length: {{ evidence.median_chars|intcomma }} characters. Long content is sampled at its beginning and end.</p>
         {% if finding.dismissed_at %}<p class="inbox-note">Dismissed {{ finding.dismissed_at|date:'Y-m-d H:i' }}. Substantial new evidence can return this blog to review.</p>{% endif %}
         <p><strong>Destinations:</strong>
             {% for domain in evidence.domains %}
-            <a href="?status={{ status }}&amp;kind=domain&amp;group={{ domain.domain|urlencode }}">{{ domain.domain }}</a> ({{ domain.count }}/{{ evidence.sampled }}){% if not forloop.last %}, {% endif %}
+            <a href="?category={{ category }}&amp;status={{ status }}&amp;kind=domain&amp;group={{ domain.domain|urlencode }}">{{ domain.domain }}</a> ({{ domain.count }}/{{ evidence.sampled }}){% if not forloop.last %}, {% endif %}
             {% empty %}None in the content sample.{% endfor %}
         </p>
         {% if evidence.profile_domains %}
         <p><strong>Links in blog settings:</strong>
-            {% for domain in evidence.profile_domains %}<a href="?status={{ status }}&amp;kind=domain&amp;group={{ domain|urlencode }}">{{ domain }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+            {% for domain in evidence.profile_domains %}<a href="?category={{ category }}&amp;status={{ status }}&amp;kind=domain&amp;group={{ domain|urlencode }}">{{ domain }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
         </p>
-        <p>{{ evidence.profile_excerpt }}</p>
         {% endif %}
+        {% if evidence.profile_excerpt %}<p><strong>Blog settings:</strong> {{ evidence.profile_excerpt }}</p>{% endif %}
         {% for sample in evidence.examples %}
         <section class="inbox-sample">
             <h3>{{ sample.title }}</h3>
@@ -91,7 +121,7 @@
     </article>
     {% endwith %}
     {% empty %}
-    <p>No {% if status == 'dismissed' %}dismissed{% else %}pending{% endif %} findings{% if group_key %} in this group{% endif %}.</p>
+    <p>No matching blogs{% if group_key %} in this group{% endif %}.</p>
     {% endfor %}
     {% include 'partials/moderation_spam_pagination.html' %}
 </section>

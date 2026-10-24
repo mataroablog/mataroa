@@ -59,6 +59,16 @@ urlpatterns += [
 urlpatterns += [
     path("moderation/index/", moderation.index, name="moderation_index"),
     path("moderation/inbox/", moderation_inbox.inbox, name="moderation_inbox"),
+    path(
+        "moderation/promotional-spam/delete/preview/",
+        moderation_spam.bulk_preview,
+        name="moderation_bulk_preview",
+    ),
+    path(
+        "moderation/promotional-spam/delete/confirm/",
+        moderation_spam.bulk_delete,
+        name="moderation_bulk_delete",
+    ),
     path("moderation/promotional-spam/", moderation_spam.queue, name="moderation_spam"),
     path(
         "moderation/promotional-spam/<int:user_id>/dismiss/",

@@ -713,14 +713,24 @@ Sends mataroa daily moderation summary.
 
 Triggers daily at 00:15 server time.
 
-#### Promotional spam
+#### Blog classification
 
 ```sh
 python manage.py scanpromotionalspam
 ```
 
-Scans blogs for promotional spam and saves findings for review at
-`/moderation/promotional-spam/`.
+Reclassifies every blog on each pass and saves overlapping categories and evidence at
+`/moderation/promotional-spam/`. It samples posts/pages across each archive and recent
+edits, including drafts, plus bylines/footers; it never fetches images or external sites.
+Categories include promotional spam, pornography, gambling, commercial content,
+personal/technical writing, links, images, empty and unclassified. Rules are in
+`main/blog_classification.py` and `main/promotional_spam.py`; labels are review aids.
+
+Interrupted passes resume automatically; rule changes restart the pass. The scanner
+never deletes accounts. Bulk deletion requires reviewing an exact selection (up to
+1,000 blogs), then confirming; keep the page open for progress. Changed findings or
+content are skipped. Premium, grandfathered, approved and staff accounts are protected
+in both moderation and Django admin, including if their status changes after selection.
 
 Triggers hourly, with up to five minutes of randomized delay.
 

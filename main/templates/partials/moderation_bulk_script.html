@@ -1,0 +1,50 @@
+<script>
+    const bulkForm = document.getElementById('bulk-confirm');
+    const bulkStop = document.getElementById('bulk-stop');
+    const bulkProgress = document.getElementById('bulk-progress');
+    let bulkRunning = false;
+    let bulkStopped = false;
+    bulkStop.addEventListener('click', () => { bulkStopped = true; bulkStop.disabled = true; });
+    bulkForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (bulkRunning || !document.getElementById('bulk-acknowledge').checked) return;
+        const rows = [...document.querySelectorAll('tr[data-ticket]')];
+        if (!window.confirm(`Permanently delete the ${rows.length} blogs listed here and their content? This cannot be undone.`)) return;
+        bulkRunning = true;
+        bulkForm.querySelector('button[type="submit"]').disabled = true;
+        bulkStop.hidden = false;
+        let deleted = 0;
+        let skipped = 0;
+        for (const row of rows) {
+            if (bulkStopped) break;
+            const result = row.querySelector('.bulk-result');
+            result.textContent = 'Deleting…';
+            try {
+                const response = await fetch(bulkForm.action, {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': bulkForm.querySelector('[name="csrfmiddlewaretoken"]').value},
+                    body: new URLSearchParams({ticket: row.dataset.ticket}),
+                });
+                const data = await response.json();
+                if (response.ok && data.ok) {
+                    result.textContent = data.already_deleted ? 'Already deleted' : 'Deleted';
+                    deleted++;
+                } else {
+                    result.textContent = data.error || 'Failed. Review this account again.';
+                    skipped++;
+                    if (response.status !== 409) bulkStopped = true;
+                }
+            } catch (error) {
+                result.textContent = 'Result unknown. Reload classifications to check this account.';
+                skipped++;
+                bulkStopped = true;
+            }
+            bulkProgress.textContent = `${deleted} deleted; ${skipped} skipped or failed; ${rows.length - deleted - skipped} remaining.`;
+        }
+        bulkStop.hidden = true;
+        bulkProgress.textContent += bulkStopped ? ' Stopped. Review remaining accounts again to continue.' : ' Finished.';
+    });
+    window.addEventListener('beforeunload', (event) => {
+        if (bulkRunning && !bulkStop.hidden) { event.preventDefault(); event.returnValue = ''; }
+    });
+</script>

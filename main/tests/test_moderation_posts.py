@@ -223,6 +223,12 @@ class InboxDeleteTest(TestCase):
         for target in [
             self.admin,
             models.User.objects.create(username="staff", is_staff=True),
+            models.User.objects.create(username="premium", is_premium=True),
+            models.User.objects.create(username="approved", is_approved=True),
+            models.User.objects.create(username="grandfathered", is_grandfathered=True),
+            models.User.objects.create(
+                username="redirect-grandfathered", is_redirect_grandfathered=True
+            ),
         ]:
             response = self.client.post(
                 reverse("moderation_user_delete", args=[target.pk])

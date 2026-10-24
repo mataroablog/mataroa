@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db import transaction
 from django.db.models import Avg, Count, F, Max, Q, Sum
 from django.db.models.expressions import Func
 from django.db.models.functions import (
@@ -131,17 +132,20 @@ def user_delete(request, user_id):
     if not request.user.is_authenticated or not request.user.is_superuser:
         raise Http404()
 
-    user = get_object_or_404(models.User, id=user_id)
-    if request.method == "POST":
-        if user.is_staff or user.is_superuser:
+    if request.method != "POST":
+        raise Http404()
+    with transaction.atomic():
+        user = get_object_or_404(models.User.objects.select_for_update(), id=user_id)
+        if user.moderation_protection:
             return JsonResponse(
-                {"ok": False, "error": "Staff accounts cannot be deleted here."},
+                {
+                    "ok": False,
+                    "error": f"Protected account: {user.moderation_protection}.",
+                },
                 status=400,
             )
         user.delete()
-        return JsonResponse({"ok": True})
-
-    raise Http404()
+    return JsonResponse({"ok": True})
 
 
 def user_approve(request, user_id):

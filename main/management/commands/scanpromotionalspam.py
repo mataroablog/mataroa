@@ -11,9 +11,7 @@ LOCK_ID = 684291037
 
 
 class Command(BaseCommand):
-    help = (
-        "Scan promotional content in resumable batches; never delete or contact blogs."
-    )
+    help = "Reclassify every blog in resumable batches; never delete or contact blogs."
 
     def add_arguments(self, parser):
         parser.add_argument("--batch-size", type=int, default=100)
@@ -26,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--full",
             action="store_true",
-            help="Reanalyze unchanged blogs too, when starting a new pass.",
+            help="Compatibility option: every pass now reanalyzes all blogs.",
         )
         parser.add_argument(
             "--pause", type=float, default=0.1, help="Seconds to pause between batches."
@@ -61,11 +59,11 @@ class Command(BaseCommand):
 
     def scan(self, options):
         state, _ = models.PromotionalSpamScan.objects.get_or_create(pk=1)
-        if state.started_at and not state.completed_at:
-            if options["full"] and not state.full:
-                raise CommandError(
-                    "Finish the current incremental pass before starting --full."
-                )
+        if (
+            state.started_at
+            and not state.completed_at
+            and state.rule_version == promotional_spam.VERSION
+        ):
             self.stdout.write(f"Resuming after blog ID {state.cursor}.")
         else:
             state.started_at = timezone.now()
@@ -74,7 +72,7 @@ class Command(BaseCommand):
             state.upper_bound = (
                 models.User.objects.aggregate(last=Max("pk"))["last"] or 0
             )
-            state.full = options["full"]
+            state.rule_version = promotional_spam.VERSION
             state.heartbeat_at = timezone.now()
             state.save()
         processed = 0
@@ -98,7 +96,7 @@ class Command(BaseCommand):
                     )
                 )
                 return
-            analyzed = promotional_spam.scan_batch(owners, force=state.full)
+            analyzed = promotional_spam.scan_batch(owners)
             state.cursor = owners[-1].pk
             state.checked += len(owners)
             state.analyzed += analyzed

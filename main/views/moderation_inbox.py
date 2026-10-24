@@ -221,6 +221,8 @@ def inbox(request):
             "date_joined",
             "is_approved",
             "is_premium",
+            "is_grandfathered",
+            "is_redirect_grandfathered",
             "is_staff",
             "is_superuser",
             "custom_domain",

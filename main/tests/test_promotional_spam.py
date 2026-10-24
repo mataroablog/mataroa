@@ -185,12 +185,12 @@ class ScannerTest(TestCase):
         self.assertEqual(finding.evidence["thin"], 0)
         self.assertLessEqual(len(finding.evidence["examples"][0]["excerpt"]), 500)
 
-    def test_incremental_scan_detects_profile_edit_content_edit_and_deletion(self):
+    def test_every_pass_reanalyzes_even_unchanged_content(self):
         posts = make_posts(self.owner)
         self.assertEqual(scan(), 1)
         with patch.object(spam, "sample_batch", wraps=spam.sample_batch) as sampled:
-            self.assertEqual(scan(), 0)
-            sampled.assert_not_called()
+            self.assertEqual(scan(), 1)
+            self.assertEqual(sampled.call_count, 2)
         self.owner.blog_byline = "New profile"
         self.owner.save()
         self.assertEqual(scan(), 1)
@@ -199,10 +199,8 @@ class ScannerTest(TestCase):
         self.assertEqual(scan(), 1)
         posts[1].delete()
         self.assertEqual(scan(), 1)
-        self.assertEqual(scan(), 0)
-        self.assertEqual(
-            spam.scan_batch(spam.owner_batch(0, self.owner.pk, 100), force=True), 1
-        )
+        self.assertEqual(scan(), 1)
+        self.assertEqual(spam.scan_batch(spam.owner_batch(0, self.owner.pk, 100)), 1)
 
     def test_dismissal_survives_rescans_and_small_additions_then_reopens(self):
         make_posts(self.owner, 10)
@@ -211,7 +209,7 @@ class ScannerTest(TestCase):
         finding.dismissed_at = timezone.now()
         finding.dismissed_baseline = spam.baseline(finding.score, finding.evidence)
         finding.save()
-        spam.scan_batch(spam.owner_batch(0, self.owner.pk, 100), force=True)
+        spam.scan_batch(spam.owner_batch(0, self.owner.pk, 100))
         finding.refresh_from_db()
         self.assertIsNotNone(finding.dismissed_at)
         for i in range(5):
@@ -270,7 +268,7 @@ class ScanCommandTest(TestCase):
         call_command("scanpromotionalspam", pause=0, stdout=out, **kwargs)
         return out.getvalue()
 
-    def test_checkpoint_resume_and_incremental_completion(self):
+    def test_checkpoint_resume_and_full_completion_every_pass(self):
         self.command(batch_size=2, max_blogs=2)
         state = models.PromotionalSpamScan.objects.get(pk=1)
         self.assertEqual(state.checked, 2)
@@ -282,7 +280,7 @@ class ScanCommandTest(TestCase):
         self.assertIsNotNone(state.completed_at)
         self.command(batch_size=2)
         state.refresh_from_db()
-        self.assertEqual(state.analyzed, 0)
+        self.assertEqual(state.analyzed, 5)
         self.command(full=True)
         state.refresh_from_db()
         self.assertEqual(state.analyzed, 5)
@@ -392,12 +390,16 @@ class QueueTest(TestCase):
             finding = models.PromotionalSpamFinding.objects.create(
                 owner=owner,
                 score=60,
+                rule_version=spam.VERSION,
                 scanned_at=timezone.now(),
                 evidence=self.finding.evidence,
                 source_signature="test",
             )
             models.PromotionalSpamGroup.objects.create(
                 finding=finding, kind="domain", key="offers.example"
+            )
+            models.PromotionalSpamGroup.objects.create(
+                finding=finding, kind="category", key="promotional"
             )
         response = self.client.get(
             self.url, {"kind": "domain", "group": "offers.example", "page": 2}
@@ -406,3 +408,25 @@ class QueueTest(TestCase):
         self.assertEqual(len(response.context["page_obj"]), 2)
         self.assertContains(response, "kind=domain&amp;group=offers.example&amp;page=1")
         self.assertEqual(response.context["groups"][0]["blogs"], 27)
+
+
+class RuleVersionTest(TestCase):
+    def test_new_rules_restart_an_unfinished_old_pass_from_the_beginning(self):
+        owners = [models.User.objects.create(username=f"version-{i}") for i in range(3)]
+        state = models.PromotionalSpamScan.objects.create(
+            pk=1,
+            started_at=timezone.now(),
+            cursor=owners[1].pk,
+            upper_bound=owners[-1].pk,
+            rule_version=spam.VERSION - 1,
+        )
+        call_command("scanpromotionalspam", pause=0, stdout=StringIO())
+        state.refresh_from_db()
+        self.assertEqual(state.rule_version, spam.VERSION)
+        self.assertEqual(state.analyzed, 3)
+        self.assertEqual(
+            models.PromotionalSpamFinding.objects.filter(
+                rule_version=spam.VERSION
+            ).count(),
+            3,
+        )

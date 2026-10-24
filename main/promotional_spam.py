@@ -20,10 +20,11 @@ from django.db.models.functions import (
 )
 from django.utils import timezone
 
+from main import blog_classification as classification
 from main import models
 from main.views.moderation_inbox import ContentPreview
 
-VERSION = 1
+VERSION = 2
 THRESHOLD = 50
 HEAD_LENGTH = 8000
 TAIL_LENGTH = 4000
@@ -51,10 +52,44 @@ class LinkPreview(ContentPreview):
         self.outbound = set()
         self.own_domains = own_domains
         self.backlink = False
+        self.anchor = None
         super().__init__(body, base_url)
+        self.finish_anchor()
+
+    def finish_anchor(self):
+        if self.anchor:
+            url, text, image = self.anchor
+            if text.strip() or not image:
+                self.add_domain(url)
+        self.anchor = None
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag == "a":
+            self.finish_anchor()
+            self.anchor = [values.get("href") or "", "", False]
+        else:
+            if tag == "img" and self.anchor:
+                self.anchor[2] = True
+            super().handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag):
+        if tag == "a":
+            self.finish_anchor()
+
+    def handle_data(self, data):
+        if self.anchor:
+            self.anchor[1] += data
+            self.text_parts.append(data)
+        else:
+            super().handle_data(data)
 
     def add_domain(self, value):
         if url := self.safe_url(value):
+            if re.search(
+                r"\.(?:jpe?g|png|gif|webp|avif|svg|heic)$", urlsplit(url).path, re.I
+            ):
+                return
             domain = hostname(url)
             if domain and domain not in self.own_domains:
                 self.outbound.add(domain)
@@ -67,21 +102,24 @@ def metadata(owners):
     """Cheap metadata sweep catches additions, edits, deletions and profile changes."""
     ids = [u.pk for u in owners]
     stats = {}
-    for model, kind in ((models.Post, "post"), (models.Page, "page")):
+    for model, kind, updated_field in (
+        (models.Post, "post", "updated_at"),
+        (models.Page, "page", "updated_at"),
+        (models.Image, "image", "uploaded_at"),
+    ):
         stats[kind] = {
             row["owner_id"]: row
             for row in model.objects.filter(owner_id__in=ids)
             .order_by()
             .values("owner_id")
-            .annotate(count=Count("pk"), latest=Max("updated_at"), last_id=Max("pk"))
+            .annotate(count=Count("pk"), latest=Max(updated_field), last_id=Max("pk"))
         }
     return stats
 
 
-def owner_batch(after, upper_bound, size):
-    return list(
-        models.User.objects.filter(pk__gt=after, pk__lte=upper_bound)
-        .order_by("pk")
+def owner_queryset():
+    return (
+        models.User.objects.order_by("pk")
         .only("pk", "username", "custom_domain", "redirect_domain")
         .annotate(
             byline_hash=MD5(
@@ -100,8 +138,12 @@ def owner_batch(after, upper_bound, size):
             footer_chars=Length(
                 Coalesce("footer_note", Value("", output_field=TextField()))
             ),
-        )[:size]
+        )
     )
+
+
+def owner_batch(after, upper_bound, size):
+    return list(owner_queryset().filter(pk__gt=after, pk__lte=upper_bound)[:size])
 
 
 def source_signature(owner, stats):
@@ -115,6 +157,7 @@ def source_signature(owner, stats):
             owner.footer_hash,
             stats["post"].get(owner.pk),
             stats["page"].get(owner.pk),
+            stats["image"].get(owner.pk),
         ]
     )
 
@@ -194,7 +237,7 @@ def analyze(owner, posts, pages, stats, busiest):
     }
     domains, templates = Counter(), Counter()
     lengths, examples = [], []
-    linked = thin = backlinks = 0
+    linked = thin = backlinks = calls_to_action = 0
     titles = Counter()
     for kind, rows in (("post", posts), ("page", pages)):
         for row in rows:
@@ -209,6 +252,12 @@ def analyze(owner, posts, pages, stats, busiest):
             )
             thin += is_thin
             backlinks += preview.backlink
+            calls_to_action += bool(
+                preview.outbound and classification.CTA.search(preview.text)
+            )
+            labels = classification.item_labels(
+                row["title"], preview.text, bool(preview.outbound), len(preview.images)
+            )
             titles[" ".join(row["title"].lower().split())] += 1
             key = template_key(preview.text, row["title"]) if preview.outbound else ""
             if key:
@@ -220,6 +269,7 @@ def analyze(owner, posts, pages, stats, busiest):
                     "title": row["title"],
                     "excerpt": preview.text[:500],
                     "domains": sorted(preview.outbound)[:10],
+                    "categories": sorted(labels),
                     "weight": int(preview.backlink) * 4
                     + int(is_thin) * 2
                     + bool(preview.outbound),
@@ -248,6 +298,7 @@ def analyze(owner, posts, pages, stats, busiest):
     repeated = n >= 3 and max(titles.values(), default=0) >= max(3, n / 2)
     templated = max(templates.values(), default=0) >= 3
     burst = busiest >= 20
+    promotion_majority = n >= 3 and calls_to_action / n >= 0.75
     explicit = backlinks > 0 or profile.backlink
     reasons = []
     score = 0
@@ -268,7 +319,16 @@ def analyze(owner, posts, pages, stats, busiest):
             f"Explicit backlink tracking in {backlinks} sampled items"
             + (" and blog settings." if profile.backlink else "."),
         ),
-        (burst, 15, f"{busiest} posts created on the busiest day."),
+        (
+            promotion_majority,
+            20,
+            f"{calls_to_action} of {n} sampled items direct readers to outside content or offers.",
+        ),
+        (
+            burst,
+            10,
+            f"{busiest} posts created on the busiest day, excluding backdated posts.",
+        ),
         (repeated, 15, "Repeated titles across the content sample."),
         (templated, 15, "Repeated wording after removing titles, URLs and numbers."),
         (
@@ -284,12 +344,50 @@ def analyze(owner, posts, pages, stats, busiest):
         n
         and linked / n >= 0.75
         and (
-            (thin_majority and (concentrated or total >= 20 or repeated or templated))
-            or (concentrated and (burst or repeated or templated))
+            (
+                thin_majority
+                and promotion_majority
+                and (concentrated or total >= 20 or templated)
+            )
+            or (concentrated and templated and promotion_majority)
         )
     )
     score = max(THRESHOLD, min(score, 100)) if qualifies else 0
+    category_reasons = classification.classify(
+        examples,
+        total=total + stats["image"].get(owner.pk, {}).get("count", 0),
+        profile_text=(
+            ""
+            if not owner.byline_chars
+            and (
+                not owner.footer_chars
+                or owner.footer_hash
+                == hashlib.md5(
+                    models.User._meta.get_field("footer_note").get_default().encode()
+                ).hexdigest()
+            )
+            else profile.text
+        )
+        or owner.redirect_domain
+        or "",
+        profile_labels=classification.item_labels(
+            "", profile.text, bool(profile.outbound), len(profile.images)
+        ),
+        promotional=bool(score),
+        thin=thin,
+        linked=linked,
+    )
+    # Show a representative for each label, then the strongest promotion examples.
+    selected = []
+    for category in category_reasons:
+        match = next((e for e in examples if category in e["categories"]), None)
+        if match and match not in selected:
+            selected.append(match)
+    for example in sorted(examples, key=lambda x: -x["weight"])[:3]:
+        if example not in selected:
+            selected.append(example)
     evidence = {
+        "category_reasons": category_reasons,
         "reasons": reasons,
         "sampled": n,
         "linked": linked,
@@ -297,10 +395,11 @@ def analyze(owner, posts, pages, stats, busiest):
         "median_chars": int(median(lengths)) if lengths else 0,
         "posts": stats["post"].get(owner.pk, {}).get("count", 0),
         "pages": stats["page"].get(owner.pk, {}).get("count", 0),
+        "images": stats["image"].get(owner.pk, {}).get("count", 0),
         "domains": [{"domain": d, "count": c} for d, c in domains.most_common(20)],
         "profile_domains": profile_domains[:20],
         "profile_excerpt": profile.text[:500],
-        "examples": sorted(examples, key=lambda x: -x["weight"])[:3],
+        "examples": selected,
         "templates": sorted(templates)[:20],
     }
     return score, evidence
@@ -309,6 +408,7 @@ def analyze(owner, posts, pages, stats, busiest):
 def baseline(score, evidence):
     return {
         "score": score,
+        "categories": sorted(evidence.get("category_reasons", {})),
         "total": evidence.get("posts", 0) + evidence.get("pages", 0),
         "domains": sorted(d["domain"] for d in evidence.get("domains", [])),
         "profile_domains": evidence.get("profile_domains", []),
@@ -318,33 +418,25 @@ def baseline(score, evidence):
 def substantial_change(old, new):
     """Compare against the dismissal, not the last scan, so changes accumulate."""
     return (
-        new["score"] >= old.get("score", 0) + 20
+        bool(set(new["categories"]) - set(old.get("categories", [])))
+        or new["score"] >= old.get("score", 0) + 20
         or new["total"] >= old.get("total", 0) + max(5, old.get("total", 0) // 10)
         or bool(set(new["domains"]) - set(old.get("domains", [])))
         or bool(set(new["profile_domains"]) - set(old.get("profile_domains", [])))
     )
 
 
-def scan_batch(owners, force=False):
+def scan_batch(owners):
     stats = metadata(owners)
-    existing = {
-        f.owner_id: f
-        for f in models.PromotionalSpamFinding.objects.filter(owner__in=owners)
-    }
-    changed = [
-        u
-        for u in owners
-        if force
-        or u.pk not in existing
-        or existing[u.pk].source_signature != source_signature(u, stats)
-    ]
-    if not changed:
-        return 0
+    changed = owners
     posts = sample_batch(models.Post, changed, stats["post"], 8)
     pages = sample_batch(models.Page, changed, stats["page"], 4)
     busiest = defaultdict(int)
     for row in (
         models.Post.objects.filter(owner__in=changed)
+        .filter(
+            Q(published_at__isnull=True) | Q(published_at__gte=TruncDate("created_at"))
+        )
         .order_by()
         .values("owner_id")
         .annotate(day=TruncDate("created_at"))
@@ -371,13 +463,18 @@ def scan_batch(owners, force=False):
             )
             if (
                 finding.dismissed_at
-                and score >= THRESHOLD
+                and (
+                    score >= THRESHOLD
+                    or "pornography" in evidence["category_reasons"]
+                    or "gambling" in evidence["category_reasons"]
+                )
                 and substantial_change(
                     finding.dismissed_baseline, baseline(score, evidence)
                 )
             ):
                 finding.dismissed_at = None
                 finding.dismissed_baseline = {}
+            finding.rule_version = VERSION
             finding.score = score
             finding.evidence = evidence
             finding.source_signature = source_signature(owner, stats)
@@ -387,6 +484,7 @@ def scan_batch(owners, force=False):
             groups = [("domain", d["domain"]) for d in evidence["domains"]]
             groups += [("domain", d) for d in evidence["profile_domains"]]
             groups += [("template", key) for key in evidence["templates"]]
+            groups += [("category", key) for key in evidence["category_reasons"]]
             models.PromotionalSpamGroup.objects.bulk_create(
                 [
                     models.PromotionalSpamGroup(finding=finding, kind=kind, key=key)

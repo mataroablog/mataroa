@@ -177,6 +177,16 @@ class User(AbstractUser):
         return Post.objects.filter(owner=self).count()
 
     @property
+    def moderation_protection(self):
+        flags = (
+            (self.is_premium, "Premium"),
+            (self.is_grandfathered or self.is_redirect_grandfathered, "Grandfathered"),
+            (self.is_approved, "Approved"),
+            (self.is_staff or self.is_superuser, "Staff"),
+        )
+        return ", ".join(label for enabled, label in flags if enabled)
+
+    @property
     def has_premium_features(self):
         return self.is_premium or self.is_grandfathered
 
@@ -213,7 +223,10 @@ class PromotionalSpamScan(models.Model):
     upper_bound = models.PositiveBigIntegerField(default=0)
     checked = models.PositiveIntegerField(default=0)
     analyzed = models.PositiveIntegerField(default=0)
-    full = models.BooleanField(default=False)
+    full = models.BooleanField(
+        default=False
+    )  # Retained for rolling deployment compatibility.
+    rule_version = models.PositiveSmallIntegerField(default=0)
     heartbeat_at = models.DateTimeField(null=True)
 
 
@@ -223,6 +236,7 @@ class PromotionalSpamFinding(models.Model):
     scanned_at = models.DateTimeField()
     score = models.PositiveSmallIntegerField(default=0, db_index=True)
     evidence = models.JSONField(default=dict)
+    rule_version = models.PositiveSmallIntegerField(default=0, db_index=True)
     dismissed_at = models.DateTimeField(null=True, blank=True)
     dismissed_baseline = models.JSONField(default=dict)
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=Scan Mataroa blogs for promotional spam
+Description=Classify Mataroa blogs
 After=network.target postgresql.service
 
 [Service]

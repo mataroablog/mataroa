@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjUserAdmin
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.utils.html import format_html
 
 from main import models, scheme
@@ -37,6 +39,29 @@ class UserAdmin(DjUserAdmin):
     )
     search_fields = ("username", "email", "stripe_customer_id", "blog_title")
     actions = [make_approved]
+
+    def has_delete_permission(self, request, obj=None):
+        return super().has_delete_permission(request, obj) and not (
+            obj and obj.moderation_protection
+        )
+
+    def get_deleted_objects(self, objs, request):
+        deleted, counts, permissions, protected = super().get_deleted_objects(
+            objs, request
+        )
+        if any(obj.moderation_protection for obj in objs):
+            permissions.add("delete protected accounts")
+        return deleted, counts, permissions, protected
+
+    def delete_queryset(self, request, queryset):
+        with transaction.atomic():
+            users = list(queryset.select_for_update())
+            if any(user.moderation_protection for user in users):
+                raise PermissionDenied("Protected accounts cannot be deleted.")
+            queryset.delete()
+
+    def delete_model(self, request, obj):
+        self.delete_queryset(request, models.User.objects.filter(pk=obj.pk))
 
     @admin.display
     def blog_url(self, obj):
