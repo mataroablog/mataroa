@@ -47,7 +47,6 @@ Community mailing list on sr.ht:
 
 ### Tools
 
-* [ChatGPT plugin](chatgpt/README.md)
 * [mataroa-cli](https://github.com/mataroablog/mataroa-cli)
 * [Mataroa Telegram Bot](https://github.com/jorphex/Mataroa-Telegram-Bot)
 

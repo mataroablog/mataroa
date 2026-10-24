@@ -32,7 +32,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import (
@@ -171,21 +170,7 @@ class Logout(DjLogoutView):
         return super().dispatch(request, *args, **kwargs)
 
 
-class SignupRedirectMixin:
-    def get_next_url(self):
-        next_url = self.request.POST.get("next", self.request.GET.get("next", ""))
-        # Only local absolute paths; never redirect signup to another host.
-        if next_url.startswith("/") and url_has_allowed_host_and_scheme(
-            next_url, allowed_hosts=set()
-        ):
-            return next_url
-        return ""
-
-    def get_context_data(self, **kwargs):
-        return super().get_context_data(next=self.get_next_url(), **kwargs)
-
-
-class UserCreateStepOne(SignupRedirectMixin, CreateView):
+class UserCreateStepOne(CreateView):
     form_class = forms.OnboardForm
     template_name = "main/user_create_step_one.html"
 
@@ -196,24 +181,14 @@ class UserCreateStepOne(SignupRedirectMixin, CreateView):
 
     def form_valid(self, form):
         self.object = form.save()
-        next_url = self.get_next_url()
-        return HttpResponseRedirect(
-            reverse(
-                "user_create_step_two",
-                kwargs={"onboard_code": self.object.code},
-                query={"next": next_url} if next_url else None,
-            )
-        )
+        return redirect("user_create_step_two", onboard_code=self.object.code)
 
 
-class UserCreateStepTwo(SignupRedirectMixin, CreateView):
+class UserCreateStepTwo(CreateView):
     form_class = forms.UserCreationForm
     success_url = reverse_lazy("dashboard")
     template_name = "main/user_create_step_two.html"
     success_message = "welcome to mataroa :)"
-
-    def get_success_url(self):
-        return self.get_next_url() or super().get_success_url()
 
     def form_valid(self, form):
         if denylist.is_disallowed(form.cleaned_data.get("username")):
