@@ -3,6 +3,6 @@
         <a href="?page=1&amp;{{ querystring }}">First</a>
         <a href="?page={{ previous_page }}&amp;{{ querystring }}">Previous</a>
     {% endif %}
-    <span>Page {{ page }}</span>
+    <span>Page {{ page }} of {{ total_pages }}</span>
     {% if has_next %}<a href="?page={{ next_page }}&amp;{{ querystring }}">Next</a>{% endif %}
 </nav>

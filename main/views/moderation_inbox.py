@@ -206,9 +206,9 @@ def inbox(request):
             | Exists(pages.filter(Q(title__icontains=query) | Q(body__icontains=query)))
         )
 
-    # Fetch one extra row instead of counting the entire search result on every request.
+    total_pages = max(1, (users.count() + PAGE_SIZE - 1) // PAGE_SIZE)
     try:
-        page = max(1, min(int(request.GET.get("page", 1)), 10000))
+        page = max(1, min(int(request.GET.get("page", 1)), total_pages))
     except ValueError:
         page = 1
     start = (page - 1) * PAGE_SIZE
@@ -229,10 +229,9 @@ def inbox(request):
         .annotate(
             byline_sample=Substr("blog_byline", 1, SAMPLE_LENGTH),
             footer_sample=Substr("footer_note", 1, SAMPLE_LENGTH),
-        )[start : start + PAGE_SIZE + 1]
+        )[start : start + PAGE_SIZE]
     )
-    has_next = len(users) > PAGE_SIZE
-    users = users[:PAGE_SIZE]
+    has_next = page < total_pages
     prefetch_related_objects(
         users,
         Prefetch(
@@ -309,6 +308,7 @@ def inbox(request):
             "approval": approval,
             "activity": activity,
             "page": page,
+            "total_pages": total_pages,
             "previous_page": page - 1,
             "next_page": page + 1,
             "has_next": has_next,

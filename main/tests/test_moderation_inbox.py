@@ -212,11 +212,19 @@ class ModerationInboxTest(TestCase):
         )
         self.assertEqual(len(response.context["users"]), 25)
         self.assertTrue(response.context["has_next"])
+        self.assertContains(response, "Page 1 of 2", count=2)
         self.assertContains(response, "page=2&amp;q=sample&amp;activity=new")
         second = self.client.get(self.url, {"q": "sample", "page": 2})
         self.assertEqual(len(second.context["users"]), 3)
         self.assertFalse(second.context["has_next"])
+        self.assertContains(second, "Page 2 of 2", count=2)
         self.assertEqual(self.client.get(self.url, {"page": -9}).context["page"], 1)
+        beyond = self.client.get(self.url, {"q": "sample", "page": 999})
+        self.assertContains(beyond, "Page 2 of 2", count=2)
+        filtered = self.client.get(self.url, {"approval": "approved"})
+        self.assertContains(filtered, "Page 1 of 1", count=2)
+        empty = self.client.get(self.url, {"q": "no matches", "page": 2})
+        self.assertContains(empty, "Page 1 of 1", count=2)
 
     def test_bounded_queries_and_no_image_blobs_or_full_post_bodies(self):
         models.Post.objects.bulk_create(
@@ -228,7 +236,7 @@ class ModerationInboxTest(TestCase):
         with CaptureQueriesContext(connection) as captured:
             response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(captured), 8)
+        self.assertEqual(len(captured), 9)
         self.assertNotIn('"main_image"."data"', " ".join(q["sql"] for q in captured))
         alice = next(u for u in response.context["users"] if u.pk == self.alice.pk)
         self.assertEqual(len(alice.sample_posts), 3)
