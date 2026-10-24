@@ -4,34 +4,43 @@
 {% block title %}Moderation — Content inbox{% endblock %}
 
 {% block content %}
-<main class="moderation-inbox">
+<main>
     <p><a href="{% url 'moderation_index' %}">Moderation</a> / Content inbox</p>
     <h1>Content inbox</h1>
-    <p>Blogs with content, newest activity first. Signals help prioritize review; they do not establish abuse. Drafts and hidden pages are included.</p>
-    <form method="get" class="inbox-filters">
-        <label for="inbox-query">Search blog names, posts, pages, bylines, footers, and URLs</label>
-        <input id="inbox-query" type="search" name="q" value="{{ query }}" maxlength="200" placeholder="Text or destination domain">
-        <div class="inbox-filter-options">
-            <label>Approval
-                <select name="approval">
-                    <option value="all" {% if approval == 'all' %}selected{% endif %}>All</option>
-                    <option value="unapproved" {% if approval == 'unapproved' %}selected{% endif %}>Unapproved</option>
-                    <option value="approved" {% if approval == 'approved' %}selected{% endif %}>Approved</option>
-                </select>
-            </label>
-            <label>Activity
-                <select name="activity">
-                    <option value="all" {% if activity == 'all' %}selected{% endif %}>All activity</option>
-                    <option value="new" {% if activity == 'new' %}selected{% endif %}>Joined in last 7 days</option>
-                    <option value="edited" {% if activity == 'edited' %}selected{% endif %}>Edited in last 7 days</option>
-                    <option value="burst" {% if activity == 'burst' %}selected{% endif %}>20+ posts in last 24 hours</option>
-                </select>
-            </label>
-            <button type="submit">Filter</button>
+    <p>Latest blog activity, including drafts and hidden pages.</p>
+    <form method="get">
+        <p>
+            <label for="inbox-query">Search</label>
+            <input id="inbox-query" type="text" name="q" value="{{ query }}" maxlength="200" aria-describedby="inbox-search-help">
+            <span class="helptext" id="inbox-search-help">Blog names, posts, pages, bylines, footers, and URLs.</span>
+        </p>
+        <p>
+            <label for="inbox-approval">Approval</label>
+            <select id="inbox-approval" name="approval" aria-describedby="inbox-approval-help">
+                <option value="all" {% if approval == 'all' %}selected{% endif %}>All</option>
+                <option value="unapproved" {% if approval == 'unapproved' %}selected{% endif %}>Unapproved</option>
+                <option value="approved" {% if approval == 'approved' %}selected{% endif %}>Approved</option>
+            </select>
+            <br><span class="helptext" id="inbox-approval-help">Approval includes premium upgrades.</span>
+        </p>
+        <p>
+            <label for="inbox-activity">Activity</label>
+            <select id="inbox-activity" name="activity" aria-describedby="inbox-activity-help">
+                <option value="all" {% if activity == 'all' %}selected{% endif %}>All activity</option>
+                <option value="new" {% if activity == 'new' %}selected{% endif %}>Joined in last 7 days</option>
+                <option value="edited" {% if activity == 'edited' %}selected{% endif %}>Edited in last 7 days</option>
+                <option value="burst" {% if activity == 'burst' %}selected{% endif %}>20+ posts in last 24 hours</option>
+            </select>
+            <br><span class="helptext" id="inbox-activity-help">Edits are changes to existing posts or pages.</span>
+        </p>
+        <p class="inbox-actions">
+            <input type="submit" value="Filter">
             <a href="{% url 'moderation_inbox' %}">Clear</a>
-        </div>
+        </p>
     </form>
-    <p class="inbox-note">Approval includes premium upgrades. Edited means an existing post or page changed, not necessarily after review. Images load only when you choose to show them.</p>
+    <p class="inbox-note">Images stay hidden until you choose to show them.</p>
+</main>
+<section class="moderation-content moderation-inbox">
     {% include 'partials/moderation_inbox_pagination.html' %}
     {% for user in users %}
     <article class="inbox-blog">
@@ -87,7 +96,7 @@
         <p>No blogs on this page. Try clearing the filters or returning to page 1.</p>
     {% endfor %}
     {% include 'partials/moderation_inbox_pagination.html' %}
-</main>
+</section>
 {% endblock content %}
 
 {% block scripts %}

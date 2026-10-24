@@ -242,38 +242,11 @@ button {
     padding-right: 0;
 }
 
-.inbox-filters {
-    padding: 16px;
-    background: var(--airy-grey-color);
-    border: 1px solid var(--light-grey-color);
-}
-
-.inbox-filters input[type="search"] {
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 12px;
-}
-
-.inbox-filter-options,
 .inbox-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 12px;
-}
-
-.inbox-filter-options label {
-    margin: 0;
-}
-
-.moderation-inbox button,
-.moderation-inbox select {
-    padding: 6px 10px;
-    background: var(--airy-grey-color);
-    color: inherit;
-    border: 1px solid var(--dark-grey-color);
-    border-radius: 3px;
-    font: inherit;
 }
 
 .inbox-blog {
@@ -345,9 +318,5 @@ button {
 @media (max-width: 34rem) {
     .inbox-blog {
         padding: 12px;
-    }
-    .inbox-filter-options {
-        align-items: stretch;
-        flex-direction: column;
     }
 }
