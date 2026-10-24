@@ -45,6 +45,82 @@ class APIResetKeyTestCase(TestCase):
         self.assertNotEqual(self.api_key, new_api_key)
 
 
+class APIInactiveAccountTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(username="alice")
+        self.post = models.Post.objects.create(
+            owner=self.user,
+            title="Original post",
+            slug="original-post",
+            body="Post body",
+        )
+        self.page = models.Page.objects.create(
+            owner=self.user,
+            title="Original page",
+            slug="original-page",
+            body="Page body",
+        )
+        self.comment = models.Comment.objects.create(
+            post=self.post, body="Comment body"
+        )
+        self.authorization = {"HTTP_AUTHORIZATION": f"Bearer {self.user.api_key}"}
+
+    def test_disabling_account_revokes_all_api_access_without_changing_key(self):
+        # Start with a working key, then change the same flag used by Django admin.
+        self.assertEqual(
+            self.client.get(reverse("api_posts"), **self.authorization).status_code, 200
+        )
+        self.user.is_active = False
+        self.user.save(update_fields=["is_active"])
+
+        endpoints = [
+            ("api_posts", [], ["get", "post"]),
+            ("api_post", [self.post.slug], ["get", "patch", "delete"]),
+            ("api_pages", [], ["get", "post"]),
+            ("api_page", [self.page.slug], ["get", "patch", "delete"]),
+            ("api_comments", [], ["get"]),
+            ("api_post_comments", [self.post.slug], ["get"]),
+            ("api_comments_pending", [], ["get"]),
+            ("api_comment", [self.comment.pk], ["get", "delete"]),
+            ("api_comment_approve", [self.comment.pk], ["post"]),
+        ]
+        for name, args, methods in endpoints:
+            for method in methods:
+                with self.subTest(endpoint=name, method=method):
+                    kwargs = dict(self.authorization)
+                    if method in ("post", "patch"):
+                        kwargs.update(
+                            data={
+                                "title": "Changed",
+                                "slug": "changed",
+                                "body": "Changed body",
+                            },
+                            content_type="application/json",
+                        )
+                    response = getattr(self.client, method)(
+                        reverse(name, args=args), **kwargs
+                    )
+                    self.assertEqual(response.status_code, 403)
+                    self.assertEqual(
+                        response.json(), {"ok": False, "error": "Not authorized."}
+                    )
+
+        self.assertEqual(models.Post.objects.filter(owner=self.user).count(), 1)
+        self.assertEqual(models.Page.objects.filter(owner=self.user).count(), 1)
+        self.post.refresh_from_db()
+        self.page.refresh_from_db()
+        self.comment.refresh_from_db()
+        self.assertEqual(self.post.body, "Post body")
+        self.assertEqual(self.page.body, "Page body")
+        self.assertFalse(self.comment.is_approved)
+
+        self.user.is_active = True
+        self.user.save(update_fields=["is_active"])
+        self.assertEqual(
+            self.client.get(reverse("api_posts"), **self.authorization).status_code, 200
+        )
+
+
 class APIListAnonTestCase(TestCase):
     """Test cases for anonymous POST / GET / PATCH / DELETE on /api/posts/."""
 

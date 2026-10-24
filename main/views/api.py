@@ -37,7 +37,7 @@ class APIKeyReset(SuccessMessageMixin, LoginRequiredMixin, FormView):
 
 
 def _authenticate_token(request):
-    """Verify request is authenticated with a token."""
+    """Authenticate a token only while its account is active."""
 
     # check authorization header
     auth_header = request.headers.get("Authorization")
@@ -50,7 +50,7 @@ def _authenticate_token(request):
 
     # check token's user
     token = auth_header[7:]
-    users_from_token = models.User.objects.filter(api_key=token)
+    users_from_token = models.User.objects.filter(api_key=token, is_active=True)
     if not users_from_token:
         return None
 
