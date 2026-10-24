@@ -12,6 +12,14 @@ from main.views.moderation_inbox import ContentPreview
 
 
 class ContentPreviewTest(SimpleTestCase):
+    def test_image_alt_attribute_without_a_value(self):
+        parsed = ContentPreview(
+            'Before <img src="/image/photo.png" alt> after.',
+            "https://alice.mataroa.blog",
+        )
+        self.assertEqual(parsed.text, "Before after.")
+        self.assertEqual(parsed.images, ["https://alice.mataroa.blog/image/photo.png"])
+
     def test_extracts_markdown_html_and_plain_links_without_rendering_html(self):
         parsed = ContentPreview(
             "[Offer](https://offers.example/path) "

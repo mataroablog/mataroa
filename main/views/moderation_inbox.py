@@ -91,7 +91,7 @@ class ContentPreview(HTMLParser):
         elif tag == "img" and attrs.get("src"):
             if (url := self.safe_url(attrs["src"])) and url not in self.images:
                 self.images.append(url)
-            self.text_parts.append(attrs.get("alt", ""))
+            self.text_parts.append(attrs.get("alt") or "")
 
     def handle_data(self, data):
         self.text_parts.append(data)

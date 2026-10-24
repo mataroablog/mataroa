@@ -44,6 +44,15 @@ class ScannerTest(TestCase):
     def setUp(self):
         self.owner = models.User.objects.create(username="promoter")
 
+    def test_image_alt_attribute_without_a_value_does_not_interrupt_scan(self):
+        posts = make_posts(self.owner)
+        posts[0].body += ' <img src="/image/photo.png" alt>'
+        posts[0].save()
+        self.assertEqual(scan(), 1)
+        finding = models.PromotionalSpamFinding.objects.get(owner=self.owner)
+        self.assertEqual(finding.evidence["sampled"], 4)
+        self.assertGreaterEqual(finding.score, spam.THRESHOLD)
+
     def test_short_repeated_destination_is_flagged_with_safe_evidence(self):
         posts = make_posts(self.owner)
         posts[0].title = '<script>alert("bad")</script>'
