@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import UTC, datetime
 
@@ -677,23 +676,14 @@ def billing_welcome(request):
     if not payment_intent:
         return redirect("billing_overview")
 
-    stripe.api_key = settings.STRIPE_API_KEY
-    stripe_intent = stripe.PaymentIntent.retrieve(payment_intent)
-
-    if stripe_intent["status"] == "succeeded":
-        # charge succeeded during client-side confirmation flow
-        # enable premium if not already enabled via webhook
-        _enable_premium(
-            request.user,
-            f"New premium subscriber from welcome page: {request.user.username}",
-        )
+    # Browser-supplied payment IDs are not proof of this user's subscription.
+    # Only report the account state; the verified webhook handles activation.
+    if request.user.is_premium:
         messages.success(request, "premium subscription enabled")
-    elif stripe_intent["status"] == "processing":
-        messages.info(request, "payment is currently processing")
     else:
-        messages.error(
+        messages.info(
             request,
-            "something is wrong. don't sweat it, worst case you get premium for free",
+            "payment is being confirmed; premium will be enabled once confirmed",
         )
 
     return redirect("billing_overview")
@@ -739,24 +729,19 @@ def billing_stripe_webhook(request):
     # get Stripe settings
     stripe.api_key = settings.STRIPE_API_KEY
     webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
-    logger.warning(f"Webhook secret configured: {bool(webhook_secret)}")
+    if not webhook_secret:
+        logger.error("Webhook rejected: signing secret is not configured")
+        return HttpResponse(status=503)
 
     try:
-        # parse event from Stripe
-        if webhook_secret:
-            # verify webhook signature
-            sig_header = request.headers.get("Stripe-Signature", "")
-            logger.warning(f"Webhook sig_header present: {bool(sig_header)}")
-            event = stripe.Webhook.construct_event(
-                payload=request.body,
-                sig_header=sig_header,
-                secret=webhook_secret,
-            )
-        else:
-            # Development mode: skip signature verification
-            logger.warning("Webhook: no secret, skipping signature verification")
-            data = json.loads(request.body.decode("utf-8"))
-            event = stripe.Event.construct_from(data, stripe.api_key)
+        # Always authenticate the event, including in development.
+        sig_header = request.headers.get("Stripe-Signature", "")
+        logger.warning(f"Webhook sig_header present: {bool(sig_header)}")
+        event = stripe.Webhook.construct_event(
+            payload=request.body,
+            sig_header=sig_header,
+            secret=webhook_secret,
+        )
 
         logger.warning(f"Webhook event parsed: {event.type}")
 

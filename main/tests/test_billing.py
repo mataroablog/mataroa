@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import json
+import time
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -534,6 +538,70 @@ class BillingReenableSubscriptionTestCase(TestCase):
         mail_admins.assert_not_called()
 
 
+class BillingWelcomeTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice", stripe_customer_id="cus_alice"
+        )
+        self.client.force_login(self.user)
+
+    def assert_return_does_not_enable_premium(self, payment_customer):
+        with (
+            patch.object(
+                stripe.PaymentIntent,
+                "retrieve",
+                return_value={"status": "succeeded", "customer": payment_customer},
+            ) as retrieve,
+            patch.object(billing, "mail_admins") as mail_admins,
+        ):
+            response = self.client.get(
+                reverse("billing_welcome"), {"payment_intent": "pi_old_payment"}
+            )
+
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_premium)
+        self.assertFalse(self.user.is_approved)
+        self.assertFalse(self.user.moderation_protection)
+        retrieve.assert_not_called()
+        mail_admins.assert_not_called()
+
+    def test_another_customers_payment_cannot_enable_premium(self):
+        self.assert_return_does_not_enable_premium("cus_bob")
+
+    def test_old_payment_cannot_restore_expired_subscription(self):
+        self.assertIsNone(self.user.stripe_subscription_id)
+        self.assert_return_does_not_enable_premium(self.user.stripe_customer_id)
+
+    def test_payment_return_waits_for_webhook_for_current_subscription(self):
+        self.user.stripe_subscription_id = "sub_alice"
+        self.user.save()
+        self.assert_return_does_not_enable_premium(self.user.stripe_customer_id)
+
+    def test_premium_already_enabled_by_webhook_shows_success(self):
+        self.user.is_premium = True
+        self.user.is_approved = True
+        self.user.save()
+        with (
+            patch.object(stripe.PaymentIntent, "retrieve") as retrieve,
+            patch.object(billing, "mail_admins") as mail_admins,
+        ):
+            response = self.client.get(
+                reverse("billing_welcome"), {"payment_intent": "pi_paid"}
+            )
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.assertIn(
+            "premium subscription enabled",
+            [str(message) for message in get_messages(response.wsgi_request)],
+        )
+        retrieve.assert_not_called()
+        mail_admins.assert_not_called()
+
+
 class BillingWebhookTestCase(TestCase):
     def setUp(self):
         self.user = models.User.objects.create(
@@ -541,6 +609,75 @@ class BillingWebhookTestCase(TestCase):
             stripe_customer_id="cus_abc123",
         )
         self.client.force_login(self.user)
+
+    def test_missing_secret_rejects_unsigned_events_in_all_environments(self):
+        self.client.logout()
+        payload = json.dumps(
+            {
+                "id": "evt_test",
+                "object": "event",
+                "type": "invoice.payment_succeeded",
+                "data": {"object": {"object": "invoice", "customer": "cus_abc123"}},
+            }
+        )
+        for debug in (False, True):
+            with (
+                self.subTest(debug=debug),
+                self.settings(STRIPE_WEBHOOK_SECRET="", DEBUG=debug),
+                patch.object(billing, "mail_admins") as mail_admins,
+            ):
+                response = self.client.post(
+                    reverse("billing_stripe_webhook"),
+                    data=payload,
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 503)
+                self.user.refresh_from_db()
+                self.assertFalse(self.user.is_premium)
+                self.assertFalse(self.user.is_approved)
+                mail_admins.assert_not_called()
+
+    def test_missing_signature_is_rejected(self):
+        self.client.logout()
+        with self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_premium)
+        self.assertFalse(self.user.is_approved)
+
+    def test_valid_signature_enables_premium_without_login(self):
+        self.client.logout()
+        payload = json.dumps(
+            {
+                "id": "evt_test",
+                "object": "event",
+                "type": "invoice.payment_succeeded",
+                "data": {"object": {"object": "invoice", "customer": "cus_abc123"}},
+            }
+        )
+        timestamp = int(time.time())
+        signature = hmac.new(
+            b"whsec_test", f"{timestamp}.{payload}".encode(), hashlib.sha256
+        ).hexdigest()
+        with (
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+            patch.object(billing, "mail_admins"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=payload,
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE=f"t={timestamp},v1={signature}",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_premium)
+        self.assertTrue(self.user.is_approved)
 
     def test_invoice_payment_succeeded_enables_premium_and_approved(self):
         invoice_obj = SimpleNamespace(customer="cus_abc123")
