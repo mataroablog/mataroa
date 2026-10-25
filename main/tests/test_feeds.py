@@ -1,11 +1,100 @@
 from datetime import timedelta
+from unittest.mock import patch
+from xml.etree import ElementTree
 
-from django.test import TestCase
-from django.urls import reverse
+from django.test import Client, TestCase
+from django.urls import resolve, reverse
 from django.utils import timezone
 
 from main import models
 from mataroa import settings
+
+
+class RSSFeedIsolationTestCase(TestCase):
+    def setUp(self):
+        self.users = [
+            models.User.objects.create(
+                username="alice", blog_title="Alice's blog", blog_byline="About Alice"
+            ),
+            models.User.objects.create(
+                username="bob",
+                blog_title="Bob's blog",
+                blog_byline="About Bob",
+                custom_domain="bob.example.com",
+            ),
+        ]
+        self.posts = [
+            models.Post.objects.create(
+                owner=user,
+                title=f"Post by {user.username}",
+                slug=f"{user.username}-post",
+                body=f"Content by {user.username}.",
+                published_at=timezone.now().date(),
+            )
+            for user in self.users
+        ]
+
+    def test_overlap_before_metadata(self):
+        self.assert_overlapping_feeds_isolated("link")
+
+    def test_overlap_before_items(self):
+        self.assert_overlapping_feeds_isolated("items")
+
+    def assert_overlapping_feeds_isolated(self, pause_at):
+        feed = resolve(reverse("rss_feed")).func
+        original_get_dynamic_attr = feed._get_dynamic_attr
+        hosts = [
+            f"alice.{settings.CANONICAL_HOST}",
+            self.users[1].custom_domain,
+        ]
+
+        # Interleave requests before metadata and before posts are read. This
+        # deterministically exercises thread-switch points without timing races.
+        other_responses = []
+        interrupted = False
+
+        def get_dynamic_attr(name, obj, default=None):
+            nonlocal interrupted
+            if name == pause_at and not interrupted:
+                interrupted = True
+                other_responses.append(
+                    Client().get(reverse("rss_feed"), HTTP_HOST=hosts[1], secure=True)
+                )
+            return original_get_dynamic_attr(name, obj, default)
+
+        with patch.object(feed, "_get_dynamic_attr", get_dynamic_attr):
+            response = self.client.get(
+                reverse("rss_feed"), HTTP_HOST=hosts[0], secure=True
+            )
+
+        self.assertTrue(interrupted)
+        self.assertEqual(len(other_responses), 1)
+        responses = [response, other_responses[0]]
+        for user, post, host, response in zip(
+            self.users, self.posts, hosts, responses, strict=True
+        ):
+            self.assertEqual(response.status_code, 200)
+            channel = ElementTree.fromstring(response.content).find("channel")
+            self.assertEqual(channel.findtext("title"), user.blog_title)
+            self.assertEqual(channel.findtext("link"), user.blog_url)
+            self.assertEqual(channel.findtext("description"), user.blog_byline_as_text)
+            self.assertEqual(
+                channel.find("{http://www.w3.org/2005/Atom}link").get("href"),
+                f"https://{host}{reverse('rss_feed')}",
+            )
+            items = channel.findall("item")
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0].findtext("title"), post.title)
+            self.assertEqual(items[0].findtext("description"), post.body_as_html)
+            for field in ("link", "guid"):
+                self.assertEqual(
+                    items[0].findtext(field), f"https:{post.get_proper_url()}"
+                )
+
+        for user in self.users:
+            self.assertEqual(
+                models.AnalyticPage.objects.filter(user=user, path="rss").count(), 1
+            )
 
 
 class RSSFeedTestCase(TestCase):

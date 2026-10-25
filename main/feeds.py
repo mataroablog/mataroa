@@ -8,27 +8,30 @@ from main import models
 
 
 class RSSBlogFeed(Feed):
-    title = ""
-    link = ""
-    description = ""
-    user = None
-
-    def __call__(self, request, *args, **kwargs):
+    def get_object(self, request, *args, **kwargs):
         if not hasattr(request, "subdomain"):
             raise Http404()
-        self.user = models.User.objects.get(username=request.subdomain)
-        self.title = self.user.blog_title
-        self.description = self.user.blog_byline_as_text
-        self.link = self.user.blog_url
+        user = models.User.objects.get(username=request.subdomain)
 
-        models.AnalyticPage.objects.create(user=self.user, path="rss")
+        models.AnalyticPage.objects.create(user=user, path="rss")
 
-        return super().__call__(request, *args, **kwargs)
+        # URLconf shares this feed instance across requests, so keep the user
+        # local and let Django pass it to each feed method.
+        return user
 
-    def items(self):
+    def title(self, user):
+        return user.blog_title
+
+    def description(self, user):
+        return user.blog_byline_as_text
+
+    def link(self, user):
+        return user.blog_url
+
+    def items(self, user):
         return (
             models.Post.objects.filter(
-                owner=self.user,
+                owner=user,
                 published_at__isnull=False,
                 published_at__lte=timezone.now().date(),
             )
