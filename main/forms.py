@@ -1,5 +1,7 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import PasswordResetForm as DjPasswordResetForm
 from django.contrib.auth.forms import UserCreationForm as DjUserCreationForm
 from django.core import validators as dj_validators
 
@@ -16,6 +18,13 @@ class UserCreationForm(DjUserCreationForm):
     class Meta:
         model = get_user_model()
         fields = ["username", "email"]
+
+
+class PasswordResetForm(DjPasswordResetForm):
+    def save(self, **kwargs):
+        # Do not derive reset-link hosts from a blog or a supplied Host header.
+        kwargs["domain_override"] = settings.CANONICAL_HOST
+        return super().save(**kwargs)
 
 
 class NotificationForm(forms.ModelForm):

@@ -1,7 +1,8 @@
 from django.contrib import admin
+from django.contrib.auth.views import PasswordResetView
 from django.urls import include, path, re_path
 
-from main import feeds
+from main import feeds, forms
 from main.views import (
     api,
     billing,
@@ -39,6 +40,11 @@ urlpatterns = [
 # user system
 urlpatterns += [
     path("accounts/logout/", general.Logout.as_view(), name="logout"),
+    path(
+        "accounts/password_reset/",
+        PasswordResetView.as_view(form_class=forms.PasswordResetForm),
+        name="password_reset",
+    ),
     path("accounts/", include("django.contrib.auth.urls")),
     path(
         "accounts/create/",

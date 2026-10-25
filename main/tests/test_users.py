@@ -1,6 +1,13 @@
+import re
+from urllib.parse import urlsplit
+
 from django.conf import settings
-from django.test import TestCase, override_settings
-from django.urls import reverse
+from django.contrib.auth.tokens import default_token_generator
+from django.core import mail
+from django.test import RequestFactory, TestCase, override_settings
+from django.urls import resolve, reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from main import models, scheme
 
@@ -396,6 +403,14 @@ class UserDomainCheckTestCase(TestCase):
         response = self.client.get(reverse("domain_check") + "?domain=example.com")
         self.assertEqual(response.status_code, 200)
 
+    def test_local_caddy_domain_check_is_not_redirected(self):
+        for host in ("localhost:5000", "127.0.0.1:5000"):
+            with self.subTest(host=host):
+                response = self.client.get(
+                    reverse("domain_check") + "?domain=example.com", HTTP_HOST=host
+                )
+                self.assertEqual(response.status_code, 200)
+
     def test_domain_unknown(self):
         response = self.client.get(reverse("domain_check") + "?domain=randomdomain.com")
         self.assertEqual(response.status_code, 403)
@@ -478,3 +493,123 @@ class CustomDomainAuthRedirectTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         expected_url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}/accounts/password_change/"
         self.assertEqual(response.url, expected_url)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class PasswordResetHostIsolationTestCase(TestCase):
+    def setUp(self):
+        self.blog_user = models.User.objects.create(username="alice", is_premium=True)
+        self.user = models.User.objects.create_user(
+            username="bob", email="bob@example.com", password="original-test-password"
+        )
+        self.blog_host = f"alice.{settings.CANONICAL_HOST}"
+
+    def test_subdomain_account_urls_redirect_to_canonical(self):
+        for logged_in in (False, True):
+            if logged_in:
+                self.client.force_login(self.blog_user)
+            for name in (
+                "login",
+                "logout",
+                "password_reset",
+                "password_reset_done",
+                "password_change",
+                "user_create",
+                "user_update",
+                "user_delete",
+            ):
+                with self.subTest(logged_in=logged_in, name=name):
+                    path = reverse(name) + "?next=/dashboard/"
+                    response = self.client.get(path, HTTP_HOST=self.blog_host)
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(
+                        response.url,
+                        f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}{path}",
+                    )
+
+    def test_subdomain_reset_post_redirects_without_sending_email(self):
+        response = self.client.post(
+            reverse("password_reset"),
+            {"email": self.user.email},
+            HTTP_HOST=self.blog_host,
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}{reverse('password_reset')}",
+        )
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_existing_reset_link_stays_canonical_after_blog_domain_change(self):
+        token = default_token_generator.make_token(self.user)
+        path = reverse(
+            "password_reset_confirm",
+            kwargs={
+                "uidb64": urlsafe_base64_encode(force_bytes(self.user.pk)),
+                "token": token,
+            },
+        )
+        for field in ("custom_domain", "redirect_domain"):
+            with self.subTest(field=field):
+                self.blog_user.custom_domain = None
+                self.blog_user.redirect_domain = None
+                setattr(self.blog_user, field, "external.example.com")
+                self.blog_user.save()
+                response = self.client.get(
+                    path + "?next=/dashboard/", HTTP_HOST=self.blog_host, secure=True
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(
+                    response.url,
+                    f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}{path}?next=/dashboard/",
+                )
+                self.assertTrue(default_token_generator.check_token(self.user, token))
+
+        # The same token still works on the canonical host.
+        response = self.client.get(path, HTTP_HOST=settings.CANONICAL_HOST, secure=True)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, path.replace(token, "set-password"))
+        response = self.client.post(
+            response.url,
+            {
+                "new_password1": "changed-test-password-73",
+                "new_password2": "changed-test-password-73",
+            },
+            HTTP_HOST=settings.CANONICAL_HOST,
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("password_reset_complete"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("changed-test-password-73"))
+
+    def test_reset_email_uses_canonical_domain_even_without_host_middleware(self):
+        # Exercise the routed view directly so the email has its own protection,
+        # independent of the redirect middleware.
+        request = RequestFactory().post(
+            reverse("password_reset"),
+            {"email": self.user.email},
+            HTTP_HOST=self.blog_host,
+            secure=True,
+        )
+        request._dont_enforce_csrf_checks = True
+        response = resolve(reverse("password_reset")).func(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        reset_url = re.search(r"https://[^\s]+", mail.outbox[0].body).group()
+        self.assertEqual(urlsplit(reset_url).netloc, settings.CANONICAL_HOST)
+        self.assertNotIn(self.blog_host, mail.outbox[0].body)
+
+    def test_canonical_reset_request_sends_email(self):
+        response = self.client.post(
+            reverse("password_reset"),
+            {"email": self.user.email},
+            HTTP_HOST=settings.CANONICAL_HOST,
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.user.email])
+        reset_url = re.search(r"https://[^\s]+", mail.outbox[0].body).group()
+        self.assertEqual(urlsplit(reset_url).netloc, settings.CANONICAL_HOST)

@@ -51,6 +51,16 @@ def host_middleware(get_response):
         ):
             return get_response(request)
 
+        # Account URLs must never follow user-controlled blog redirects, which
+        # could otherwise send password-reset tokens to an external domain.
+        if host != settings.CANONICAL_HOST and request.path.startswith("/accounts/"):
+            return redirect(
+                scheme.get_protocol()
+                + "//"
+                + settings.CANONICAL_HOST
+                + request.get_full_path()
+            )
+
         host_parts = host.split(".")
         canonical_parts = settings.CANONICAL_HOST.split(".")
 
@@ -111,16 +121,6 @@ def host_middleware(get_response):
                 raise Http404()
         elif models.User.objects.filter(custom_domain=host).exists():
             # custom domain case
-
-            # redirect auth URLs to canonical domain
-            if request.path.startswith("/accounts/"):
-                canonical_url = (
-                    scheme.get_protocol()
-                    + "//"
-                    + settings.CANONICAL_HOST
-                    + request.get_full_path()
-                )
-                return redirect(canonical_url)
 
             request.blog_user = models.User.objects.get(custom_domain=host)
             request.subdomain = request.blog_user.username
