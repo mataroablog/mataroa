@@ -732,7 +732,8 @@ never deletes accounts. Bulk deletion requires reviewing an exact selection (up 
 content are skipped. Premium, grandfathered, approved and staff accounts are protected
 in both moderation and Django admin, including if their status changes after selection.
 
-Triggers hourly, with up to five minutes of randomized delay.
+Triggers every six hours at 00:00, 06:00, 12:00, and 18:00 server time,
+with up to five minutes of randomized delay.
 
 ### Database Backup
 

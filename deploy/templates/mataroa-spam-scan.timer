@@ -1,8 +1,8 @@
 [Unit]
-Description=Check new and changed Mataroa content hourly
+Description=Classify all Mataroa blogs every 6 hours
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=*-*-* 00/6:00:00
 RandomizedDelaySec=5m
 Persistent=true
 
