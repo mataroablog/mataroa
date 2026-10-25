@@ -1,0 +1,35 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+{% block title %}Moderation — Confirm campaign deletion{% endblock %}
+
+{% block content %}
+<main>
+    <p><a href="{% url 'moderation_campaigns' %}">Campaign review</a> / Deletion selection</p>
+    <h1>{{ selection.title }}</h1>
+    <p><strong>{{ selection.totals.blogs|intcomma }} blogs</strong> · {{ selection.totals.posts|intcomma }} posts · {{ selection.totals.pages|intcomma }} pages · {{ selection.totals.images|intcomma }} images · {{ selection.totals.comments|intcomma }} comments</p>
+    {% if selection.totals.excluded_changed %}<p>{{ selection.totals.excluded_changed|intcomma }} changed accounts were excluded while preparing this selection.</p>{% endif %}
+    <p>The selection is fixed. New members of the campaign will not be added. Protection and content are checked again before each deletion; changed accounts are skipped.</p>
+    <p>Deletion is permanent. Keep this page open to process the selection; you can pause and resume from this saved page. Confirmation expires after one hour; confirmed selections can run for up to 24 hours.</p>
+    <p id="campaign-progress" role="status">{{ progress.deleted|intcomma }} deleted · {{ progress.skipped|intcomma }} skipped · {{ progress.remaining|intcomma }} remaining</p>
+    {% if selection.finished_at %}<p>Finished.</p>
+    {% elif selection.cancelled_at %}<p>Cancelled. No remaining accounts will be deleted.</p>
+    {% elif expired %}<p>This selection has expired or the classification rules changed. Return to campaign review to prepare a new selection.</p>
+    {% else %}
+    <form id="campaign-run" method="post" action="{% url 'moderation_campaign_action' selection.pk %}" data-confirmed="{{ selection.confirmed_at|yesno:'true,false' }}" data-count="{{ selection.totals.blogs }}">
+        {% csrf_token %}
+        {% if not selection.confirmed_at %}<p><label><input type="checkbox" name="acknowledge" required> I reviewed the examples and approve permanently deleting these {{ selection.totals.blogs|intcomma }} accounts and their content.</label></p>{% endif %}
+        <p><button type="submit" class="button-delete">{% if selection.confirmed_at %}Resume deletion{% else %}Confirm bulk deletion{% endif %}</button> <button type="button" id="campaign-pause" hidden>Pause after current account</button> <button type="button" id="campaign-cancel">Cancel remaining deletion</button></p>
+    </form>
+    {% endif %}
+    <p id="campaign-last" role="status"></p>
+    <noscript>JavaScript is required to run deletion and report progress.</noscript>
+    <details{% if not selection.confirmed_at %} open{% endif %}><summary>Examples from this exact selection</summary>{% include 'partials/moderation_campaign_examples.html' %}</details>
+    <h2>Exact selected accounts</h2>
+    <table><thead><tr><th>Blog</th><th>Posts</th><th>Pages</th><th>Status</th></tr></thead><tbody>
+    {% for item in page_obj %}<tr><td>{{ item.username }}</td><td>{{ item.snapshot.counts.posts }}</td><td>{{ item.snapshot.counts.pages }}</td><td>{{ item.result|default:'Pending' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% include 'partials/moderation_spam_pagination.html' %}
+</main>
+{% endblock content %}
+
+{% block scripts %}{% include 'partials/moderation_campaign_script.html' %}{% endblock %}

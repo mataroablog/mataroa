@@ -1,0 +1,75 @@
+<script>
+    const campaignForm = document.getElementById('campaign-run');
+    if (campaignForm) {
+        const progress = document.getElementById('campaign-progress');
+        const last = document.getElementById('campaign-last');
+        const submit = campaignForm.querySelector('button[type="submit"]');
+        const pause = document.getElementById('campaign-pause');
+        const cancel = document.getElementById('campaign-cancel');
+        let running = false;
+        let paused = false;
+        let cancelled = false;
+        async function send(action) {
+            const response = await fetch(campaignForm.action, {
+                method: 'POST',
+                headers: {'X-CSRFToken': campaignForm.querySelector('[name="csrfmiddlewaretoken"]').value},
+                body: new URLSearchParams({action, acknowledge: action === 'confirm' ? 'yes' : ''}),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Request failed. Reload this saved selection before continuing.');
+            progress.textContent = `${data.deleted} deleted · ${data.skipped} skipped · ${data.remaining} remaining`;
+            if (data.last) last.textContent = `${data.last.username}: ${data.last.result}`;
+            return data;
+        }
+        pause.addEventListener('click', () => { paused = true; pause.disabled = true; });
+        cancel.addEventListener('click', async () => {
+            paused = true;
+            cancel.disabled = true;
+            try {
+                await send('cancel');
+                cancelled = true;
+                submit.disabled = true;
+                last.textContent = 'Cancelled. Remaining accounts will not be deleted.';
+            } catch (error) {
+                last.textContent = error.message;
+                cancel.disabled = false;
+            }
+        });
+        campaignForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (running || cancelled) return;
+            const confirming = campaignForm.dataset.confirmed !== 'true';
+            if (confirming && !campaignForm.querySelector('[name="acknowledge"]').checked) return;
+            if (confirming && !window.confirm(`Permanently delete the ${campaignForm.dataset.count} accounts in this saved selection? This cannot be undone.`)) return;
+            running = true;
+            paused = false;
+            submit.disabled = true;
+            pause.hidden = false;
+            pause.disabled = false;
+            try {
+                if (confirming) {
+                    await send('confirm');
+                    campaignForm.dataset.confirmed = 'true';
+                }
+                while (!paused) {
+                    const data = await send('process');
+                    if (data.finished || data.cancelled) {
+                        cancelled = true;
+                        last.textContent = data.finished ? 'Finished. Reload to see all account outcomes.' : 'Cancelled.';
+                        break;
+                    }
+                }
+            } catch (error) {
+                last.textContent = error.message + ' Processing stopped. This selection is saved; reload to check progress.';
+            } finally {
+                running = false;
+                pause.hidden = true;
+                submit.disabled = cancelled;
+                submit.textContent = 'Resume deletion';
+            }
+        });
+        window.addEventListener('beforeunload', event => {
+            if (running) { event.preventDefault(); event.returnValue = ''; }
+        });
+    }
+</script>

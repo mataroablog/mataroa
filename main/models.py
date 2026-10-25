@@ -237,8 +237,57 @@ class PromotionalSpamFinding(models.Model):
     score = models.PositiveSmallIntegerField(default=0, db_index=True)
     evidence = models.JSONField(default=dict)
     rule_version = models.PositiveSmallIntegerField(default=0, db_index=True)
+    campaign_key = models.CharField(
+        max_length=64, blank=True, default="", db_index=True
+    )
+    campaign_coverage = models.PositiveSmallIntegerField(default=0)
+    campaign_strong = models.BooleanField(default=False)
     dismissed_at = models.DateTimeField(null=True, blank=True)
     dismissed_baseline = models.JSONField(default=dict)
+
+
+class ModerationDeletionSelection(models.Model):
+    """Frozen selection, explicitly confirmed by its reviewer before processing."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=350)
+    campaign_key = models.CharField(max_length=64)
+    rule_version = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True)
+    finished_at = models.DateTimeField(null=True)
+    cancelled_at = models.DateTimeField(null=True)
+    totals = models.JSONField(default=dict)
+    deleted = models.PositiveIntegerField(default=0)
+    skipped = models.PositiveIntegerField(default=0)
+    examples = models.JSONField(default=dict)
+
+
+class ModerationDeletionItem(models.Model):
+    selection = models.ForeignKey(
+        ModerationDeletionSelection, on_delete=models.CASCADE, related_name="items"
+    )
+    # Keep the exact reviewed identity and outcome even after account deletion.
+    owner_id_snapshot = models.PositiveBigIntegerField()
+    username = models.CharField(max_length=150)
+    snapshot = models.JSONField(default=dict)
+    status = models.CharField(max_length=16, default="pending")
+    result = models.CharField(max_length=250, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["selection", "owner_id_snapshot"],
+                name="moderation_selection_owner_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["selection", "status", "id"],
+                name="moderation_selection_pending",
+            )
+        ]
 
 
 class PromotionalSpamGroup(models.Model):

@@ -1,0 +1,28 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+{% block title %}Moderation — Campaign review{% endblock %}
+
+{% block content %}
+<main>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Campaign review</p>
+    <h1>Campaign review</h1>
+    <p>Review groups of blogs sharing a content pattern and destination. Start with the largest groups, inspect the examples, then confirm one deletion selection for the whole group.</p>
+    <p class="helptext">Initial rules cover explicit galleries and gambling promotion articles. At least three strong matches must corroborate a group. Matching means similar sampled content, not proof of a shared operator.</p>
+    {% if outdated %}<p>{{ outdated|intcomma }} blogs await scanning with the new rules.</p>{% endif %}
+    <p>{{ ungrouped|intcomma }} flagged blogs have no campaign match. <a href="{% url 'moderation_spam' %}?category=all">Review individual classifications</a></p>
+    <ul>{% for label, count, key in recommendations %}<li><a href="{% url 'moderation_spam' %}?category=all&amp;status=all&amp;recommendation={{ key }}">{{ label }}</a>: {{ count|intcomma }}</li>{% endfor %}</ul>
+    {% for group in page_obj %}
+    <section>
+        <h2><a href="{% url 'moderation_campaign' group.campaign_key %}">{{ group.campaign.title }}</a></h2>
+        <p>{{ group.blogs|intcomma }} blogs · {{ group.posts|intcomma }} posts · <strong>{{ group.eligible|intcomma }} strong candidates eligible for deletion</strong> · {{ group.weak|intcomma }} weaker matches</p>
+        <p>{{ group.campaign.reason }}</p>
+        <p><a href="{% url 'moderation_campaign' group.campaign_key %}">Review examples and weakest matches</a></p>
+    </section>
+    {% empty %}<p>No campaigns yet. Groups will appear as scanning progresses.</p>{% endfor %}
+    {% include 'partials/moderation_spam_pagination.html' %}
+    {% if selections %}
+    <h2>Your recent deletion selections</h2>
+    <ul>{% for selection in selections %}<li><a href="{% url 'moderation_campaign_selection' selection.pk %}">{{ selection.title }}</a> · {{ selection.created_at|date:'Y-m-d H:i' }} · {% if selection.cancelled_at %}Cancelled{% elif selection.finished_at %}Finished{% elif selection.confirmed_at %}In progress{% else %}Awaiting confirmation{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+</main>
+{% endblock content %}

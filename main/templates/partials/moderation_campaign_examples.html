@@ -1,0 +1,10 @@
+{% for label, blogs in examples.items %}
+<h3>{{ label }}</h3>
+{% for blog in blogs %}
+<section class="inbox-sample">
+    <p><a href="{% url 'moderation_post_inspect' blog.owner_id %}" target="_blank" rel="noopener">{{ blog.username }}</a> · {{ blog.posts }} posts · {{ blog.pages }} pages · {{ blog.matched }}/{{ blog.sampled }} sampled items match</p>
+    <p><strong>{{ blog.example.title }}</strong><br>{{ blog.example.excerpt }}</p>
+    {% if blog.counterexample %}<details><summary>Non-matching item from this blog</summary><p><strong>{{ blog.counterexample.title }}</strong><br>{{ blog.counterexample.excerpt }}</p></details>{% endif %}
+</section>
+{% endfor %}
+{% endfor %}

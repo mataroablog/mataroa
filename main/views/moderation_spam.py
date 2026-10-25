@@ -9,7 +9,13 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from main import blog_classification, models, moderation_deletion, promotional_spam
+from main import (
+    blog_classification,
+    models,
+    moderation_campaigns,
+    moderation_deletion,
+    promotional_spam,
+)
 from main.views.moderation_inbox import _canonical_redirect
 
 
@@ -27,6 +33,13 @@ def filtered_findings(params):
         findings = findings.filter(dismissed_at__isnull=status == "pending")
     if category != "all":
         findings = findings.filter(groups__kind="category", groups__key=category)
+    recommendation = params.get("recommendation", "all")
+    if recommendation in moderation_campaigns.RECOMMENDATIONS:
+        findings = findings.filter(
+            pk__in=moderation_campaigns.recommendation_sets()[recommendation]
+        )
+    else:
+        recommendation = "all"
     kind = params.get("kind", "")
     key = params.get("group", "")[:253]
     if kind in ("domain", "template") and key:
@@ -35,6 +48,7 @@ def filtered_findings(params):
         kind = key = ""
     return findings, {
         "category": category,
+        "recommendation": recommendation,
         "status": status,
         "group_kind": kind,
         "group_key": key,
@@ -59,7 +73,19 @@ def queue(request):
     page_obj = Paginator(
         findings.select_related("owner").order_by("-score", "-pk"), 25
     ).get_page(request.GET.get("page"))
+    recommendations = moderation_campaigns.recommendation_sets()
+    page_ids = [finding.pk for finding in page_obj]
+    recommended = {
+        pk: label
+        for key, label in moderation_campaigns.RECOMMENDATIONS.items()
+        for pk in recommendations[key]
+        .filter(pk__in=page_ids)
+        .values_list("pk", flat=True)
+    }
     for finding in page_obj:
+        finding.recommendation_label = recommended.get(
+            finding.pk, "Awaiting reclassification"
+        )
         finding.category_labels = [
             (blog_classification.CATEGORIES.get(key, key), reason)
             for key, reason in finding.evidence.get("category_reasons", {}).items()
@@ -74,6 +100,7 @@ def queue(request):
             **filters,
             "groups": groups,
             "categories": blog_classification.CATEGORIES.items(),
+            "recommendations": moderation_campaigns.RECOMMENDATIONS.items(),
             "querystring": params.urlencode(),
             "return_query": request.GET.urlencode(),
             "scan": models.PromotionalSpamScan.objects.filter(pk=1).first(),
@@ -177,48 +204,8 @@ def bulk_delete(request):
             },
             status=409,
         )
-    with transaction.atomic():
-        owner = (
-            models.User.objects.select_for_update()
-            .filter(pk=selection["owner"])
-            .first()
-        )
-        if not owner:
-            return JsonResponse({"ok": True, "already_deleted": True})
-        if owner.moderation_protection:
-            return JsonResponse(
-                {
-                    "ok": False,
-                    "error": "Protected account: " + owner.moderation_protection,
-                },
-                status=409,
-            )
-        finding = (
-            models.PromotionalSpamFinding.objects.select_for_update()
-            .filter(owner=owner)
-            .first()
-        )
-        if (
-            not finding
-            or moderation_deletion.review_signature(finding) != selection["review"]
-        ):
-            return JsonResponse(
-                {"ok": False, "error": "Classification changed. Review again."},
-                status=409,
-            )
-        owner = promotional_spam.owner_queryset().get(pk=owner.pk)
-        stats = promotional_spam.metadata([owner])
-        if (
-            promotional_spam.source_signature(owner, stats) != selection["source"]
-            or moderation_deletion.counts([owner], stats)[owner.pk]
-            != selection["counts"]
-        ):
-            return JsonResponse(
-                {"ok": False, "error": "Content changed. Review again after scanning."},
-                status=409,
-            )
-        owner.delete()
-    return JsonResponse({"ok": True})
+    result = moderation_deletion.delete_snapshot(selection)
+    return JsonResponse(result, status=200 if result["ok"] else 409)
 
 
 @never_cache

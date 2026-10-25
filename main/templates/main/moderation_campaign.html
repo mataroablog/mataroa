@@ -1,0 +1,30 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+{% block title %}Moderation — {{ campaign.title }}{% endblock %}
+
+{% block content %}
+<main>
+    <p><a href="{% url 'moderation_campaigns' %}">Campaign review</a> / Group</p>
+    <h1>{{ campaign.title }}</h1>
+    <p>{{ campaign.reason }}</p>
+    <p>{{ total|intcomma }} blogs · <strong>{{ eligible|intcomma }} strong candidates eligible for deletion</strong> · {{ protected|intcomma }} protected · {{ weak|intcomma }} weaker matches</p>
+    <p class="helptext">A strong match covers at least 80% of sampled items; explicit galleries also require two matching items. This is sample coverage, not a probability. Weak matches and premium, grandfathered premium, approved or staff accounts are excluded from group deletion.</p>
+    <h2>Strong candidates</h2>
+    {% include 'partials/moderation_campaign_examples.html' %}
+    {% if eligible %}
+    <form method="post" action="{% url 'moderation_campaign_prepare' key %}">
+        {% csrf_token %}
+        <p><button type="submit">Review deletion of {{ eligible|intcomma }} strong candidates</button></p>
+        <p class="helptext">Creates an exact selection for confirmation. Nothing is deleted yet.</p>
+    </form>
+    {% else %}<p>This group does not have enough unprotected, corroborated strong matches for group deletion.</p>{% endif %}
+    {% if weak_examples %}<details><summary>Weaker matches — excluded from group deletion</summary>{% include 'partials/moderation_campaign_examples.html' with examples=weak_examples %}</details>{% endif %}
+    <h2>All matching blogs</h2>
+    <table><thead><tr><th>Blog</th><th>Sample coverage</th><th>Recommendation</th></tr></thead><tbody>
+    {% for finding in page_obj %}
+    <tr><td><a href="{% url 'moderation_post_inspect' finding.owner_id %}">{{ finding.owner.username }}</a></td><td>{{ finding.campaign_coverage }}%</td><td>{% if finding.owner.moderation_protection %}Protected: {{ finding.owner.moderation_protection }}{% elif finding.campaign_strong %}Strong match{% else %}Needs individual review{% endif %}</td></tr>
+    {% endfor %}
+    </tbody></table>
+    {% include 'partials/moderation_spam_pagination.html' %}
+</main>
+{% endblock content %}

@@ -9,6 +9,7 @@ from main.views import (
     export,
     general,
     moderation,
+    moderation_campaigns,
     moderation_inbox,
     moderation_posts,
     moderation_spam,
@@ -64,6 +65,29 @@ urlpatterns += [
 # moderation
 urlpatterns += [
     path("moderation/index/", moderation.index, name="moderation_index"),
+    path(
+        "moderation/campaigns/", moderation_campaigns.index, name="moderation_campaigns"
+    ),
+    path(
+        "moderation/campaigns/selection/<uuid:selection_id>/",
+        moderation_campaigns.selection_detail,
+        name="moderation_campaign_selection",
+    ),
+    path(
+        "moderation/campaigns/selection/<uuid:selection_id>/action/",
+        moderation_campaigns.action,
+        name="moderation_campaign_action",
+    ),
+    path(
+        "moderation/campaigns/<str:key>/",
+        moderation_campaigns.detail,
+        name="moderation_campaign",
+    ),
+    path(
+        "moderation/campaigns/<str:key>/prepare/",
+        moderation_campaigns.prepare,
+        name="moderation_campaign_prepare",
+    ),
     path("moderation/inbox/", moderation_inbox.inbox, name="moderation_inbox"),
     path(
         "moderation/promotional-spam/delete/preview/",

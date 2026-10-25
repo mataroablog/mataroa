@@ -21,10 +21,10 @@ from django.db.models.functions import (
 from django.utils import timezone
 
 from main import blog_classification as classification
-from main import models
+from main import models, moderation_campaigns
 from main.views.moderation_inbox import ContentPreview
 
-VERSION = 2
+VERSION = 3
 THRESHOLD = 50
 HEAD_LENGTH = 8000
 TAIL_LENGTH = 4000
@@ -53,6 +53,9 @@ class LinkPreview(ContentPreview):
         self.own_domains = own_domains
         self.backlink = False
         self.anchor = None
+        self.linked_images = 0
+        self.gallery_destinations = set()
+        self.outline = []
         super().__init__(body, base_url)
         self.finish_anchor()
 
@@ -61,16 +64,23 @@ class LinkPreview(ContentPreview):
             url, text, image = self.anchor
             if text.strip() or not image:
                 self.add_domain(url)
+            if re.fullmatch(r"\s*view full gallery\s*", text, re.I):
+                domain = hostname(self.safe_url(url) or "")
+                if domain and domain not in self.own_domains:
+                    self.gallery_destinations.add(domain)
         self.anchor = None
 
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
+        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            self.outline.append(tag)
         if tag == "a":
             self.finish_anchor()
             self.anchor = [values.get("href") or "", "", False]
         else:
             if tag == "img" and self.anchor:
                 self.anchor[2] = True
+                self.linked_images += 1
             super().handle_starttag(tag, attrs)
 
     def handle_endtag(self, tag):
@@ -237,6 +247,7 @@ def analyze(owner, posts, pages, stats, busiest):
     }
     domains, templates = Counter(), Counter()
     lengths, examples = [], []
+    campaign_items = []
     linked = thin = backlinks = calls_to_action = 0
     titles = Counter()
     for kind, rows in (("post", posts), ("page", pages)):
@@ -252,11 +263,17 @@ def analyze(owner, posts, pages, stats, busiest):
             )
             thin += is_thin
             backlinks += preview.backlink
-            calls_to_action += bool(
-                preview.outbound and classification.CTA.search(preview.text)
-            )
             labels = classification.item_labels(
                 row["title"], preview.text, bool(preview.outbound), len(preview.images)
+            )
+            cta = classification.CTA.search(preview.text)
+            calls_to_action += bool(
+                preview.outbound
+                and cta
+                and (
+                    cta.group().lower() != "view full gallery"
+                    or "pornography" in labels
+                )
             )
             titles[" ".join(row["title"].lower().split())] += 1
             key = template_key(preview.text, row["title"]) if preview.outbound else ""
@@ -273,6 +290,12 @@ def analyze(owner, posts, pages, stats, busiest):
                     "weight": int(preview.backlink) * 4
                     + int(is_thin) * 2
                     + bool(preview.outbound),
+                }
+            )
+            campaign_items.append(
+                {
+                    "patterns": moderation_campaigns.item_patterns(preview, labels),
+                    "example": examples[-1],
                 }
             )
     profile = LinkPreview(
@@ -388,6 +411,7 @@ def analyze(owner, posts, pages, stats, busiest):
             selected.append(example)
     evidence = {
         "category_reasons": category_reasons,
+        "campaign": moderation_campaigns.assign(campaign_items),
         "reasons": reasons,
         "sampled": n,
         "linked": linked,
@@ -474,6 +498,10 @@ def scan_batch(owners):
             ):
                 finding.dismissed_at = None
                 finding.dismissed_baseline = {}
+            campaign = evidence["campaign"]
+            finding.campaign_key = campaign.get("key", "")
+            finding.campaign_coverage = campaign.get("coverage", 0)
+            finding.campaign_strong = campaign.get("strong", False)
             finding.rule_version = VERSION
             finding.score = score
             finding.evidence = evidence

@@ -1,6 +1,7 @@
 """Explicit, signed deletion selections. Account protection is checked at execution."""
 
 from django.core import signing
+from django.db import transaction
 from django.db.models import Count, Max, Q
 
 from main import models, promotional_spam
@@ -46,18 +47,20 @@ def counts(owners, stats):
     }
 
 
+def snapshot(user, owner, finding, totals):
+    return {
+        "reviewer": user.pk,
+        "owner": owner.pk,
+        "source": finding.source_signature,
+        "version": promotional_spam.VERSION,
+        "review": review_signature(finding),
+        "counts": totals,
+    }
+
+
 def ticket(user, owner, finding, totals):
     return signing.dumps(
-        {
-            "reviewer": user.pk,
-            "owner": owner.pk,
-            "source": finding.source_signature,
-            "version": promotional_spam.VERSION,
-            "review": review_signature(finding),
-            "counts": totals,
-        },
-        salt=SALT,
-        compress=True,
+        snapshot(user, owner, finding, totals), salt=SALT, compress=True
     )
 
 
@@ -68,5 +71,55 @@ def review_signature(finding):
             finding.rule_version,
             finding.dismissed_at,
             finding.evidence.get("category_reasons", {}),
+            finding.evidence.get("campaign", {}),
         ]
     )
+
+
+def delete_snapshot(selection, campaign_key=""):
+    """Delete exactly one reviewed account, checking live protection and evidence."""
+    if selection["version"] != promotional_spam.VERSION:
+        return {"ok": False, "error": "Classification rules changed. Review again."}
+    with transaction.atomic():
+        owner = (
+            models.User.objects.select_for_update()
+            .filter(pk=selection["owner"])
+            .first()
+        )
+        if not owner:
+            return {"ok": True, "already_deleted": True}
+        if owner.moderation_protection:
+            return {
+                "ok": False,
+                "error": "Protected account: " + owner.moderation_protection,
+            }
+        finding = (
+            models.PromotionalSpamFinding.objects.select_for_update()
+            .filter(owner=owner)
+            .first()
+        )
+        if (
+            not finding
+            or review_signature(finding) != selection["review"]
+            or (
+                campaign_key
+                and (
+                    finding.campaign_key != campaign_key
+                    or not finding.campaign_strong
+                    or finding.dismissed_at
+                )
+            )
+        ):
+            return {"ok": False, "error": "Classification changed. Review again."}
+        owner = promotional_spam.owner_queryset().get(pk=owner.pk)
+        stats = promotional_spam.metadata([owner])
+        if (
+            promotional_spam.source_signature(owner, stats) != selection["source"]
+            or counts([owner], stats)[owner.pk] != selection["counts"]
+        ):
+            return {
+                "ok": False,
+                "error": "Content changed. Review again after scanning.",
+            }
+        owner.delete()
+    return {"ok": True}

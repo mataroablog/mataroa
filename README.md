@@ -732,6 +732,18 @@ never deletes accounts. Bulk deletion requires reviewing an exact selection (up 
 content are skipped. Premium, grandfathered, approved and staff accounts are protected
 in both moderation and Django admin, including if their status changes after selection.
 
+Campaign review at `/moderation/campaigns/` groups explicit galleries and gambling
+promotion articles by content pattern, layout and destination. Strong candidates
+require at least 80% sample coverage and three corroborating blogs; gallery blogs
+also require two matching items. Mixed/weak matches remain for individual review.
+Representative, random and weakest-match examples accompany each group.
+
+Confirming a campaign selection freezes all its eligible accounts, without the
+1,000-account limit. The browser processes one account per request; keep it open,
+or pause/resume via the saved selection. Progress is saved, new members are never
+added, and protected or changed accounts are skipped. Unconfirmed selections expire
+after one hour; confirmed selections expire after 24 hours. Rules never delete blogs.
+
 Triggers every six hours at 00:00, 06:00, 12:00, and 18:00 server time,
 with up to five minutes of randomized delay.
 
