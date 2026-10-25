@@ -226,12 +226,19 @@ class InboxDeleteTest(TestCase):
             models.User.objects.create(username="premium", is_premium=True),
             models.User.objects.create(username="approved", is_approved=True),
             models.User.objects.create(username="grandfathered", is_grandfathered=True),
-            models.User.objects.create(
-                username="redirect-grandfathered", is_redirect_grandfathered=True
-            ),
         ]:
             response = self.client.post(
                 reverse("moderation_user_delete", args=[target.pk])
             )
             self.assertEqual(response.status_code, 400)
             self.assertTrue(models.User.objects.filter(pk=target.pk).exists())
+
+    def test_single_delete_allows_redirect_grandfathered_account(self):
+        self.owner.is_redirect_grandfathered = True
+        self.owner.save(update_fields=["is_redirect_grandfathered"])
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("moderation_inbox"))
+        self.assertContains(response, f'data-delete-url="{self.url}"')
+        self.assertNotContains(response, "Protected: Grandfathered")
+        self.assertJSONEqual(self.client.post(self.url).content, {"ok": True})
+        self.assertFalse(models.User.objects.filter(pk=self.owner.pk).exists())

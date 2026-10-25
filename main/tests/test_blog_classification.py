@@ -185,11 +185,43 @@ class BulkDeletionTest(TestCase):
             self.client.post(self.delete_url, {"ticket": ticket}).status_code, 200
         )
 
+    def test_redirect_grandfathering_allows_bulk_selection_and_deletion(self):
+        self.owner.is_redirect_grandfathered = True
+        self.owner.save(update_fields=["is_redirect_grandfathered"])
+        self.assertTrue(self.owner.has_redirect_features)
+        self.assertEqual(self.owner.moderation_protection, "")
+        response = self.client.get(reverse("moderation_spam"))
+        self.assertEqual(response.context["eligible"], 1)
+        self.assertContains(response, 'name="selected"')
+        self.assertNotContains(response, "Protected: Grandfathered")
+        response = self.preview(scope="matching")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [row["owner"].pk for row in response.context["rows"]], [self.owner.pk]
+        )
+        ticket = response.context["rows"][0]["ticket"]
+        self.assertEqual(
+            self.client.post(self.delete_url, {"ticket": ticket}).status_code, 200
+        )
+        self.assertFalse(models.User.objects.filter(pk=self.owner.pk).exists())
+
+    def test_admin_allows_redirect_only_grandfathered_account_deletion(self):
+        self.owner.is_redirect_grandfathered = True
+        self.owner.save(update_fields=["is_redirect_grandfathered"])
+        model_admin = UserAdmin(models.User, AdminSite())
+        request = RequestFactory().post("/admin/")
+        request.user = self.admin
+        self.assertTrue(model_admin.has_delete_permission(request, self.owner))
+        model_admin.delete_model(request, self.owner)
+        self.assertFalse(models.User.objects.filter(pk=self.owner.pk).exists())
+
     def test_every_protected_flag_excluded_and_rechecked_after_preview(self):
+        models.User.objects.filter(pk=self.owner.pk).update(
+            is_redirect_grandfathered=True
+        )
         for flag in [
             "is_premium",
             "is_grandfathered",
-            "is_redirect_grandfathered",
             "is_approved",
             "is_staff",
             "is_superuser",
@@ -336,13 +368,15 @@ class BulkDeletionTest(TestCase):
         self.assertTrue(models.User.objects.filter(pk=self.owner.pk).exists())
 
     def test_admin_single_and_bulk_protection_even_after_object_was_loaded(self):
+        models.User.objects.filter(pk=self.owner.pk).update(
+            is_redirect_grandfathered=True
+        )
         model_admin = UserAdmin(models.User, AdminSite())
         request = RequestFactory().post("/admin/")
         request.user = self.admin
         for flag in [
             "is_premium",
             "is_grandfathered",
-            "is_redirect_grandfathered",
             "is_approved",
         ]:
             with self.subTest(flag=flag):

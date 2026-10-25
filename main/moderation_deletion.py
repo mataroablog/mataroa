@@ -8,7 +8,6 @@ from main import models, promotional_spam
 PROTECTED = (
     Q(is_premium=True)
     | Q(is_grandfathered=True)
-    | Q(is_redirect_grandfathered=True)
     | Q(is_approved=True)
     | Q(is_staff=True)
     | Q(is_superuser=True)

@@ -180,7 +180,7 @@ class User(AbstractUser):
     def moderation_protection(self):
         flags = (
             (self.is_premium, "Premium"),
-            (self.is_grandfathered or self.is_redirect_grandfathered, "Grandfathered"),
+            (self.is_grandfathered, "Grandfathered"),
             (self.is_approved, "Approved"),
             (self.is_staff or self.is_superuser, "Staff"),
         )
