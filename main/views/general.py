@@ -593,6 +593,8 @@ class CommentCreateAuthor(LoginRequiredMixin, SuccessMessageMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if hasattr(request, "subdomain") and request.method == "POST":
+            if request.user.is_authenticated and request.user != request.blog_user:
+                raise PermissionDenied()
             return super().dispatch(request, *args, **kwargs)
         else:
             return redirect("//" + settings.CANONICAL_HOST)

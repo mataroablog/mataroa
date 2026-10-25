@@ -2,7 +2,7 @@ import time
 
 from django.conf import settings
 from django.core import signing
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from main import models
@@ -39,6 +39,8 @@ class CommentCreateAuthorTestCase(TestCase):
         self.assertIsNone(models.Comment.objects.all().first().email)
         self.assertEqual(models.Comment.objects.all().first().body, data["body"])
         self.assertEqual(models.Comment.objects.all().first().post, self.post)
+        self.assertTrue(models.Comment.objects.all().first().is_author)
+        self.assertTrue(models.Comment.objects.all().first().is_approved)
 
         response = self.client.get(
             reverse("post_detail", args=(self.post.slug,)),
@@ -46,6 +48,65 @@ class CommentCreateAuthorTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "your comment is public")
+
+    def test_non_owner_cannot_comment_as_author(self):
+        self.assert_non_owner_rejected("alice." + settings.CANONICAL_HOST)
+
+    def test_non_owner_cannot_comment_as_author_on_custom_domain(self):
+        self.user.custom_domain = "alice.example.com"
+        self.user.save()
+        self.assert_non_owner_rejected(self.user.custom_domain)
+
+    def assert_non_owner_rejected(self, host):
+        other = models.User.objects.create(username="bob")
+        models.Post.objects.create(owner=other, slug=self.post.slug, title="Bob's post")
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(other)
+        response = client.get(
+            reverse("post_detail", args=(self.post.slug,)),
+            HTTP_HOST=host,
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = client.post(
+            reverse("comment_create_author", args=(self.post.slug,)),
+            data={
+                "body": "Unauthorized author comment",
+                "csrfmiddlewaretoken": client.cookies["csrftoken"].value,
+            },
+            HTTP_HOST=host,
+            HTTP_ORIGIN=f"https://{host}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(models.Comment.objects.exists())
+
+    def test_owner_can_comment_as_author_on_custom_domain(self):
+        self.user.custom_domain = "alice.example.com"
+        self.user.save()
+        response = self.client.post(
+            reverse("comment_create_author", args=(self.post.slug,)),
+            data={"body": "Comment from the owner"},
+            HTTP_HOST=self.user.custom_domain,
+        )
+        self.assertEqual(response.status_code, 302)
+        comment = models.Comment.objects.get()
+        self.assertEqual(comment.post, self.post)
+        self.assertEqual(comment.name, self.user.username)
+        self.assertTrue(comment.is_author)
+        self.assertTrue(comment.is_approved)
+
+    def test_anonymous_cannot_comment_as_author(self):
+        self.client.logout()
+        response = self.client.post(
+            reverse("comment_create_author", args=(self.post.slug,)),
+            data={"body": "Unauthorized author comment"},
+            HTTP_HOST="alice." + settings.CANONICAL_HOST,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+        self.assertFalse(models.Comment.objects.exists())
 
 
 class CommentCreateTestCase(TestCase):
