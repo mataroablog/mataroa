@@ -9,24 +9,10 @@ from main import models, scheme
 
 
 def build_summary_text(target_date: datetime.date) -> str:
-    new_users_qs = models.User.objects.filter(date_joined__date=target_date).order_by(
-        "-id"
-    )
-    new_posts_qs = (
-        models.Post.objects.filter(created_at__date=target_date)
-        .select_related("owner")
-        .order_by("-created_at")
-    )
-    new_pages_qs = (
-        models.Page.objects.filter(created_at__date=target_date)
-        .select_related("owner")
-        .order_by("-created_at")
-    )
-    new_comments_qs = (
-        models.Comment.objects.filter(created_at__date=target_date)
-        .select_related("post", "post__owner")
-        .order_by("-created_at")
-    )
+    new_users_qs = models.User.objects.filter(date_joined__date=target_date)
+    new_posts_qs = models.Post.objects.filter(created_at__date=target_date)
+    new_pages_qs = models.Page.objects.filter(created_at__date=target_date)
+    new_comments_qs = models.Comment.objects.filter(created_at__date=target_date)
 
     post_visits_count = models.AnalyticPost.objects.filter(
         created_at__date=target_date
@@ -42,11 +28,10 @@ def build_summary_text(target_date: datetime.date) -> str:
         .order_by("-visit_count", "-id")
     )
 
+    summary_url = f"https://{settings.CANONICAL_HOST}/moderation/summary/{target_date.strftime('%Y-%m-%d')}"
     lines: list[str] = []
     lines.append(f"# Mataroa Summary {target_date.strftime('%Y-%m-%d')}")
-    lines.append(
-        f"https://{settings.CANONICAL_HOST}/moderation/summary/{target_date.strftime('%Y-%m-%d')}"
-    )
+    lines.append(summary_url)
     lines.append("")
     lines.append("## Counts")
     lines.append(f"- New users: {new_users_qs.count()}")
@@ -56,9 +41,9 @@ def build_summary_text(target_date: datetime.date) -> str:
     lines.append(f"- Post visits: {post_visits_count}")
     lines.append("")
 
-    lines.append("## Top Posts by Visits")
+    lines.append("## Top 5 Posts by Visits")
     if top_posts_by_visits_qs.exists():
-        for post in top_posts_by_visits_qs[:20]:
+        for post in top_posts_by_visits_qs[:5]:
             lines.append(
                 f"* {post.title} [{post.visit_count}] {scheme.get_protocol()}{post.get_proper_url()}"
             )
@@ -66,39 +51,11 @@ def build_summary_text(target_date: datetime.date) -> str:
         lines.append("- None.")
     lines.append("")
 
-    lines.append("## New Posts")
-    if new_posts_qs.exists():
-        for p in new_posts_qs:
-            lines.append(f"* {p.title} {scheme.get_protocol()}{p.get_proper_url()}")
-    else:
-        lines.append("- None.")
-    lines.append("")
-
-    lines.append("## New Users")
-    if new_users_qs.exists():
-        for u in new_users_qs:
-            lines.append(f"* {u.username}: {u.blog_url}")
-    else:
-        lines.append("- None.")
-    lines.append("")
-
-    lines.append("## New Pages")
-    if new_pages_qs.exists():
-        for pg in new_pages_qs:
-            lines.append(f"* {pg.title} {scheme.get_protocol()}{pg.get_absolute_url()}")
-    else:
-        lines.append("- None.")
-    lines.append("")
-
-    lines.append("## New Comments")
-    if new_comments_qs.exists():
-        for c in new_comments_qs:
-            pending_note = " pending" if not c.is_approved else ""
-            lines.append(
-                f"* on {c.post.title} [{pending_note}] {scheme.get_protocol()}{c.post.get_proper_url()}#comment-{c.id}"
-            )
-    else:
-        lines.append("- None.")
+    lines.append("## Full Activity")
+    lines.append(f"- New posts: {summary_url}#new-posts")
+    lines.append(f"- New users: {summary_url}#new-users")
+    lines.append(f"- New pages: {summary_url}#new-pages")
+    lines.append(f"- New comments: {summary_url}#new-comments")
     lines.append("")
 
     return "\n".join(lines)
