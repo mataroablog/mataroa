@@ -7,7 +7,7 @@
     <p><a href="{% url 'moderation_index' %}">Moderation</a> / Campaign review</p>
     <h1>Campaign review</h1>
     <p>Review groups of blogs sharing a content pattern and destination. Start with the largest groups, inspect the examples, then confirm one deletion selection for the whole group.</p>
-    <p class="helptext">Initial rules cover explicit galleries and gambling promotion articles. At least three strong matches must corroborate a group. Matching means similar sampled content, not proof of a shared operator.</p>
+    <p class="helptext">Automated gallery promotion is checked across full archives; other campaign rules use samples. At least three strong matches must corroborate a group. A match does not prove a shared operator.</p>
     {% if outdated %}<p>{{ outdated|intcomma }} blogs await scanning with the new rules.</p>{% endif %}
     <p>{{ ungrouped|intcomma }} flagged blogs have no campaign match. <a href="{% url 'moderation_spam' %}?category=all">Review individual classifications</a></p>
     <ul>{% for label, count, key in recommendations %}<li><a href="{% url 'moderation_spam' %}?category=all&amp;status=all&amp;recommendation={{ key }}">{{ label }}</a>: {{ count|intcomma }}</li>{% endfor %}</ul>

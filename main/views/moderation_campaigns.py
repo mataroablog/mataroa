@@ -39,6 +39,10 @@ def example(finding):
         "coverage": finding.campaign_coverage,
         "matched": campaign.get("matched", 0),
         "sampled": campaign.get("sampled", 0),
+        "full_archive": campaign.get("scope") == "full_archive",
+        "checked": campaign.get("checked", 0),
+        "total": campaign.get("total", 0),
+        "gallery_domains": campaign.get("domains", []),
         "posts": evidence.get("posts", 0),
         "pages": evidence.get("pages", 0),
         "example": campaign.get("example", {}),
@@ -110,7 +114,12 @@ def index(request):
             "ungrouped": qs.filter(campaign_key="")
             .filter(
                 groups__kind="category",
-                groups__key__in=["pornography", "gambling", "promotional"],
+                groups__key__in=[
+                    "pornography",
+                    "gambling",
+                    "promotional",
+                    "gallery_promotion",
+                ],
             )
             .distinct()
             .count(),

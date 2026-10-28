@@ -8,7 +8,11 @@
     <h1>{{ campaign.title }}</h1>
     <p>{{ campaign.reason }}</p>
     <p>{{ total|intcomma }} blogs · <strong>{{ eligible|intcomma }} strong candidates eligible for deletion</strong> · {{ protected|intcomma }} protected · {{ weak|intcomma }} weaker matches</p>
+    {% if campaign.scope == 'full_archive' %}
+    <p class="helptext">Every post and page is checked, including drafts and hidden pages. Strong candidates have at least two items and every item matches. Blogs with unmatched content or only one item stay in individual review. Premium, grandfathered premium, approved and staff accounts are excluded from deletion.</p>
+    {% else %}
     <p class="helptext">A strong match covers at least 80% of sampled items; explicit galleries also require two matching items. This is sample coverage, not a probability. Weak matches and premium, grandfathered premium, approved or staff accounts are excluded from group deletion.</p>
+    {% endif %}
     <h2>Strong candidates</h2>
     {% include 'partials/moderation_campaign_examples.html' %}
     {% if eligible %}
@@ -20,7 +24,7 @@
     {% else %}<p>This group does not have enough unprotected, corroborated strong matches for group deletion.</p>{% endif %}
     {% if weak_examples %}<details><summary>Weaker matches — excluded from group deletion</summary>{% include 'partials/moderation_campaign_examples.html' with examples=weak_examples %}</details>{% endif %}
     <h2>All matching blogs</h2>
-    <table><thead><tr><th>Blog</th><th>Sample coverage</th><th>Recommendation</th></tr></thead><tbody>
+    <table><thead><tr><th>Blog</th><th>{% if campaign.scope == 'full_archive' %}Archive coverage{% else %}Sample coverage{% endif %}</th><th>Recommendation</th></tr></thead><tbody>
     {% for finding in page_obj %}
     <tr><td><a href="{% url 'moderation_post_inspect' finding.owner_id %}">{{ finding.owner.username }}</a></td><td>{{ finding.campaign_coverage }}%</td><td>{% if finding.owner.moderation_protection %}Protected: {{ finding.owner.moderation_protection }}{% elif finding.campaign_strong %}Strong match{% else %}Needs individual review{% endif %}</td></tr>
     {% endfor %}

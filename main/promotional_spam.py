@@ -21,10 +21,10 @@ from django.db.models.functions import (
 from django.utils import timezone
 
 from main import blog_classification as classification
-from main import models, moderation_campaigns
+from main import gallery_campaigns, models, moderation_campaigns
 from main.views.moderation_inbox import ContentPreview
 
-VERSION = 3
+VERSION = 4
 THRESHOLD = 50
 HEAD_LENGTH = 8000
 TAIL_LENGTH = 4000
@@ -453,6 +453,7 @@ def substantial_change(old, new):
 def scan_batch(owners):
     stats = metadata(owners)
     changed = owners
+    galleries = gallery_campaigns.scan_archives(owners)
     posts = sample_batch(models.Post, changed, stats["post"], 8)
     pages = sample_batch(models.Page, changed, stats["page"], 4)
     busiest = defaultdict(int)
@@ -476,6 +477,17 @@ def scan_batch(owners):
             stats,
             busiest[owner.pk],
         )
+        if owner.pk in galleries:
+            total = sum(
+                stats[k].get(owner.pk, {}).get("count", 0) for k in ("post", "page")
+            )
+            evidence["campaign"] = gallery_campaigns.campaign(
+                galleries[owner.pk], total
+            )
+            evidence["category_reasons"]["gallery_promotion"] = (
+                f"Automated gallery promotion template in {galleries[owner.pk]['matched']} "
+                f"of {total} posts and pages; full archive checked."
+            )
         with transaction.atomic():
             # A blog may have been deleted while its sample was being analyzed.
             if not models.User.objects.filter(pk=owner.pk).select_for_update().exists():
@@ -491,6 +503,7 @@ def scan_batch(owners):
                     score >= THRESHOLD
                     or "pornography" in evidence["category_reasons"]
                     or "gambling" in evidence["category_reasons"]
+                    or "gallery_promotion" in evidence["category_reasons"]
                 )
                 and substantial_change(
                     finding.dismissed_baseline, baseline(score, evidence)

@@ -2,8 +2,10 @@
 <h3>{{ label }}</h3>
 {% for blog in blogs %}
 <section class="inbox-sample">
-    <p><a href="{% url 'moderation_post_inspect' blog.owner_id %}" target="_blank" rel="noopener">{{ blog.username }}</a> · {{ blog.posts }} posts · {{ blog.pages }} pages · {{ blog.matched }}/{{ blog.sampled }} sampled items match</p>
+    <p><a href="{% url 'moderation_post_inspect' blog.owner_id %}" target="_blank" rel="noopener">{{ blog.username }}</a> · {{ blog.posts }} posts · {{ blog.pages }} pages · {% if blog.full_archive %}{{ blog.matched }}/{{ blog.total }} posts and pages match · {{ blog.checked }} checked{% else %}{{ blog.matched }}/{{ blog.sampled }} sampled items match{% endif %}</p>
     <p><strong>{{ blog.example.title }}</strong><br>{{ blog.example.excerpt }}</p>
+    {% if blog.example.signals %}<p class="helptext">{{ blog.example.signals|join:" · " }}</p>{% endif %}
+    {% if blog.gallery_domains %}<p>Gallery destinations: {% for destination in blog.gallery_domains %}{{ destination.domain }} ({{ destination.count }}){% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
     {% if blog.counterexample %}<details><summary>Non-matching item from this blog</summary><p><strong>{{ blog.counterexample.title }}</strong><br>{{ blog.counterexample.excerpt }}</p></details>{% endif %}
 </section>
 {% endfor %}

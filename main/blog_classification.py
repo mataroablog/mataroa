@@ -5,6 +5,7 @@ from collections import Counter
 
 CATEGORIES = {
     "promotional": "Promotional spam",
+    "gallery_promotion": "Automated gallery promotion",
     "pornography": "Pornography",
     "gambling": "Gambling promotion",
     "commercial": "Commercial content",

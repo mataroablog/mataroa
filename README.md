@@ -732,11 +732,15 @@ never deletes accounts. Bulk deletion requires reviewing an exact selection (up 
 content are skipped. Premium, grandfathered, approved and staff accounts are protected
 in both moderation and Django admin, including if their status changes after selection.
 
-Campaign review at `/moderation/campaigns/` groups explicit galleries and gambling
-promotion articles by content pattern, layout and destination. Strong candidates
-require at least 80% sample coverage and three corroborating blogs; gallery blogs
-also require two matching items. Mixed/weak matches remain for individual review.
-Representative, random and weakest-match examples accompany each group.
+Campaign review at `/moderation/campaigns/` groups related gallery promotion and
+other promotional patterns. Automated gallery promotion uses the template plus
+corroborating destination, button or referral markers, independently of pornography
+keywords. Discovery searches full bodies; candidate archives are streamed in full,
+including drafts and hidden pages. Strong gallery candidates need at least two
+items and every post/page must match. Mixed and single-item blogs stay in review.
+Other campaign rules use at least 80% sample coverage. All groups require three
+corroborating strong blogs. Review representative, random and weakest examples;
+shared patterns do not prove a shared operator.
 
 Confirming a campaign selection freezes all its eligible accounts, without the
 1,000-account limit. The browser processes one account per request; keep it open,

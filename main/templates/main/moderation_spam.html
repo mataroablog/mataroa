@@ -8,7 +8,7 @@
     <p><a href="{% url 'moderation_index' %}">Moderation</a> / Blog classifications</p>
     <h1>Blog classifications</h1>
     <p><a href="{% url 'moderation_campaigns' %}">Review campaigns in groups</a></p>
-    <p>Automatic categories from sampled content. A blog can have several categories. Review the evidence before deleting.</p>
+    <p>Automatic categories from content checks. Automated gallery promotion uses full archives; other categories use samples. A blog can have several categories. Review the evidence before deleting.</p>
     <p class="helptext">Every scheduled pass reclassifies every blog. Categories describe signals, not certainty. Images and linked destinations are not fetched.</p>
     {% if outdated %}<p>{{ outdated|intcomma }} older findings await reclassification and are excluded from these results.</p>{% endif %}
     {% if scan.started_at %}
@@ -103,6 +103,7 @@
             {% for label, reason in finding.category_labels %}<li><strong>{{ label }}:</strong> {{ reason }}</li>{% endfor %}
             {% for reason in evidence.reasons %}<li>{{ reason }}</li>{% endfor %}
         </ul>
+        {% if evidence.campaign.scope == 'full_archive' %}<p><strong>Automated gallery promotion:</strong> {{ evidence.campaign.matched|intcomma }}/{{ evidence.campaign.total|intcomma }} posts and pages match; {{ evidence.campaign.checked|intcomma }} checked across the full archive. {% if evidence.campaign.strong %}Every item matches.{% else %}Mixed content, a single item, or an incomplete check: individual review required.{% endif %}</p>{% endif %}
         <p class="inbox-note">{{ evidence.sampled }} sampled posts and pages across the archive and recent edits, including unpublished content. Median body length: {{ evidence.median_chars|intcomma }} characters. Long content is sampled at its beginning and end.</p>
         {% if finding.dismissed_at %}<p class="inbox-note">Dismissed {{ finding.dismissed_at|date:'Y-m-d H:i' }}. Substantial new evidence can return this blog to review.</p>{% endif %}
         <p><strong>Destinations:</strong>
