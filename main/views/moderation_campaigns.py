@@ -119,6 +119,7 @@ def index(request):
                     "gambling",
                     "promotional",
                     "gallery_promotion",
+                    "support_impersonation",
                 ],
             )
             .distinct()

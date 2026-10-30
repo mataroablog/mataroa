@@ -21,10 +21,10 @@ from django.db.models.functions import (
 from django.utils import timezone
 
 from main import blog_classification as classification
-from main import gallery_campaigns, models, moderation_campaigns
+from main import gallery_campaigns, models, moderation_campaigns, support_impersonation
 from main.views.moderation_inbox import ContentPreview
 
-VERSION = 4
+VERSION = 5
 THRESHOLD = 50
 HEAD_LENGTH = 8000
 TAIL_LENGTH = 4000
@@ -266,6 +266,7 @@ def analyze(owner, posts, pages, stats, busiest):
             labels = classification.item_labels(
                 row["title"], preview.text, bool(preview.outbound), len(preview.images)
             )
+            support = support_impersonation.match(row["title"], preview.text)
             cta = classification.CTA.search(preview.text)
             calls_to_action += bool(
                 preview.outbound
@@ -287,6 +288,7 @@ def analyze(owner, posts, pages, stats, busiest):
                     "excerpt": preview.text[:500],
                     "domains": sorted(preview.outbound)[:10],
                     "categories": sorted(labels),
+                    "support": support,
                     "weight": int(preview.backlink) * 4
                     + int(is_thin) * 2
                     + bool(preview.outbound),
@@ -324,6 +326,13 @@ def analyze(owner, posts, pages, stats, busiest):
     promotion_majority = n >= 3 and calls_to_action / n >= 0.75
     explicit = backlinks > 0 or profile.backlink
     reasons = []
+    for example in examples:
+        if example["support"]:
+            for phone in example["support"]["phones"]:
+                reasons.append(
+                    f"{phone['number']} appears {phone['count']} times in the sampled "
+                    f"body of “{example['title']}” ({example['kind']})."
+                )
     score = 0
     for condition, points, reason in [
         (
@@ -504,6 +513,7 @@ def scan_batch(owners):
                     or "pornography" in evidence["category_reasons"]
                     or "gambling" in evidence["category_reasons"]
                     or "gallery_promotion" in evidence["category_reasons"]
+                    or "support_impersonation" in evidence["category_reasons"]
                 )
                 and substantial_change(
                     finding.dismissed_baseline, baseline(score, evidence)

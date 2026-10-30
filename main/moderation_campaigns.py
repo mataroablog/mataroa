@@ -156,7 +156,13 @@ def recommendation_sets():
     flagged = base.filter(
         dismissed_at__isnull=True,
         groups__kind="category",
-        groups__key__in=["pornography", "gambling", "promotional", "gallery_promotion"],
+        groups__key__in=[
+            "pornography",
+            "gambling",
+            "promotional",
+            "gallery_promotion",
+            "support_impersonation",
+        ],
     ).distinct()
     review = flagged.exclude(pk__in=protected).exclude(pk__in=strong)
     return {

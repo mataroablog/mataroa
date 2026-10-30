@@ -3,9 +3,12 @@
 import re
 from collections import Counter
 
+from main import support_impersonation
+
 CATEGORIES = {
     "promotional": "Promotional spam",
     "gallery_promotion": "Automated gallery promotion",
+    "support_impersonation": "Support impersonation",
     "pornography": "Pornography",
     "gambling": "Gambling promotion",
     "commercial": "Commercial content",
@@ -77,6 +80,8 @@ TECHNICAL = re.compile(
 def item_labels(title, text, linked, image_count):
     content = title + "\n" + text
     labels = set()
+    if support_impersonation.match(title, text):
+        labels.add("support_impersonation")
     if (
         EXPLICIT.search(content)
         and DISTRIBUTION.search(content)
@@ -115,8 +120,21 @@ def classify(
                 "technical": "Multiple computing or programming terms",
                 "images": "Multiple images",
             }[category] + f" in {counts[category]} sampled item(s) or blog settings."
+    if counts["support_impersonation"]:
+        reasons["support_impersonation"] = (
+            "Brand-specific support or withdrawal articles repeat the same phone "
+            f"number at least five times in each of {counts['support_impersonation']} "
+            "sampled items. Phone ownership has not been verified."
+        )
     if counts["personal"] and not (
-        reasons.keys() & {"pornography", "promotional", "gambling", "commercial"}
+        reasons.keys()
+        & {
+            "pornography",
+            "promotional",
+            "gambling",
+            "commercial",
+            "support_impersonation",
+        }
     ):
         reasons["personal"] = (
             f"First-person experiences in {counts['personal']} sampled item(s) or blog settings."
