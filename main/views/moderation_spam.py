@@ -144,14 +144,13 @@ def bulk_preview(request):
     stats = promotional_spam.metadata(owners)
     counts = moderation_deletion.counts(owners, stats)
     rows = []
+    skipped_changed = 0
     totals = dict.fromkeys(("posts", "pages", "images", "comments"), 0)
     for owner in owners:
         finding = by_owner[owner.pk]
         if finding.source_signature != promotional_spam.source_signature(owner, stats):
-            return HttpResponse(
-                "Selected content changed since scanning. Wait for the next scan, then review again.",
-                status=409,
-            )
+            skipped_changed += 1
+            continue
         rows.append(
             {
                 "owner": owner,
@@ -168,12 +167,14 @@ def bulk_preview(request):
         "main/moderation_bulk_delete.html",
         {
             "rows": rows,
+            "skipped_changed": skipped_changed,
             "totals": totals,
             "max_batch": moderation_deletion.MAX_BATCH,
             "category_label": blog_classification.CATEGORIES.get(
                 filters["category"], "All categories"
             ),
         },
+        status=200 if rows else 409,
     )
 
 

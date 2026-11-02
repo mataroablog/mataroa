@@ -6,6 +6,8 @@
 <main>
     <p><a href="{% url 'moderation_spam' %}">Blog classifications</a> / Review deletion</p>
     <h1>Review deletion</h1>
+    {% if skipped_changed %}<p>{{ skipped_changed|intcomma }} blog{{ skipped_changed|pluralize }} skipped because content changed since scanning. These blogs will not be deleted. Review them again after the next scan.</p>{% endif %}
+    {% if rows %}
     <p>{{ category_label }} · <strong>{{ rows|length|intcomma }} blogs</strong></p>
     <p>{{ totals.posts|intcomma }} posts · {{ totals.pages|intcomma }} pages · {{ totals.images|intcomma }} uploaded images · {{ totals.comments|intcomma }} comments</p>
     <p>This permanently deletes the accounts listed below and their associated data. This cannot be undone. Protected accounts are excluded and checked again before each deletion.</p>
@@ -15,8 +17,12 @@
         <p><label><input type="checkbox" id="bulk-acknowledge" required> I reviewed this list and want to permanently delete these {{ rows|length|intcomma }} blogs.</label></p>
         <p><button type="submit" class="button-delete">Confirm deletion of {{ rows|length|intcomma }} blogs</button> <button type="button" id="bulk-stop" hidden>Stop after current account</button></p>
     </form>
+    {% else %}
+    <p>No blogs remain in this selection. Wait for the next scan, or review a different selection.</p>
+    {% endif %}
     <p><a href="{% url 'moderation_spam' %}">Back to classifications</a></p>
     <p id="bulk-progress" role="status">Nothing has been deleted.</p>
+    {% if rows %}
     <noscript>JavaScript is required for bulk deletion and progress reporting.</noscript>
     <table>
         <thead><tr><th>Blog</th><th>Posts</th><th>Pages</th><th>Images</th><th>Comments</th><th>Status</th></tr></thead>
@@ -31,9 +37,10 @@
         {% endfor %}
         </tbody>
     </table>
+    {% endif %}
 </main>
 {% endblock content %}
 
 {% block scripts %}
-{% include 'partials/moderation_bulk_script.html' %}
+{% if rows %}{% include 'partials/moderation_bulk_script.html' %}{% endif %}
 {% endblock scripts %}

@@ -320,9 +320,51 @@ class BulkDeletionTest(TestCase):
         post = models.Post.objects.filter(owner=self.owner).first()
         post.body += " edited"
         post.save()
-        self.assertEqual(self.preview().status_code, 409)
+        response = self.preview()
+        self.assertContains(response, "1 blog skipped", status_code=409)
+        self.assertContains(response, "No blogs remain", status_code=409)
+        self.assertNotContains(response, 'id="bulk-confirm"', status_code=409)
+        self.assertNotContains(response, "const bulkForm", status_code=409)
+        self.assertEqual(response.context["rows"], [])
+        self.assertTrue(models.User.objects.filter(pk=self.owner.pk).exists())
         scan()
         self.assertEqual(self.preview().status_code, 200)
+
+    def test_changed_blog_is_skipped_without_blocking_unchanged_selection(self):
+        other = models.User.objects.create(username="unchanged")
+        make_posts(other)
+        scan()
+        post = models.Post.objects.filter(owner=self.owner).first()
+        post.body += " edited"
+        post.save()
+        for scope in ["matching", "selected"]:
+            with self.subTest(scope=scope):
+                response = self.client.post(
+                    self.preview_url,
+                    {
+                        "scope": scope,
+                        **(
+                            {"selected": [self.owner.pk, other.pk]}
+                            if scope == "selected"
+                            else {}
+                        ),
+                    },
+                )
+                self.assertContains(response, "1 blog skipped")
+                self.assertContains(response, "Confirm deletion of 1 blogs")
+                self.assertEqual(
+                    [row["owner"].pk for row in response.context["rows"]],
+                    [other.pk],
+                )
+                self.assertEqual(response.context["totals"]["posts"], 4)
+                self.assertTrue(models.User.objects.filter(pk=self.owner.pk).exists())
+                self.assertTrue(models.User.objects.filter(pk=other.pk).exists())
+        ticket = response.context["rows"][0]["ticket"]
+        self.assertEqual(
+            self.client.post(self.delete_url, {"ticket": ticket}).status_code, 200
+        )
+        self.assertTrue(models.User.objects.filter(pk=self.owner.pk).exists())
+        self.assertFalse(models.User.objects.filter(pk=other.pk).exists())
 
     def test_authorization_csrf_signature_expiry_and_reviewer_binding(self):
         ticket = self.ticket()
