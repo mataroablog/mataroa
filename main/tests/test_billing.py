@@ -136,6 +136,36 @@ class BillingIndexPremiumTestCase(TestCase):
         self.assertContains(response, b"Premium Plan")
 
 
+class BillingInvoicesTestCase(TestCase):
+    def test_void_and_draft_invoices_are_hidden(self):
+        invoices = stripe.ListObject.construct_from(
+            {
+                "object": "list",
+                "data": [
+                    {
+                        "object": "invoice",
+                        "id": f"in_{status}",
+                        "status": status,
+                        "hosted_invoice_url": f"https://invoice.stripe.com/{status}",
+                        "invoice_pdf": f"https://pay.stripe.com/{status}.pdf",
+                        "period_start": 1700000000,
+                        "period_end": 1700000000,
+                        "created": 1700000000,
+                    }
+                    for status in ("paid", "void", "draft", "open", "uncollectible")
+                ],
+            },
+            "sk_test",
+        )
+        with patch.object(stripe.Invoice, "list", return_value=invoices):
+            invoice_list = billing._get_invoices("cus_alice")
+
+        self.assertEqual(
+            [invoice["id"] for invoice in invoice_list],
+            ["in_paid", "in_open", "in_uncollectible"],
+        )
+
+
 class BillingSubscribeTestCase(TestCase):
     def setUp(self):
         self.user = models.User.objects.create(

@@ -205,6 +205,11 @@ def _get_invoices(stripe_customer_id):
     # normalize invoice objects
     invoice_list = []
     for stripe_inv in stripe_invoices.data:
+        # Void invoices were never charged, eg. from abandoned subscription
+        # attempts, and drafts are not final yet. Open ones stay visible so a
+        # failed renewal can still be paid from its hosted invoice page.
+        if stripe_inv.status in {"void", "draft"}:
+            continue
         invoice_list.append(
             {
                 "id": stripe_inv.id,
