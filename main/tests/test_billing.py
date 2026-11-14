@@ -145,27 +145,7 @@ class BillingSubscribeTestCase(TestCase):
         )
         self.client.force_login(self.user)
         self.subscription = stripe.Subscription.construct_from(
-            {
-                "id": "sub_existing",
-                "status": "incomplete",
-                "latest_invoice": {
-                    "id": "in_existing",
-                    "status": "open",
-                    "confirmation_secret": {"client_secret": "pi_existing_secret"},
-                },
-            },
-            "sk_test",
-        )
-        self.new_subscription = stripe.Subscription.construct_from(
-            {
-                "id": "sub_new",
-                "status": "incomplete",
-                "latest_invoice": {
-                    "id": "in_new",
-                    "status": "open",
-                    "confirmation_secret": {"client_secret": "pi_new_secret"},
-                },
-            },
+            {"id": "sub_existing", "status": "incomplete_expired"},
             "sk_test",
         )
         self.retrieve = self.enterContext(
@@ -173,9 +153,14 @@ class BillingSubscribeTestCase(TestCase):
                 stripe.Subscription, "retrieve", return_value=self.subscription
             )
         )
-        self.create = self.enterContext(
+        self.create_session = self.enterContext(
             patch.object(
-                stripe.Subscription, "create", return_value=self.new_subscription
+                stripe.checkout.Session,
+                "create",
+                return_value=stripe.checkout.Session.construct_from(
+                    {"id": "cs_new", "url": "https://checkout.stripe.com/c/pay/cs_new"},
+                    "sk_test",
+                ),
             )
         )
         self.create_customer = self.enterContext(
@@ -183,171 +168,224 @@ class BillingSubscribeTestCase(TestCase):
         )
         self.enterContext(
             patch.object(
-                stripe.PaymentIntent,
-                "list",
-                side_effect=AssertionError("Checkout must use its own invoice"),
+                stripe.Subscription,
+                "create",
+                side_effect=AssertionError("Checkout creates the subscription"),
             )
         )
 
-    def assert_replacement_checkout(self):
+    def assert_redirects_to_checkout(self):
+        response = self.client.post(reverse("billing_subscribe"))
+
+        self.assertRedirects(
+            response,
+            "https://checkout.stripe.com/c/pay/cs_new",
+            fetch_redirect_response=False,
+        )
+        self.create_session.assert_called_once()
+        kwargs = self.create_session.call_args.kwargs
+        self.assertEqual(kwargs["mode"], "subscription")
+        self.assertEqual(kwargs["client_reference_id"], str(self.user.id))
+        self.assertTrue(
+            kwargs["success_url"].endswith(
+                reverse("billing_welcome") + "?session_id={CHECKOUT_SESSION_ID}"
+            )
+        )
+        self.assertTrue(kwargs["cancel_url"].endswith(reverse("billing_overview")))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_premium)
+        return kwargs
+
+    def test_get_explains_terms_without_contacting_stripe(self):
         response = self.client.get(reverse("billing_subscribe"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["stripe_client_secret"], "pi_new_secret")
-        self.create.assert_called_once()
-        self.assertEqual(self.create.call_args.kwargs["customer"], "cus_existing")
-        self.assertEqual(
-            self.create.call_args.kwargs["expand"],
-            ["latest_invoice.confirmation_secret"],
-        )
+        self.assertContains(response, "Continue to Stripe")
+        self.assertNotContains(response, "js.stripe.com")
+        self.create_session.assert_not_called()
+        self.retrieve.assert_not_called()
         self.create_customer.assert_not_called()
+
+    def test_post_redirects_to_stripe_checkout(self):
+        kwargs = self.assert_redirects_to_checkout()
+
+        self.assertEqual(kwargs["customer"], "cus_existing")
+        self.assertEqual(kwargs["line_items"][0]["quantity"], 1)
+        self.create_customer.assert_not_called()
+        # the subscription ID is only replaced once checkout completes
         self.user.refresh_from_db()
-        self.assertEqual(self.user.stripe_customer_id, "cus_existing")
-        self.assertEqual(self.user.stripe_subscription_id, "sub_new")
-        self.assertFalse(self.user.is_premium)
+        self.assertEqual(self.user.stripe_subscription_id, "sub_existing")
 
-    def test_expired_subscription_is_replaced(self):
-        self.subscription.status = "incomplete_expired"
-        self.assert_replacement_checkout()
+    def test_incomplete_subscription_starts_new_checkout(self):
+        self.subscription.status = "incomplete"
+        self.assert_redirects_to_checkout()
 
-    def test_canceled_subscription_is_replaced(self):
-        self.subscription.status = "canceled"
-        self.assert_replacement_checkout()
-
-    def test_missing_subscription_is_replaced(self):
+    def test_missing_subscription_starts_new_checkout(self):
         self.retrieve.side_effect = stripe.InvalidRequestError(
             "No such subscription", "id", code="resource_missing"
         )
-        self.assert_replacement_checkout()
+        self.assert_redirects_to_checkout()
 
-    def test_customer_without_subscription_gets_new_checkout(self):
+    def test_customer_without_subscription_starts_checkout(self):
         self.user.stripe_subscription_id = None
         self.user.save()
-        self.assert_replacement_checkout()
+        self.assert_redirects_to_checkout()
         self.retrieve.assert_not_called()
 
-    def test_first_checkout_creates_customer_and_subscription(self):
+    def test_first_checkout_creates_customer(self):
         self.user.stripe_customer_id = None
         self.user.stripe_subscription_id = None
         self.user.save()
 
-        response = self.client.get(reverse("billing_subscribe"))
+        kwargs = self.assert_redirects_to_checkout()
 
-        self.assertEqual(response.status_code, 200)
         self.create_customer.assert_called_once()
-        self.assertEqual(self.create.call_args.kwargs["customer"], "cus_new")
+        self.assertEqual(kwargs["customer"], "cus_new")
         self.user.refresh_from_db()
         self.assertEqual(self.user.stripe_customer_id, "cus_new")
-        self.assertEqual(self.user.stripe_subscription_id, "sub_new")
-
-    def test_incomplete_subscription_reuses_its_invoice_secret(self):
-        response = self.client.get(reverse("billing_subscribe"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["stripe_client_secret"], "pi_existing_secret")
-        self.assertContains(response, "pi_existing_secret")
-        self.create.assert_not_called()
-        self.create_customer.assert_not_called()
-        self.retrieve.assert_called_once_with(
-            "sub_existing", expand=["latest_invoice.confirmation_secret"]
-        )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.stripe_subscription_id, "sub_existing")
 
     def test_active_subscription_redirects_without_another_payment(self):
         for status in ("active", "trialing"):
             with self.subTest(status=status):
                 self.subscription.status = status
-                response = self.client.get(reverse("billing_subscribe"))
+                response = self.client.post(reverse("billing_subscribe"))
                 self.assertRedirects(
                     response, reverse("billing_overview"), fetch_redirect_response=False
                 )
-        self.create.assert_not_called()
+        self.create_session.assert_not_called()
 
     def test_premium_and_grandfathered_users_do_not_start_checkout(self):
         for field in ("is_premium", "is_grandfathered"):
-            with self.subTest(field=field):
-                setattr(self.user, field, True)
-                self.user.save()
-                response = self.client.get(reverse("billing_subscribe"))
-                self.assertRedirects(
-                    response, reverse("billing_overview"), fetch_redirect_response=False
-                )
-                setattr(self.user, field, False)
+            for method in ("get", "post"):
+                with self.subTest(field=field, method=method):
+                    setattr(self.user, field, True)
+                    self.user.save()
+                    response = getattr(self.client, method)(
+                        reverse("billing_subscribe")
+                    )
+                    self.assertRedirects(
+                        response,
+                        reverse("billing_overview"),
+                        fetch_redirect_response=False,
+                    )
+                    setattr(self.user, field, False)
+                    self.user.save()
         self.retrieve.assert_not_called()
-        self.create.assert_not_called()
+        self.create_session.assert_not_called()
         self.create_customer.assert_not_called()
 
-    def test_invalid_stripe_request_does_not_create_another_subscription(self):
+    def test_invalid_stripe_request_does_not_start_checkout(self):
         self.retrieve.side_effect = stripe.InvalidRequestError(
             "Invalid expansion", "expand", code="parameter_unknown"
         )
         with self.assertRaisesMessage(
             Exception, "Failed to get subscription from Stripe"
         ):
-            self.client.get(reverse("billing_subscribe"))
-        self.create.assert_not_called()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.stripe_subscription_id, "sub_existing")
+            self.client.post(reverse("billing_subscribe"))
+        self.create_session.assert_not_called()
 
-    def test_missing_confirmation_secret_does_not_render_broken_form(self):
-        self.subscription.latest_invoice.confirmation_secret = None
+    def test_checkout_failure_shows_error(self):
+        self.create_session.side_effect = stripe.APIConnectionError("down")
 
-        response = self.client.get(reverse("billing_subscribe"))
+        response = self.client.post(reverse("billing_subscribe"))
 
         self.assertRedirects(
             response, reverse("billing_overview"), fetch_redirect_response=False
         )
         self.assertIn(
-            "payment form unavailable",
+            "payment processor unavailable",
             str(list(get_messages(response.wsgi_request))[0]),
         )
-        self.create.assert_not_called()
 
 
 class BillingCardAddTestCase(TestCase):
     """Test billing card add functionality."""
 
     def setUp(self):
-        self.user = models.User.objects.create(username="alice")
-        self.user.is_premium = True
-        self.user.save()
+        self.user = models.User.objects.create(
+            username="alice", is_premium=True, stripe_customer_id="cus_alice"
+        )
         self.client.force_login(self.user)
+        self.create_session = self.enterContext(
+            patch.object(
+                stripe.checkout.Session,
+                "create",
+                return_value=stripe.checkout.Session.construct_from(
+                    {
+                        "id": "cs_card",
+                        "url": "https://checkout.stripe.com/c/pay/cs_card",
+                    },
+                    "sk_test",
+                ),
+            )
+        )
 
     def test_card_add_get(self):
-        with patch.object(
-            stripe.SetupIntent, "create", return_value={"client_secret": "seti_123abc"}
-        ):
-            response = self.client.get(reverse("billing_card"))
+        response = self.client.get(reverse("billing_card"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, b"Add card")
+        self.assertContains(response, b"Continue to Stripe")
+        self.create_session.assert_not_called()
 
-    def test_card_add_post(self):
-        one_year_later = datetime.now() + timedelta(days=365)
-        subscription = {
-            "current_period_end": one_year_later.timestamp(),
-            "current_period_start": datetime.now().timestamp(),
-        }
-        with (
-            patch.object(
-                stripe.Customer, "create", return_value={"id": "cus_123abcdefg"}
-            ),
-            patch.object(
-                billing,
-                "_get_stripe_subscription",
-                return_value=subscription,
-            ),
-            patch.object(billing, "_get_payment_methods"),
-            patch.object(billing, "_get_invoices"),
-        ):
-            response = self.client.post(
-                reverse("billing_card"),
-                data={"card_token": "tok_123"},
-                follow=True,
+    def test_card_add_post_redirects_to_stripe_checkout(self):
+        response = self.client.post(reverse("billing_card"))
+
+        self.assertRedirects(
+            response,
+            "https://checkout.stripe.com/c/pay/cs_card",
+            fetch_redirect_response=False,
+        )
+        kwargs = self.create_session.call_args.kwargs
+        self.assertEqual(kwargs["mode"], "setup")
+        self.assertEqual(kwargs["customer"], "cus_alice")
+        self.assertTrue(
+            kwargs["success_url"].endswith(
+                reverse("billing_card_confirm") + "?session_id={CHECKOUT_SESSION_ID}"
             )
+        )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, b"Premium Plan")
+    def test_user_without_customer_cannot_add_card(self):
+        self.user.stripe_customer_id = None
+        self.user.save()
+        response = self.client.post(reverse("billing_card"))
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.create_session.assert_not_called()
+
+
+class BillingCardConfirmTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice", stripe_customer_id="cus_alice"
+        )
+        self.client.force_login(self.user)
+
+    def get_confirm(self, session):
+        with patch.object(
+            stripe.checkout.Session,
+            "retrieve",
+            return_value=stripe.checkout.Session.construct_from(session, "sk_test"),
+        ):
+            response = self.client.get(
+                reverse("billing_card_confirm"), {"session_id": "cs_card"}
+            )
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        return [str(m) for m in get_messages(response.wsgi_request)]
+
+    def test_completed_session_shows_success(self):
+        messages = self.get_confirm(
+            {"id": "cs_card", "customer": "cus_alice", "status": "complete"}
+        )
+        self.assertEqual(messages, ["payment method added"])
+
+    def test_another_customers_session_is_ignored(self):
+        messages = self.get_confirm(
+            {"id": "cs_card", "customer": "cus_bob", "status": "complete"}
+        )
+        self.assertEqual(messages, [])
 
 
 class BillingCancelSubscriptionTestCase(TestCase):
@@ -541,65 +579,79 @@ class BillingReenableSubscriptionTestCase(TestCase):
 class BillingWelcomeTestCase(TestCase):
     def setUp(self):
         self.user = models.User.objects.create(
-            username="alice", stripe_customer_id="cus_alice"
+            username="alice",
+            stripe_customer_id="cus_alice",
+            stripe_subscription_id="sub_old",
         )
         self.client.force_login(self.user)
 
-    def assert_return_does_not_enable_premium(self, payment_customer):
+    def get_welcome(self, session):
         with (
             patch.object(
-                stripe.PaymentIntent,
+                stripe.checkout.Session,
                 "retrieve",
-                return_value={"status": "succeeded", "customer": payment_customer},
+                return_value=stripe.checkout.Session.construct_from(session, "sk_test"),
             ) as retrieve,
             patch.object(billing, "mail_admins") as mail_admins,
         ):
             response = self.client.get(
-                reverse("billing_welcome"), {"payment_intent": "pi_old_payment"}
+                reverse("billing_welcome"), {"session_id": "cs_paid"}
             )
-
         self.assertRedirects(
             response, reverse("billing_overview"), fetch_redirect_response=False
         )
+        retrieve.assert_called_once_with("cs_paid")
+        mail_admins.assert_not_called()
         self.user.refresh_from_db()
+        return [str(m) for m in get_messages(response.wsgi_request)]
+
+    def test_return_saves_subscription_but_waits_for_webhook(self):
+        messages = self.get_welcome(
+            {
+                "id": "cs_paid",
+                "mode": "subscription",
+                "customer": "cus_alice",
+                "subscription": "sub_new",
+            }
+        )
+        self.assertEqual(self.user.stripe_subscription_id, "sub_new")
         self.assertFalse(self.user.is_premium)
         self.assertFalse(self.user.is_approved)
-        self.assertFalse(self.user.moderation_protection)
-        retrieve.assert_not_called()
-        mail_admins.assert_not_called()
+        self.assertIn("payment is being confirmed", messages[0])
 
-    def test_another_customers_payment_cannot_enable_premium(self):
-        self.assert_return_does_not_enable_premium("cus_bob")
-
-    def test_old_payment_cannot_restore_expired_subscription(self):
-        self.assertIsNone(self.user.stripe_subscription_id)
-        self.assert_return_does_not_enable_premium(self.user.stripe_customer_id)
-
-    def test_payment_return_waits_for_webhook_for_current_subscription(self):
-        self.user.stripe_subscription_id = "sub_alice"
-        self.user.save()
-        self.assert_return_does_not_enable_premium(self.user.stripe_customer_id)
+    def test_another_customers_session_is_ignored(self):
+        self.get_welcome(
+            {
+                "id": "cs_paid",
+                "mode": "subscription",
+                "customer": "cus_bob",
+                "subscription": "sub_bob",
+            }
+        )
+        self.assertEqual(self.user.stripe_subscription_id, "sub_old")
+        self.assertFalse(self.user.is_premium)
 
     def test_premium_already_enabled_by_webhook_shows_success(self):
         self.user.is_premium = True
         self.user.is_approved = True
         self.user.save()
-        with (
-            patch.object(stripe.PaymentIntent, "retrieve") as retrieve,
-            patch.object(billing, "mail_admins") as mail_admins,
-        ):
-            response = self.client.get(
-                reverse("billing_welcome"), {"payment_intent": "pi_paid"}
-            )
+        messages = self.get_welcome(
+            {
+                "id": "cs_paid",
+                "mode": "subscription",
+                "customer": "cus_alice",
+                "subscription": "sub_new",
+            }
+        )
+        self.assertIn("premium subscription enabled", messages)
+
+    def test_missing_session_id_redirects(self):
+        with patch.object(stripe.checkout.Session, "retrieve") as retrieve:
+            response = self.client.get(reverse("billing_welcome"))
         self.assertRedirects(
             response, reverse("billing_overview"), fetch_redirect_response=False
         )
-        self.assertIn(
-            "premium subscription enabled",
-            [str(message) for message in get_messages(response.wsgi_request)],
-        )
         retrieve.assert_not_called()
-        mail_admins.assert_not_called()
 
 
 class BillingWebhookTestCase(TestCase):
@@ -708,6 +760,37 @@ class BillingWebhookTestCase(TestCase):
             connection=mock_get_connection.return_value,
         )
         mock_get_connection.assert_called_once_with(timeout=5)
+
+    def test_checkout_session_completed_saves_subscription(self):
+        session = stripe.checkout.Session.construct_from(
+            {
+                "id": "cs_paid",
+                "mode": "subscription",
+                "customer": "cus_abc123",
+                "subscription": "sub_from_checkout",
+            },
+            "sk_test",
+        )
+        event = SimpleNamespace(
+            type="checkout.session.completed",
+            data=SimpleNamespace(object=session),
+        )
+        with (
+            patch.object(stripe.Webhook, "construct_event", return_value=event),
+            self.settings(STRIPE_WEBHOOK_SECRET="whsec_test"),
+        ):
+            response = self.client.post(
+                reverse("billing_stripe_webhook"),
+                data=b"{}",
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE="t=1,v1=dummy",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.stripe_subscription_id, "sub_from_checkout")
+        # premium is enabled by invoice.payment_succeeded, not here
+        self.assertFalse(self.user.is_premium)
 
     def test_customer_subscription_deleted_downgrades_and_clears_subscription(self):
         self.user.is_premium = True

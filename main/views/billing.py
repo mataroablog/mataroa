@@ -17,9 +17,8 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.views.generic.edit import FormView
 
-from main import forms, models, scheme
+from main import models, scheme
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +113,6 @@ def billing_overview(request):
         "main/billing_overview.html",
         {
             "stripe_customer_id": request.user.stripe_customer_id,
-            "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-            "stripe_price_id": settings.STRIPE_PRICE_ID,
             "current_period_end": current_period_end,
             "current_period_start": current_period_start,
             "subscription_status": subscription_status,
@@ -222,23 +219,69 @@ def _get_invoices(stripe_customer_id):
     return invoice_list
 
 
-class BillingSubscribe(LoginRequiredMixin, FormView):
-    form_class = forms.StripeForm
-    template_name = "main/billing_subscribe.html"
-    success_url = reverse_lazy("billing_overview")
-    success_message = (
-        "payment is processing; premium will be enabled once the charge succeeds"
+def _absolute_url(view_name):
+    return f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}" + str(
+        reverse_lazy(view_name)
     )
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["stripe_public_key"] = settings.STRIPE_PUBLIC_KEY
-        return context
 
-    def get(self, request, *args, **kwargs):
+def _stripe_id(value):
+    """Return the ID of a Stripe reference that may be a string or an object."""
+    if not value:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return value.get("id")
+    return getattr(value, "id", None)
+
+
+def _save_checkout_subscription(checkout_session, customer_id=None):
+    """
+    Record the subscription a completed Checkout Session created.
+
+    When customer_id is given, the session must belong to that customer.
+    Returns True if a user was updated.
+    """
+    if checkout_session.get("mode") != "subscription":
+        return False
+
+    session_customer_id = _stripe_id(checkout_session.get("customer"))
+    subscription_id = _stripe_id(checkout_session.get("subscription"))
+    if not session_customer_id or not subscription_id:
+        return False
+    if customer_id is not None and session_customer_id != customer_id:
+        return False
+
+    updated = models.User.objects.filter(stripe_customer_id=session_customer_id).update(
+        stripe_subscription_id=subscription_id
+    )
+    if not updated:
+        logger.warning(
+            "Checkout subscription %s has no user for customer_id=%s",
+            subscription_id,
+            session_customer_id,
+        )
+    return bool(updated)
+
+
+class BillingSubscribe(LoginRequiredMixin, View):
+    """
+    Explains the subscription terms, then sends the user to a Stripe-hosted
+    Checkout page to enter their payment details.
+    """
+
+    template_name = "main/billing_subscribe.html"
+
+    def dispatch(self, request, *args, **kwargs):
         if request.user.is_premium or request.user.is_grandfathered:
             return redirect("billing_overview")
+        return super().dispatch(request, *args, **kwargs)
 
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name)
+
+    def post(self, request, *args, **kwargs):
         stripe.api_key = settings.STRIPE_API_KEY
 
         # ensure customer exists
@@ -254,128 +297,73 @@ class BillingSubscribe(LoginRequiredMixin, FormView):
                 )
                 return redirect("billing_overview")
 
-        url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}"
-        url += reverse_lazy("billing_welcome")
-
-        stripe_subscription = None
+        # do not charge again for a subscription that is already running
         if request.user.stripe_subscription_id:
             stripe_subscription = _get_stripe_subscription(
                 request.user.stripe_subscription_id
             )
-        # Expired initial payments cannot be retried on the old subscription.
-        if stripe_subscription is None or stripe_subscription.get("status") in {
-            "canceled",
-            "incomplete_expired",
-        }:
-            stripe_subscription = _create_stripe_subscription(
-                request.user.stripe_customer_id
+            if stripe_subscription and stripe_subscription.get("status") in {
+                "active",
+                "trialing",
+            }:
+                return redirect("billing_overview")
+
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                mode="subscription",
+                customer=request.user.stripe_customer_id,
+                client_reference_id=str(request.user.id),
+                line_items=[{"price": settings.STRIPE_PRICE_ID, "quantity": 1}],
+                success_url=_absolute_url("billing_welcome")
+                + "?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url=_absolute_url("billing_overview"),
             )
-        request.user.stripe_subscription_id = stripe_subscription.get("id")
-        request.user.save(update_fields=["stripe_subscription_id"])
-
-        if stripe_subscription.get("status") in {"active", "trialing"}:
-            return redirect("billing_overview")
-
-        latest_invoice = stripe_subscription.get("latest_invoice") or {}
-        confirmation_secret = latest_invoice.get("confirmation_secret") or {}
-        client_secret = confirmation_secret.get("client_secret")
-        if not client_secret:
+        except stripe.StripeError as ex:
+            logger.error("Failed creating subscription checkout: %s", str(ex))
             messages.error(
-                request,
-                "payment form unavailable; please try again or contact support",
+                request, "payment processor unavailable; please try again later"
             )
             return redirect("billing_overview")
 
-        context = self.get_context_data()
-        context["stripe_client_secret"] = client_secret
-        context["stripe_return_url"] = url
-        return self.render_to_response(context)
-
-    def post(self, request, *args, **kwargs):
-        form_class = self.get_form_class()
-        form = self.get_form(form_class)
-
-        if form.is_valid():
-            messages.success(request, self.success_message)
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
+        return redirect(checkout_session.url)
 
 
-def _create_stripe_subscription(customer_id):
-    stripe.api_key = settings.STRIPE_API_KEY
+class BillingCard(LoginRequiredMixin, View):
+    """
+    Sends the user to a Stripe-hosted Checkout page to save a new card.
+    """
 
-    # Use this subscription's invoice secret to confirm payment in the form.
-    try:
-        stripe_subscription = stripe.Subscription.create(
-            customer=customer_id,
-            items=[
-                {
-                    "price": settings.STRIPE_PRICE_ID,
-                }
-            ],
-            payment_behavior="default_incomplete",
-            payment_settings={"save_default_payment_method": "on_subscription"},
-            expand=["latest_invoice.confirmation_secret"],
-        )
-        logger.info(f"Created subscription: {stripe_subscription.get('id')}")
-    except stripe.StripeError as ex:
-        logger.error(str(ex))
-        raise Exception("Failed to create subscription on Stripe.") from ex
-
-    return stripe_subscription
-
-
-class BillingCard(LoginRequiredMixin, FormView):
-    form_class = forms.StripeForm
     template_name = "main/billing_card.html"
-    success_url = reverse_lazy("billing_overview")
-    success_message = "new card added"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["stripe_public_key"] = settings.STRIPE_PUBLIC_KEY
-        return context
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.stripe_customer_id:
+            return redirect("billing_overview")
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        stripe.api_key = settings.STRIPE_API_KEY
-        context = self.get_context_data()
-
-        data = _create_setup_intent(request.user.stripe_customer_id)
-        context["stripe_client_secret"] = data["stripe_client_secret"]
-
-        url = f"{scheme.get_protocol()}//{settings.CANONICAL_HOST}"
-        url += reverse_lazy("billing_card_confirm")
-        context["stripe_return_url"] = url
-
-        return self.render_to_response(context)
+        return render(request, self.template_name)
 
     def post(self, request, *args, **kwargs):
-        form_class = self.get_form_class()
-        form = self.get_form(form_class)
+        stripe.api_key = settings.STRIPE_API_KEY
 
-        if form.is_valid():
-            messages.success(request, self.success_message)
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                mode="setup",
+                currency="usd",
+                customer=request.user.stripe_customer_id,
+                client_reference_id=str(request.user.id),
+                success_url=_absolute_url("billing_card_confirm")
+                + "?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url=_absolute_url("billing_overview"),
+            )
+        except stripe.StripeError as ex:
+            logger.error("Failed creating card checkout: %s", str(ex))
+            messages.error(
+                request, "payment processor unavailable; please try again later"
+            )
+            return redirect("billing_overview")
 
-
-def _create_setup_intent(customer_id):
-    stripe.api_key = settings.STRIPE_API_KEY
-
-    try:
-        stripe_setup_intent = stripe.SetupIntent.create(
-            automatic_payment_methods={"enabled": True},
-            customer=customer_id,
-        )
-    except stripe.StripeError as ex:
-        logger.error(str(ex))
-        raise Exception("Failed to create setup intent on Stripe.") from ex
-
-    return {
-        "stripe_client_secret": stripe_setup_intent["client_secret"],
-    }
+        return redirect(checkout_session.url)
 
 
 class BillingCardDelete(LoginRequiredMixin, View):
@@ -669,14 +657,28 @@ class BillingResubscribe(LoginRequiredMixin, View):
 @login_required
 def billing_welcome(request):
     """
-    View that Stripe returns to if subscription initialisation is successful.
+    View that Stripe Checkout returns to after a successful subscription payment.
     Adds a message alert and redirects to billing_overview.
     """
-    payment_intent = request.GET.get("payment_intent")
-    if not payment_intent:
+    session_id = request.GET.get("session_id")
+    if not session_id:
         return redirect("billing_overview")
 
-    # Browser-supplied payment IDs are not proof of this user's subscription.
+    # Record the new subscription now so the overview page can show it without
+    # waiting for the webhook. Only sessions of this user's customer count.
+    if request.user.stripe_customer_id:
+        stripe.api_key = settings.STRIPE_API_KEY
+        try:
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+        except stripe.StripeError as ex:
+            logger.warning("Failed to retrieve checkout session: %s", str(ex))
+        else:
+            if _save_checkout_subscription(
+                checkout_session, customer_id=request.user.stripe_customer_id
+            ):
+                request.user.refresh_from_db(fields=["stripe_subscription_id"])
+
+    # Browser-supplied session IDs are not proof of payment.
     # Only report the account state; the verified webhook handles activation.
     if request.user.is_premium:
         messages.success(request, "premium subscription enabled")
@@ -691,24 +693,30 @@ def billing_welcome(request):
 
 @login_required
 def billing_card_confirm(request):
-    setup_intent = request.GET.get("setup_intent")
-    if not setup_intent:
+    """
+    View that Stripe Checkout returns to after the user saves a new card.
+    Adds a message alert and redirects to billing_overview.
+    """
+    session_id = request.GET.get("session_id")
+    if not session_id:
         return redirect("billing_overview")
 
     stripe.api_key = settings.STRIPE_API_KEY
-    stripe_intent = stripe.SetupIntent.retrieve(setup_intent)
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+    except stripe.StripeError as ex:
+        logger.warning("Failed to retrieve checkout session: %s", str(ex))
+        messages.info(request, "could not confirm the new payment method yet")
+        return redirect("billing_overview")
 
-    if stripe_intent["status"] == "succeeded":
+    session_customer_id = _stripe_id(checkout_session.get("customer"))
+    if session_customer_id != request.user.stripe_customer_id:
+        return redirect("billing_overview")
+
+    if checkout_session.get("status") == "complete":
         messages.success(request, "payment method added")
-    elif stripe_intent["status"] == "processing":
-        messages.info(request, "payment method addition processing")
-    elif stripe_intent["status"] == "requires_payment_method":
-        messages.info(request, "error setting up payment method :(")
     else:
-        messages.error(
-            request,
-            "something is wrong. don't sweat it, worst case you get premium for free",
-        )
+        messages.info(request, "error setting up payment method :(")
 
     return redirect("billing_overview")
 
@@ -774,6 +782,10 @@ def billing_stripe_webhook(request):
                     logger.warning(
                         f"Webhook: user not found for customer_id={customer_id_str}"
                     )
+
+        elif event.type == "checkout.session.completed":
+            # Checkout creates the subscription, so store its ID for the user.
+            _save_checkout_subscription(event.data.object)
 
         elif event.type == "customer.subscription.deleted":
             subscription = event.data.object

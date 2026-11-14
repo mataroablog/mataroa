@@ -2,43 +2,17 @@
 
 {% block title %}Subscribe to Premium{% endblock %}
 
-{% block head_extra %}
-<script src="https://js.stripe.com/v3/?advancedFraudSignals=false"></script>
-<style>
-    [data-submitting] input[type="submit"] {
-        opacity: 0.8;
-    }
-</style>
-{% endblock head_extra %}
-
 {% block content %}
 <main>
     <h1>Subscribe to Premium</h1>
 
-    <form id="payment-form" data-secret="{{ stripe_client_secret }}">
-
-        <div id="payment-element">
-            {# stripe.js will create stripe elements forms here #}
-        </div>
-
-        {% csrf_token %}
-        <input id="submit" type="submit" value="Submit" style="margin-top: 16px;">
-        <div id="loading-message" style="margin-top: 16px;">
-            <!-- loading message for users here -->
-        </div>
-        <div id="error-message" style="margin-top: 16px; color: red;">
-            <!-- error message for users here -->
-        </div>
-        <a id="checkout-reload" href="{% url 'billing_subscribe' %}" hidden>Reload checkout</a>
-    </form>
-
     <p>
-        <br>
-        Once you click Submit:
+        Once you click Continue:
     </p>
     <ol>
         <li>
-            Your card details will be sent to Stripe (payment processor).
+            You will be taken to Stripe (payment processor) at
+            checkout.stripe.com to enter your card details.
         </li>
         <li>
             We will charge your card immediately, through Stripe.
@@ -61,73 +35,10 @@
             page.
         </li>
     </ol>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Continue to Stripe »">
+    </form>
 </main>
 {% endblock content %}
-
-{% block scripts %}
-<script>
-    const stripe = Stripe('{{ stripe_public_key }}');
-    const options = {
-        clientSecret: '{{ stripe_client_secret }}',
-    };
-    const elements = stripe.elements(options);
-    const paymentElement = elements.create('payment');
-    paymentElement.mount('#payment-element');
-
-    const form = document.getElementById('payment-form');
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        // if form is already submitting, do nothing
-        if (form.hasAttribute('data-submitting')) {
-            return;
-        }
-
-        // add [data-submitting] attribute to stop multiple submissions
-        form.setAttribute('data-submitting', '');
-
-        // add loading message
-        const loadingContainer = document.querySelector('#loading-message');
-        loadingContainer.textContent = 'Charging card using Stripe, this should take less than 10 seconds...';
-
-        // clear error if exists
-        const messageContainer = document.querySelector('#error-message');
-        messageContainer.textContent = '';
-
-        try {
-            const { error } = await stripe.confirmPayment({
-                elements,
-                confirmParams: {
-                    return_url: '{{ stripe_return_url }}',
-                },
-            });
-
-            if (error) {
-                let paymentIntent = error.payment_intent;
-                if (!paymentIntent) {
-                    // Some confirmation errors omit the payment's current status.
-                    try {
-                        const result = await stripe.retrievePaymentIntent(options.clientSecret);
-                        paymentIntent = result.paymentIntent;
-                    } catch {
-                        // Keep the original error if the status lookup is unavailable.
-                    }
-                }
-
-                if (paymentIntent && paymentIntent.status === 'canceled') {
-                    messageContainer.textContent = 'This checkout expired. Reload to try again.';
-                    document.getElementById('checkout-reload').hidden = false;
-                    document.getElementById('submit').disabled = true;
-                } else {
-                    messageContainer.textContent = error.message;
-                }
-            }
-        } catch {
-            messageContainer.textContent = 'Unable to contact the payment processor. Please try again.';
-        } finally {
-            loadingContainer.textContent = '';
-            form.removeAttribute('data-submitting');
-        }
-    });
-</script>
-{% endblock scripts %}

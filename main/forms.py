@@ -65,10 +65,6 @@ class UploadImagesForm(forms.Form):
     )
 
 
-class StripeForm(forms.Form):
-    card_token = forms.CharField(max_length=100, widget=forms.HiddenInput())
-
-
 class ResetAPIKeyForm(forms.Form):
     """Reset user's api_key field."""
 
