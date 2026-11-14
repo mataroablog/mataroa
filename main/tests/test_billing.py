@@ -37,6 +37,29 @@ class BillingEnablePremiumTestCase(TestCase):
         mail_admins.assert_called_once()
 
 
+class BillingLoggedOutTestCase(TestCase):
+    """Test billing pages send logged-out visitors to log in."""
+
+    def test_billing_pages_redirect_to_login(self):
+        urls = [
+            reverse("billing_overview"),
+            reverse("billing_subscribe"),
+            reverse("billing_resubscribe"),
+            reverse("billing_card"),
+            reverse("billing_card_delete", args=["pm_123"]),
+            reverse("billing_subscription_cancel"),
+            reverse("billing_subscription_resume"),
+        ]
+        for url in urls:
+            for method in ("get", "post"):
+                with self.subTest(url=url, method=method):
+                    response = getattr(self.client, method)(url)
+                    self.assertEqual(response.status_code, 302)
+                    self.assertTrue(
+                        response.url.startswith(reverse("login")), response.url
+                    )
+
+
 class BillingCannotChangeIsPremiumTestCase(TestCase):
     """Test user cannot change their is_premium flag without going through billing."""
 

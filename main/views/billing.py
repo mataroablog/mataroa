@@ -279,6 +279,10 @@ class BillingSubscribe(LoginRequiredMixin, View):
     template_name = "main/billing_subscribe.html"
 
     def dispatch(self, request, *args, **kwargs):
+        # LoginRequiredMixin only checks in its own dispatch, which runs later
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         if request.user.is_premium or request.user.is_grandfathered:
             return redirect("billing_overview")
         return super().dispatch(request, *args, **kwargs)
@@ -341,6 +345,10 @@ class BillingCard(LoginRequiredMixin, View):
     template_name = "main/billing_card.html"
 
     def dispatch(self, request, *args, **kwargs):
+        # LoginRequiredMixin only checks in its own dispatch, which runs later
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         if not request.user.stripe_customer_id:
             return redirect("billing_overview")
         return super().dispatch(request, *args, **kwargs)
@@ -406,6 +414,10 @@ class BillingCardDelete(LoginRequiredMixin, View):
         return render(request, self.template_name, context)
 
     def dispatch(self, request, *args, **kwargs):
+        # LoginRequiredMixin only checks in its own dispatch, which runs later
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         if not request.user.stripe_customer_id:
             mail_admins(
                 "User tried to delete card without stripe_customer_id",
@@ -555,6 +567,10 @@ class BillingResume(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
     def dispatch(self, request, *args, **kwargs):
+        # LoginRequiredMixin only checks in its own dispatch, which runs later
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         # redirect grandfathered users to dashboard
         if request.user.is_grandfathered:
             return redirect("dashboard")
@@ -658,6 +674,10 @@ class BillingResubscribe(LoginRequiredMixin, View):
         return redirect(self.success_url)
 
     def dispatch(self, request, *args, **kwargs):
+        # LoginRequiredMixin only checks in its own dispatch, which runs later
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         # redirect grandfathered users
         if request.user.is_grandfathered:
             return redirect("billing_overview")
