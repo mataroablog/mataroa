@@ -388,6 +388,97 @@ class BillingCardConfirmTestCase(TestCase):
         self.assertEqual(messages, [])
 
 
+class BillingCardDefaultTestCase(TestCase):
+    def setUp(self):
+        self.user = models.User.objects.create(
+            username="alice",
+            is_premium=True,
+            stripe_customer_id="cus_alice",
+            stripe_subscription_id="sub_alice",
+        )
+        self.client.force_login(self.user)
+        self.subscription = stripe.Subscription.construct_from(
+            {
+                "id": "sub_alice",
+                "status": "active",
+                "default_payment_method": "pm_old",
+            },
+            "sk_test",
+        )
+        self.enterContext(
+            patch.object(
+                billing,
+                "_get_payment_methods",
+                return_value={"pm_old": {}, "pm_new": {}},
+            )
+        )
+        self.retrieve = self.enterContext(
+            patch.object(
+                stripe.Subscription, "retrieve", return_value=self.subscription
+            )
+        )
+        self.modify_customer = self.enterContext(
+            patch.object(stripe.Customer, "modify")
+        )
+        self.modify_subscription = self.enterContext(
+            patch.object(stripe.Subscription, "modify")
+        )
+
+    def post_default(self, payment_method_id="pm_new"):
+        return self.client.post(
+            reverse("billing_card_default", args=[payment_method_id])
+        )
+
+    def test_updates_customer_and_subscription_default(self):
+        response = self.post_default()
+
+        self.assertRedirects(
+            response, reverse("billing_overview"), fetch_redirect_response=False
+        )
+        self.modify_customer.assert_called_once_with(
+            "cus_alice", invoice_settings={"default_payment_method": "pm_new"}
+        )
+        self.modify_subscription.assert_called_once_with(
+            "sub_alice", default_payment_method="pm_new"
+        )
+
+    def test_without_subscription_updates_customer_only(self):
+        self.user.stripe_subscription_id = None
+        self.user.save()
+
+        self.post_default()
+
+        self.modify_customer.assert_called_once()
+        self.retrieve.assert_not_called()
+        self.modify_subscription.assert_not_called()
+
+    def test_ended_subscription_is_not_modified(self):
+        for status in ("canceled", "incomplete_expired"):
+            with self.subTest(status=status):
+                self.subscription.status = status
+                self.post_default()
+        self.modify_subscription.assert_not_called()
+
+    def test_missing_subscription_is_not_modified(self):
+        self.retrieve.side_effect = stripe.InvalidRequestError(
+            "No such subscription", "id", code="resource_missing"
+        )
+        self.post_default()
+        self.modify_customer.assert_called_once()
+        self.modify_subscription.assert_not_called()
+
+    def test_subscription_update_failure_is_reported(self):
+        self.modify_subscription.side_effect = stripe.APIConnectionError("down")
+        response = self.post_default()
+        self.assertEqual(response.status_code, 503)
+
+    def test_card_of_another_customer_is_rejected(self):
+        response = self.post_default("pm_bob")
+        self.assertEqual(response.status_code, 400)
+        self.modify_customer.assert_not_called()
+        self.modify_subscription.assert_not_called()
+
+
 class BillingCancelSubscriptionTestCase(TestCase):
     """Test billing cancel subscription."""
 

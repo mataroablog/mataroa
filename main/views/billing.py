@@ -454,6 +454,28 @@ def billing_card_default(request, stripe_payment_method_id):
         logger.error(str(ex))
         return HttpResponse("Could not change default card.", status=503)
 
+    # A subscription's own default payment method takes precedence over the
+    # customer's, and subscriptions save the card they were first paid with.
+    # Update it too, so that renewals charge the card the user chose.
+    if request.user.stripe_subscription_id:
+        subscription = _get_stripe_subscription(request.user.stripe_subscription_id)
+        if subscription and subscription.get("status") not in {
+            "canceled",
+            "incomplete_expired",
+        }:
+            try:
+                stripe.Subscription.modify(
+                    subscription["id"],
+                    default_payment_method=stripe_payment_method_id,
+                )
+            except stripe.StripeError as ex:
+                logger.error(
+                    "Failed to set default card on subscription %s: %s",
+                    subscription["id"],
+                    str(ex),
+                )
+                return HttpResponse("Could not change default card.", status=503)
+
     messages.success(request, "default card updated")
     return redirect("billing_overview")
 
