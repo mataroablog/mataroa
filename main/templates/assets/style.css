@@ -235,13 +235,16 @@ td {
     padding: 4px;
 }
 
-pre {
+pre, code {
     background: var(--airy-grey-color);
+}
+
+pre {
     overflow-x: auto;
 }
 
-code {
-    background: var(--airy-grey-color);
+/* inline code */
+p code {
     padding: 2px;
 }
 
