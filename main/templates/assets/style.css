@@ -4,7 +4,7 @@
     font-size: 20px;
     {% endif %}
     font-family: sans-serif;
-    line-height: 1.5;
+    line-height: 1.6;
 
     color-scheme: light dark;
 
@@ -23,8 +23,9 @@
 
 @media (max-width: 34rem) {
     :root {
-        /* mobile base font size remains 16px whether zialucia on or off */
-        font-size: 16px;
+        {% if request.theme_zialucia %}
+        font-size: 17px;
+        {% endif %}
     }
 }
 
@@ -571,14 +572,12 @@ form .helptext {
 .posts-item-body p {
     {% if not request.theme_sansserif %}
     font-family: serif;
-    font-size: 1.1rem;
     {% endif %}
 }
 
 .posts-item-body li {
     {% if not request.theme_sansserif %}
     font-family: serif;
-    font-size: 1.1rem;
     {% endif %}
 }
 
@@ -637,14 +636,12 @@ form .helptext {
 .pages-item-body p {
     {% if not request.theme_sansserif %}
     font-family: serif;
-    font-size: 1.1rem;
     {% endif %}
 }
 
 .pages-item-body li {
     {% if not request.theme_sansserif %}
     font-family: serif;
-    font-size: 1.1rem;
     {% endif %}
 }
 
