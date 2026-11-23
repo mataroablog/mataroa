@@ -4,7 +4,7 @@
 
 {% block content %}
 <main>
-    <p><a href="{% url 'moderation_index' %}">Moderation</a> / {% if selection.campaign_key %}<a href="{% url 'moderation_campaigns' %}">Campaign review</a>{% else %}<a href="{% url 'moderation_gambling' %}">Gambling</a>{% endif %} / Deletion selection</p>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / {% if selection.campaign_key %}<a href="{% url 'moderation_campaigns' %}">Campaign review</a> / {% endif %}Deletion selection</p>
     <h1>{{ selection.title }}</h1>
     <p><strong>{{ selection.totals.blogs|intcomma }} blogs</strong> · {{ selection.totals.posts|intcomma }} posts · {{ selection.totals.pages|intcomma }} pages · {{ selection.totals.images|intcomma }} images · {{ selection.totals.comments|intcomma }} comments</p>
     {% if selection.totals.excluded_changed %}<p>{{ selection.totals.excluded_changed|intcomma }} changed accounts were excluded while preparing this selection.</p>{% endif %}

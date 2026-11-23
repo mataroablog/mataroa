@@ -1,0 +1,97 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — Bulk selection{% endblock %}
+
+{% block content %}
+<main>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Bulk selection</p>
+    <h1>Bulk selection</h1>
+    <p>Tick blogs while you review, then delete them together. Selections are kept while you change pages or filters in this tab. Shift-click a checkbox to tick or untick every row in between; “Up to here” ticks every row from the top of the page to that row, except rows you unticked yourself.</p>
+    <form method="get">
+        <p>
+            <label for="category">Category</label>
+            <select id="category" name="category">
+                <option value="all"{% if values.category == 'all' %} selected{% endif %}>All categories</option>
+                {% for key, label in categories %}<option value="{{ key }}"{% if values.category == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </p>
+        <p>
+            <label for="recommendation">Recommendation</label>
+            <select id="recommendation" name="recommendation">
+                <option value="all"{% if values.recommendation == 'all' %} selected{% endif %}>All recommendations</option>
+                {% for key, label in recommendations %}<option value="{{ key }}"{% if values.recommendation == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </p>
+        <p>
+            <label for="status">Review status</label>
+            <select id="status" name="status">
+                <option value="pending"{% if values.status == 'pending' %} selected{% endif %}>Not dismissed</option>
+                <option value="dismissed"{% if values.status == 'dismissed' %} selected{% endif %}>Dismissed</option>
+                <option value="all"{% if values.status == 'all' %} selected{% endif %}>All</option>
+            </select>
+        </p>
+        <p>
+            <label for="term">Brand or domain</label>
+            <input type="text" id="term" name="term" value="{{ values.term }}" maxlength="253">
+        </p>
+        <p>
+            <label for="joined_from">Joined from</label>
+            <input type="date" id="joined_from" name="joined_from" value="{{ values.joined_from }}">
+            <label for="joined_to">to</label>
+            <input type="date" id="joined_to" name="joined_to" value="{{ values.joined_to }}">
+        </p>
+        <p><label><input type="checkbox" name="active" value="1"{% if values.active %} checked{% endif %}> Posted in the last {{ active_days }} days</label></p>
+        <p><input type="submit" value="Filter"> <a href="{% url 'moderation_bulk' %}">Reset</a></p>
+    </form>
+    <p><strong>{{ page_obj.paginator.count|intcomma }} blog{{ page_obj.paginator.count|pluralize }}</strong> · {{ eligible|intcomma }} eligible for deletion · newest first</p>
+    <noscript><p>JavaScript is required to select blogs.</p></noscript>
+</main>
+
+<section class="moderation-content bulk-content">
+    {% include 'partials/moderation_bulk_pagination.html' %}
+    <table class="bulk-table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="bulk-page-all" aria-label="Select every blog on this page"></th>
+                <th>Blog</th>
+                <th>Joined</th>
+                <th>Posts</th>
+                <th>Categories</th>
+                <th>Top destination</th>
+                <th>Recommendation</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr data-owner="{{ row.owner_id }}">
+                <td>{% if row.protection %}<span title="{{ row.protection }}">—</span>{% else %}<input type="checkbox" class="bulk-select" value="{{ row.owner_id }}" aria-label="Select {{ row.username }}">{% endif %}</td>
+                <td><a href="{% url 'moderation_post_inspect' row.owner_id %}" target="_blank" rel="noopener">{{ row.username }}</a> <a href="{{ row.blog_url }}" target="_blank" rel="noopener noreferrer">↗</a></td>
+                <td>{{ row.joined|date:'Y-m-d' }}</td>
+                <td>{{ row.posts|intcomma }}{% if row.pages %} + {{ row.pages|intcomma }}p{% endif %}</td>
+                <td class="bulk-wrap">{{ row.categories|join:', ' }}</td>
+                <td>{{ row.domain }}{% if row.domain_count > 1 %} +{{ row.domain_count|add:'-1' }}{% endif %}</td>
+                <td>{{ row.recommendation }}{% if row.protection %} ({{ row.protection }}){% endif %}{% if row.dismissed %} · Dismissed{% endif %}</td>
+                <td><button type="button" class="bulk-upto">Up to here</button></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">No blogs match these filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% include 'partials/moderation_bulk_pagination.html' %}
+</section>
+
+<form id="bulk-form" class="bulk-bar" method="post" action="{% url 'moderation_bulk_prepare' %}">
+    {% csrf_token %}
+    <input type="hidden" name="ids" id="bulk-ids" value="">
+    {% for name, value in values.items %}{% if name == 'active' %}{% if value %}<input type="hidden" name="active" value="1">{% endif %}{% else %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}{% endfor %}
+    <span id="bulk-count" role="status">0 selected</span>
+    <button type="submit" name="scope" value="selected" id="bulk-submit" disabled>Review selected for deletion</button>
+    <button type="button" id="bulk-clear">Clear selection</button>
+    {% if eligible %}<button type="submit" name="scope" value="matching">Review all {{ eligible|intcomma }} matching for deletion</button>{% endif %}
+</form>
+{% endblock content %}
+
+{% block scripts %}{% include 'partials/moderation_bulk_select_script.html' %}{% endblock %}

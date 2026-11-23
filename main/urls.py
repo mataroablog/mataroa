@@ -9,6 +9,7 @@ from main.views import (
     export,
     general,
     moderation,
+    moderation_bulk,
     moderation_campaigns,
     moderation_gambling,
     moderation_inbox,
@@ -67,6 +68,12 @@ urlpatterns += [
 urlpatterns += [
     path("moderation/index/", moderation.index, name="moderation_index"),
     path("moderation/gambling/", moderation_gambling.index, name="moderation_gambling"),
+    path("moderation/bulk/", moderation_bulk.index, name="moderation_bulk"),
+    path(
+        "moderation/bulk/prepare/",
+        moderation_bulk.prepare,
+        name="moderation_bulk_prepare",
+    ),
     path(
         "moderation/gambling/prepare/",
         moderation_gambling.prepare,

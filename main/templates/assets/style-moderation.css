@@ -318,3 +318,52 @@ button {
         padding: 12px;
     }
 }
+
+/* bulk selection */
+.bulk-content {
+    padding: 0 8px;
+}
+
+.bulk-table th,
+.bulk-table td {
+    max-width: none;
+    padding: 4px 8px;
+    text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.bulk-table td.bulk-wrap {
+    white-space: normal;
+    min-width: 160px;
+}
+
+.bulk-table tr.bulk-selected {
+    background: rgba(17, 117, 226, 0.18);
+}
+
+.bulk-bar {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    padding: 12px 16px;
+    background: white;
+    border-top: 1px solid var(--light-grey-color);
+}
+@media (prefers-color-scheme: dark) {
+    .bulk-bar {
+        background: var(--dark-mode-color);
+    }
+}
+
+.bulk-bar button {
+    padding: 6px 12px;
+}
+
+.bulk-bar button:disabled {
+    cursor: default;
+    opacity: 0.5;
+}

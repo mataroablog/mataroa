@@ -192,10 +192,10 @@ class GamblingOverviewTest(TestCase):
             models.User.objects.filter(pk__in=[u.pk for u in self.mostbet]).count(), 3
         )
 
-    def test_campaign_breadcrumb_unchanged_for_campaign_selections(self):
+    def test_selection_breadcrumb_without_campaign(self):
         selection, _ = self.prepare()
         page = self.client.get(
             reverse("moderation_campaign_selection", args=[selection.pk])
         )
-        self.assertContains(page, reverse("moderation_gambling"))
+        self.assertContains(page, reverse("moderation_index"))
         self.assertNotContains(page, reverse("moderation_campaigns") + '">')

@@ -756,6 +756,14 @@ matching destinations and can prepare one deletion selection for all unprotected
 matches, confirmed and processed like a campaign selection. Each account's protection,
 content and classification are checked again before it is deleted.
 
+Bulk selection at `/moderation/bulk/` lists 500 blogs per page, newest first, with
+filters for category, recommendation, review status, brand or domain, join date and
+recent posting. Tick rows while reviewing: shift-click ticks or unticks a range, and
+“Up to here” ticks every row above except ones unticked by hand. Selections persist
+across pages and filters in the browser tab. Reviewing the selection, or every match
+of the filters, prepares a deletion selection confirmed and processed like a campaign
+selection. Protected accounts cannot be selected.
+
 Triggers every six hours at 00:00, 06:00, 12:00, and 18:00 server time,
 with up to five minutes of randomized delay.
 

@@ -1,0 +1,101 @@
+<script>
+    (() => {
+        // Selected owner IDs persist across pages and filters for this tab only.
+        // "Kept" IDs were unticked by hand; "Up to here" never re-ticks them.
+        const KEY = 'moderation-bulk-selection';
+        const KEPT_KEY = 'moderation-bulk-kept';
+        const load = (key) => {
+            try {
+                const value = JSON.parse(sessionStorage.getItem(key) || '[]');
+                return new Set(Array.isArray(value) ? value : []);
+            } catch (error) {
+                return new Set();
+            }
+        };
+        const selected = load(KEY);
+        const kept = load(KEPT_KEY);
+        const save = () => {
+            try {
+                sessionStorage.setItem(KEY, JSON.stringify([...selected]));
+                sessionStorage.setItem(KEPT_KEY, JSON.stringify([...kept]));
+            } catch (error) {}
+        };
+        const rows = [...document.querySelectorAll('tr[data-owner]')];
+        const boxes = [...document.querySelectorAll('input.bulk-select')];
+        const pageAll = document.getElementById('bulk-page-all');
+        const count = document.getElementById('bulk-count');
+        const ids = document.getElementById('bulk-ids');
+        const submit = document.getElementById('bulk-submit');
+        let last = null;
+
+        const set = (box, checked) => {
+            box.checked = checked;
+            if (checked) selected.add(box.value); else selected.delete(box.value);
+            box.closest('tr').classList.toggle('bulk-selected', checked);
+        };
+        // A deliberate tick or untick, as opposed to "Up to here".
+        const choose = (box, checked) => {
+            set(box, checked);
+            if (checked) kept.delete(box.value); else kept.add(box.value);
+        };
+        const render = () => {
+            const onPage = boxes.filter((box) => box.checked).length;
+            count.textContent = `${selected.size} selected (${onPage} on this page)`;
+            submit.disabled = selected.size === 0;
+            submit.textContent = selected.size ? `Review ${selected.size} selected for deletion` : 'Review selected for deletion';
+            ids.value = [...selected].join(',');
+            pageAll.checked = boxes.length > 0 && onPage === boxes.length;
+            pageAll.indeterminate = onPage > 0 && onPage < boxes.length;
+        };
+        const changed = () => { save(); render(); };
+
+        boxes.forEach((box) => set(box, selected.has(box.value)));
+        boxes.forEach((box, index) => {
+            box.addEventListener('click', (event) => {
+                // The click has already toggled the box; apply its new state to the range.
+                if (event.shiftKey && last !== null) {
+                    const [from, to] = [Math.min(last, index), Math.max(last, index)];
+                    for (let i = from; i <= to; i++) choose(boxes[i], box.checked);
+                } else {
+                    choose(box, box.checked);
+                }
+                last = index;
+                changed();
+            });
+        });
+        document.querySelectorAll('.bulk-upto').forEach((button) => {
+            button.addEventListener('click', () => {
+                const end = rows.indexOf(button.closest('tr'));
+                rows.slice(0, end + 1).forEach((row) => {
+                    const box = row.querySelector('input.bulk-select');
+                    if (box && !kept.has(box.value)) set(box, true);
+                });
+                const lastBox = rows[end].querySelector('input.bulk-select');
+                if (lastBox) last = boxes.indexOf(lastBox);
+                changed();
+            });
+        });
+        pageAll.addEventListener('change', () => {
+            boxes.forEach((box) => choose(box, pageAll.checked));
+            changed();
+        });
+        document.getElementById('bulk-clear').addEventListener('click', () => {
+            selected.clear();
+            kept.clear();
+            boxes.forEach((box) => set(box, false));
+            last = null;
+            changed();
+        });
+        document.getElementById('bulk-form').addEventListener('submit', (event) => {
+            const scope = event.submitter ? event.submitter.value : 'selected';
+            if (scope !== 'selected') return;
+            if (!selected.size) { event.preventDefault(); return; }
+            // The selection moves to the deletion page; start fresh afterwards.
+            try {
+                sessionStorage.removeItem(KEY);
+                sessionStorage.removeItem(KEPT_KEY);
+            } catch (error) {}
+        });
+        render();
+    })();
+</script>
