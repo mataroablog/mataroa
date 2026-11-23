@@ -29,9 +29,9 @@
     <form method="get" action="#matching">
         <p>
             <label for="term">Brand or domain</label>
-            <input type="text" id="term" name="term" value="{{ raw_term }}" minlength="{{ min_term_length }}" maxlength="253" placeholder="mostbet">
-            <input type="submit" value="Find">
+            <input type="text" id="term" name="term" value="{{ raw_term }}" minlength="{{ min_term_length }}" maxlength="253">
         </p>
+        <p><input type="submit" value="Find"></p>
     </form>
     {% if raw_term and not term %}<p>Use at least {{ min_term_length }} characters: letters, digits, dots or hyphens.</p>{% endif %}
     {% if term %}
