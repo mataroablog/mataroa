@@ -1,0 +1,165 @@
+{% extends 'main/layout.html' %}
+{% load humanize %}
+
+{% block title %}Moderation — Gambling{% endblock %}
+
+{% block content %}
+<main>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / Gambling</p>
+    <h1>Gambling overview</h1>
+    <p>Blogs labelled “Gambling promotion” by the classifier: gambling terms together with offers and outbound links. Labels are review aids, not verdicts. Dismissed blogs are excluded unless stated.</p>
+    {% if scan.completed_at %}<p class="helptext">Last scan completed {{ scan.completed_at|date:'Y-m-d H:i' }}; {{ scan.checked|intcomma }} blogs checked.</p>
+    {% elif scan.started_at %}<p class="helptext">Scan in progress: {{ scan.checked|intcomma }} blogs checked so far.</p>{% endif %}
+    {% if outdated %}<p class="helptext">{{ outdated|intcomma }} older findings await reclassification and are excluded.</p>{% endif %}
+
+    <h2>Summary</h2>
+    <ul>
+        <li><strong>{{ summary.total|intcomma }}</strong> gambling blogs · {{ summary.posts|intcomma }} posts</li>
+        <li>{{ summary.eligible|intcomma }} eligible for deletion · {{ summary.protected|intcomma }} protected</li>
+        <li>{{ summary.in_strong_campaign|intcomma }} in a strong campaign</li>
+        <li>{{ summary.dismissed|intcomma }} dismissed</li>
+        {% for label, key, count in summary.recommendations %}
+        <li><a href="{% url 'moderation_spam' %}?category=gambling&amp;recommendation={{ key }}">{{ label }}</a>: {{ count|intcomma }}</li>
+        {% endfor %}
+    </ul>
+    <p><a href="{% url 'moderation_spam' %}?category=gambling">Review individual blogs in the classification queue</a></p>
+
+    <h2 id="matching">Brand or domain</h2>
+    <p>Find gambling blogs linking any destination containing a brand or domain fragment. Shared hosts such as telegra.ph are ignored.</p>
+    <form method="get" action="#matching">
+        <p>
+            <label for="term">Brand or domain</label>
+            <input type="text" id="term" name="term" value="{{ raw_term }}" minlength="{{ min_term_length }}" maxlength="253" placeholder="mostbet">
+            <input type="submit" value="Find">
+        </p>
+    </form>
+    {% if raw_term and not term %}<p>Use at least {{ min_term_length }} characters: letters, digits, dots or hyphens.</p>{% endif %}
+    {% if term %}
+    <p><strong>{{ term_total|intcomma }} blog{{ term_total|pluralize }}</strong> link{{ term_total|pluralize:'s,' }} {{ term_domains|length|intcomma }} domain{{ term_domains|length|pluralize }} containing “{{ term }}” · {{ term_eligible|intcomma }} eligible for deletion</p>
+    {% if term_domains %}
+    <details>
+        <summary>Matched domains</summary>
+        <ul>{% for row in term_domains %}<li>{{ row.key }} — {{ row.blogs|intcomma }}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% if term_eligible %}
+    <form method="post" action="{% url 'moderation_gambling_prepare' %}">
+        {% csrf_token %}
+        <input type="hidden" name="term" value="{{ term }}">
+        <p><button type="submit">Review {{ term_eligible|intcomma }} blogs for deletion</button></p>
+        <p class="helptext">This prepares a fixed selection; nothing is deleted until you confirm it on the next page. Protected accounts are excluded and every account is checked again before deletion.</p>
+    </form>
+    {% endif %}
+    {% if term_page %}
+    <table>
+        <thead><tr><th>Blog</th><th>Joined</th><th>Posts</th><th>Recommendation</th></tr></thead>
+        <tbody>
+            {% for finding in term_page %}
+            <tr>
+                <td><a href="{% url 'moderation_post_inspect' finding.owner_id %}">{{ finding.owner.username }}</a> (<a href="{{ finding.owner.blog_absolute_url }}" target="_blank" rel="noopener noreferrer">blog</a>){% if finding.owner.moderation_protection %} · Protected{% endif %}</td>
+                <td>{{ finding.owner.date_joined|date:'Y-m-d' }}</td>
+                <td>{{ finding.evidence.posts|default:0|intcomma }}</td>
+                <td>{% if finding.campaign_strong %}In campaign{% else %}Needs review{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if term_page.has_other_pages %}
+    <p>
+        {% if term_page.has_previous %}<a href="?term={{ term|urlencode }}&amp;page={{ term_page.previous_page_number }}#matching">Previous</a>{% endif %}
+        Page {{ term_page.number }} of {{ term_page.paginator.num_pages }}
+        {% if term_page.has_next %}<a href="?term={{ term|urlencode }}&amp;page={{ term_page.next_page_number }}#matching">Next</a>{% endif %}
+    </p>
+    {% endif %}
+    {% endif %}
+    {% endif %}
+
+    <h2>Brands</h2>
+    <p class="helptext">Destination domains grouped by an approximate brand name (mostbet-deu-de.com → mostbet). A blog linking several domains of one brand counts once.</p>
+    <table>
+        <thead><tr><th>Brand</th><th>Blogs</th><th>Domains</th><th>Top domains</th></tr></thead>
+        <tbody>
+            {% for row in destinations.brands|slice:':30' %}
+            <tr><td><a href="?term={{ row.brand|urlencode }}#matching">{{ row.brand }}</a></td><td>{{ row.blogs|intcomma }}</td><td>{{ row.domain_count|intcomma }}</td><td>{{ row.domains|join:', ' }}</td></tr>
+            {% empty %}
+            <tr><td colspan="4">No destinations.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Top destination domains</h2>
+    <table>
+        <thead><tr><th>Domain</th><th>Blogs</th></tr></thead>
+        <tbody>
+            {% for row in destinations.domains|slice:':30' %}
+            <tr><td><a href="?term={{ row.domain|urlencode }}#matching">{{ row.domain }}</a></td><td>{{ row.blogs|intcomma }}</td></tr>
+            {% empty %}
+            <tr><td colspan="2">No destinations.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if destinations.shared %}
+    <h2>Shared hosts</h2>
+    <p class="helptext">Publishing and social hosts used as hops. They do not identify a campaign.</p>
+    <table>
+        <thead><tr><th>Host</th><th>Blogs</th></tr></thead>
+        <tbody>
+            {% for row in destinations.shared|slice:':10' %}
+            <tr><td>{{ row.domain }}</td><td>{{ row.blogs|intcomma }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>Signups by month</h2>
+    <table>
+        <thead><tr><th>Month</th><th>Gambling blogs created</th></tr></thead>
+        <tbody>
+            {% for row in signups %}
+            <tr><td>{{ row.month|date:'Y-m' }}</td><td>{{ row.blogs|intcomma }}</td></tr>
+            {% empty %}
+            <tr><td colspan="2">None.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Campaigns</h2>
+    <table>
+        <thead><tr><th>Campaign</th><th>Blogs</th><th>Strong</th></tr></thead>
+        <tbody>
+            {% for group in campaigns %}
+            <tr><td><a href="{% url 'moderation_campaign' group.campaign_key %}">{{ group.title }}</a></td><td>{{ group.blogs|intcomma }}</td><td>{{ group.strong|intcomma }}{% if not group.actionable %} (too few for group deletion){% endif %}</td></tr>
+            {% empty %}
+            <tr><td colspan="3">No campaigns.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Still posting</h2>
+    <p>{{ still_posting.blogs|intcomma }} blogs published {{ still_posting.posts|intcomma }} posts in the last {{ still_posting.days }} days.</p>
+    <table>
+        <thead><tr><th>Blog</th><th>Posts</th><th>Latest</th></tr></thead>
+        <tbody>
+            {% for row in still_posting.rows %}
+            <tr><td><a href="{% url 'moderation_post_inspect' row.owner_id %}">{{ row.owner__username }}</a></td><td>{{ row.posts|intcomma }}</td><td>{{ row.latest|date:'Y-m-d H:i' }}</td></tr>
+            {% empty %}
+            <tr><td colspan="3">None.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Most viewed</h2>
+    <p class="helptext">Post and page views recorded by mataroa analytics in the last {{ most_viewed.days }} days.</p>
+    <table>
+        <thead><tr><th>Blog</th><th>Views</th><th>Post views</th><th>Page views</th></tr></thead>
+        <tbody>
+            {% for row in most_viewed.rows %}
+            <tr><td><a href="{% url 'moderation_post_inspect' row.owner_id %}">{{ row.username }}</a></td><td>{{ row.views|intcomma }}</td><td>{{ row.post_views|intcomma }}</td><td>{{ row.page_views|intcomma }}</td></tr>
+            {% empty %}
+            <tr><td colspan="4">None.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</main>
+{% endblock content %}

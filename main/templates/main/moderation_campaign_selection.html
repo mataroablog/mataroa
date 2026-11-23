@@ -1,19 +1,19 @@
 {% extends 'main/layout.html' %}
 {% load humanize %}
-{% block title %}Moderation — Confirm campaign deletion{% endblock %}
+{% block title %}Moderation — Confirm deletion{% endblock %}
 
 {% block content %}
 <main>
-    <p><a href="{% url 'moderation_campaigns' %}">Campaign review</a> / Deletion selection</p>
+    <p><a href="{% url 'moderation_index' %}">Moderation</a> / {% if selection.campaign_key %}<a href="{% url 'moderation_campaigns' %}">Campaign review</a>{% else %}<a href="{% url 'moderation_gambling' %}">Gambling</a>{% endif %} / Deletion selection</p>
     <h1>{{ selection.title }}</h1>
     <p><strong>{{ selection.totals.blogs|intcomma }} blogs</strong> · {{ selection.totals.posts|intcomma }} posts · {{ selection.totals.pages|intcomma }} pages · {{ selection.totals.images|intcomma }} images · {{ selection.totals.comments|intcomma }} comments</p>
     {% if selection.totals.excluded_changed %}<p>{{ selection.totals.excluded_changed|intcomma }} changed accounts were excluded while preparing this selection.</p>{% endif %}
-    <p>The selection is fixed. New members of the campaign will not be added. Protection and content are checked again before each deletion; changed accounts are skipped.</p>
+    <p>The selection is fixed. Blogs that match later will not be added. Protection and content are checked again before each deletion; changed accounts are skipped.</p>
     <p>Deletion is permanent. Keep this page open to process the selection; you can pause and resume from this saved page. Confirmation expires after one hour; confirmed selections can run for up to 24 hours.</p>
     <p id="campaign-progress" role="status">{{ progress.deleted|intcomma }} deleted · {{ progress.skipped|intcomma }} skipped · {{ progress.remaining|intcomma }} remaining</p>
     {% if selection.finished_at %}<p>Finished.</p>
     {% elif selection.cancelled_at %}<p>Cancelled. No remaining accounts will be deleted.</p>
-    {% elif expired %}<p>This selection has expired or the classification rules changed. Return to campaign review to prepare a new selection.</p>
+    {% elif expired %}<p>This selection has expired or the classification rules changed. Prepare a new selection to continue.</p>
     {% else %}
     <form id="campaign-run" method="post" action="{% url 'moderation_campaign_action' selection.pk %}" data-confirmed="{{ selection.confirmed_at|yesno:'true,false' }}" data-count="{{ selection.totals.blogs }}">
         {% csrf_token %}

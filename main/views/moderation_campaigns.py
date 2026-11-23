@@ -184,20 +184,31 @@ def prepare(request, key):
             status=409,
         )
     candidates = eligible(members)
-    ids = list(candidates.order_by("owner_id").values_list("owner_id", flat=True))
-    if not ids:
+    if not candidates.exists():
         return HttpResponse(
             "No unprotected strong candidates in this group.", status=409
         )
+    first = candidates.first()
+    return create_selection(
+        request.user, first.evidence["campaign"]["title"], candidates, campaign_key=key
+    )
+
+
+def create_selection(reviewer, title, candidates, campaign_key=""):
+    """Freeze the candidates' owner IDs into a selection awaiting confirmation.
+
+    Without a campaign_key, deletion still re-checks protection, content and the
+    classification (categories and dismissal) captured here.
+    """
+    ids = list(candidates.order_by("owner_id").values_list("owner_id", flat=True))
+    if not ids:
+        return HttpResponse("No eligible accounts. Review again.", status=409)
     # Freeze IDs first. Later additions to the group cannot enter this selection.
     with transaction.atomic():
-        first = candidates.first()
-        if not first:
-            return HttpResponse("The group changed. Review it again.", status=409)
         selection = models.ModerationDeletionSelection.objects.create(
-            reviewer=request.user,
-            title=first.evidence["campaign"]["title"],
-            campaign_key=key,
+            reviewer=reviewer,
+            title=title[:350],
+            campaign_key=campaign_key,
             rule_version=scanner.VERSION,
         )
         totals = dict.fromkeys(
@@ -205,12 +216,7 @@ def prepare(request, key):
         )
         for offset in range(0, len(ids), 100):
             owner_ids = ids[offset : offset + 100]
-            current = {
-                f.owner_id: f
-                for f in eligible(
-                    findings().filter(campaign_key=key, owner_id__in=owner_ids)
-                )
-            }
+            current = {f.owner_id: f for f in candidates.filter(owner_id__in=owner_ids)}
             owners = list(scanner.owner_queryset().filter(pk__in=current))
             stats = scanner.metadata(owners)
             counts = deletion.counts(owners, stats)
@@ -227,7 +233,7 @@ def prepare(request, key):
                         owner_id_snapshot=owner.pk,
                         username=owner.username,
                         snapshot=deletion.snapshot(
-                            request.user, owner, finding, counts[owner.pk]
+                            reviewer, owner, finding, counts[owner.pk]
                         ),
                     )
                 )

@@ -748,6 +748,14 @@ or pause/resume via the saved selection. Progress is saved, new members are neve
 added, and protected or changed accounts are skipped. Unconfirmed selections expire
 after one hour; confirmed selections expire after 24 hours. Rules never delete blogs.
 
+The gambling overview at `/moderation/gambling/` summarizes blogs labelled gambling:
+recommendations, signups by month, destination brands and domains (shared hosts listed
+separately), campaigns, blogs still posting and the most viewed. Searching a brand or
+domain fragment (at least four characters, e.g. `mostbet`) lists gambling blogs linking
+matching destinations and can prepare one deletion selection for all unprotected
+matches, confirmed and processed like a campaign selection. Each account's protection,
+content and classification are checked again before it is deleted.
+
 Triggers every six hours at 00:00, 06:00, 12:00, and 18:00 server time,
 with up to five minutes of randomized delay.
 
