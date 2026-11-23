@@ -164,15 +164,22 @@ def summary(qs):
         .exclude(campaign_key="")
         .count(),
         "posts": models.Post.objects.filter(owner__in=qs.values("owner_id")).count(),
-        "recommendations": [
-            (
-                moderation_campaigns.RECOMMENDATIONS[key],
-                key,
-                qs.filter(pk__in=members.values("pk")).count(),
-            )
-            for key, members in moderation_campaigns.recommendation_sets().items()
-        ],
+        "recommendations": recommendations(qs),
     }
+
+
+def recommendations(qs):
+    # Intersect as ID sets: nesting recommendation_sets() querysets inside a
+    # filter makes Postgres plan the strong-campaign subquery very slowly.
+    ids = set(qs.values_list("pk", flat=True))
+    return [
+        (
+            moderation_campaigns.RECOMMENDATIONS[key],
+            key,
+            len(ids & set(members.values_list("pk", flat=True))),
+        )
+        for key, members in moderation_campaigns.recommendation_sets().items()
+    ]
 
 
 def signups(qs, months=24):
@@ -221,32 +228,39 @@ def still_posting(qs, days=7, limit=25):
     }
 
 
-def most_viewed(qs, days=30, limit=25):
+def most_viewed(qs, days=7, limit=25):
+    # Analytics tables are large; filter them by explicit ID lists so Postgres
+    # uses the post/user indexes instead of scanning every recent view.
     since = timezone.now() - timedelta(days=days)
-    owners = qs.values("owner_id")
-    views = defaultdict(lambda: {"username": "", "post_views": 0, "page_views": 0})
+    owner_ids = list(qs.values_list("owner_id", flat=True))
+    post_ids = list(
+        models.Post.objects.filter(owner_id__in=owner_ids).values_list("pk", flat=True)
+    )
+    views = defaultdict(lambda: {"post_views": 0, "page_views": 0})
     for row in (
-        models.AnalyticPost.objects.filter(
-            created_at__gte=since, post__owner__in=owners
-        )
-        .values("post__owner_id", "post__owner__username")
+        models.AnalyticPost.objects.filter(created_at__gte=since, post_id__in=post_ids)
+        .values("post__owner_id")
         .annotate(n=Count("pk"))
         .order_by("-n")[: limit * 4]
     ):
-        entry = views[row["post__owner_id"]]
-        entry["username"] = row["post__owner__username"]
-        entry["post_views"] = row["n"]
+        views[row["post__owner_id"]]["post_views"] = row["n"]
     for row in (
-        models.AnalyticPage.objects.filter(created_at__gte=since, user__in=owners)
-        .values("user_id", "user__username")
+        models.AnalyticPage.objects.filter(created_at__gte=since, user_id__in=owner_ids)
+        .values("user_id")
         .annotate(n=Count("pk"))
         .order_by("-n")[: limit * 4]
     ):
-        entry = views[row["user_id"]]
-        entry["username"] = row["user__username"]
-        entry["page_views"] = row["n"]
+        views[row["user_id"]]["page_views"] = row["n"]
+    usernames = dict(
+        models.User.objects.filter(pk__in=list(views)).values_list("pk", "username")
+    )
     rows = [
-        {"owner_id": owner_id, "views": e["post_views"] + e["page_views"], **e}
+        {
+            "owner_id": owner_id,
+            "username": usernames.get(owner_id, ""),
+            "views": e["post_views"] + e["page_views"],
+            **e,
+        }
         for owner_id, e in views.items()
     ]
     rows.sort(key=lambda row: (-row["views"], row["username"]))
